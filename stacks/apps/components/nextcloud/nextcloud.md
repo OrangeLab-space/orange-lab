@@ -43,6 +43,23 @@ Log in as `admin` and create a new user at:
 
 `https://nextcloud.<domain>/settings/admin`
 
+## Email (SMTP)
+
+Nextcloud can send notifications and password-reset emails through an external SMTP server.
+
+```sh
+pulumi config set nextcloud:smtp/enabled true
+pulumi config set nextcloud:smtp/host smtp.example.com
+pulumi config set nextcloud:smtp/port 587
+pulumi config set nextcloud:smtp/secure tls
+pulumi config set nextcloud:smtp/from noreply@example.com
+pulumi config set nextcloud:smtp/username your-smtp-username
+pulumi config set nextcloud:smtp/password your-smtp-password --secret
+pulumi up
+```
+
+`smtp/from` must be a plain address — it is split into the local part (`mail_from_address`) and domain (`mail_domain`). Use `secure: tls` for STARTTLS on port `587`, or `secure: ssl` for implicit TLS on port `465`.
+
 ## OAuth Authentication (Pocket ID)
 
 Requires [Pocket ID](../../../../components/security/pocket/pocket.md) deployed in the core stack with `pocket:apiKey` configured.

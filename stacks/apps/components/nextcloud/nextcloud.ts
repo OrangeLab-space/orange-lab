@@ -24,26 +24,29 @@ export class Nextcloud extends pulumi.ComponentResource {
         const redisConfig = this.app.databases?.getConfig('redis');
         if (!redisConfig) throw new Error('Redis not found');
         const adminPassword = config.requireSecret(appName, 'adminPassword');
-        const adminSecret = this.createAdminSecret(adminPassword);
+        const smtpEnabled = config.requireBoolean(appName, 'smtp/enabled');
+        const appSecret = this.createSecret(adminPassword, smtpEnabled);
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
         const auth = this.app.auth.getOidc();
         this.users = { admin: adminPassword };
         this.createHelmChart({
             httpEndpointInfo,
-            adminSecret,
+            appSecret,
             dbConfig: this.dbConfig,
             redisConfig,
             auth,
+            smtpEnabled,
         });
         this.serviceUrl = httpEndpointInfo.url;
     }
 
     private createHelmChart(args: {
         httpEndpointInfo: HttpEndpointInfo;
-        adminSecret: k8s.core.v1.Secret;
+        appSecret: k8s.core.v1.Secret;
         dbConfig: DatabaseConfig;
         redisConfig: DatabaseConfig;
         auth: OidcAuthConfig | undefined;
+        smtpEnabled: boolean;
     }) {
         const waitForDb = this.app.databases?.getWaitContainer();
         const waitForRedis = this.app.databases?.getWaitContainer(args.redisConfig);
@@ -98,10 +101,11 @@ export class Nextcloud extends pulumi.ComponentResource {
                         ...(args.auth ? { hooks: { 'before-starting': this.getOidcHook() } } : {}),
                         existingSecret: {
                             enabled: true,
-                            secretName: args.adminSecret.metadata.name,
+                            secretName: args.appSecret.metadata.name,
                             usernameKey: 'username',
                             passwordKey: 'password',
                         },
+                        mail: this.getMailConfig(args.smtpEnabled),
                         trustedDomains: [args.httpEndpointInfo.hostname],
                     },
                     persistence: {
@@ -147,6 +151,24 @@ $CONFIG = array (
 );`,
                   }
                 : {}),
+        };
+    }
+
+    private getMailConfig(enabled: boolean) {
+        if (!enabled) return { enabled: false };
+
+        const [fromAddress, domain] = config
+            .require(this.appName, 'smtp/from')
+            .split('@');
+        return {
+            enabled: true,
+            fromAddress,
+            domain,
+            smtp: {
+                authtype: 'LOGIN',
+                port: config.requireNumber(this.appName, 'smtp/port'),
+                secure: config.require(this.appName, 'smtp/secure'),
+            },
         };
     }
 
@@ -231,14 +253,24 @@ $CONFIG = array (
         );
     }
 
-    private createAdminSecret(password: pulumi.Input<string>) {
+    private createSecret(password: pulumi.Input<string>, smtpEnabled: boolean) {
         return new k8s.core.v1.Secret(
-            `${this.appName}-admin-secret`,
+            `${this.appName}-secret`,
             {
                 metadata: { namespace: this.app.metadata.namespace },
                 stringData: {
                     username: 'admin',
                     password,
+                    ...(smtpEnabled
+                        ? {
+                              'smtp-host': config.require(this.appName, 'smtp/host'),
+                              'smtp-username': config.require(this.appName, 'smtp/username'),
+                              'smtp-password': config.requireSecret(
+                                  this.appName,
+                                  'smtp/password',
+                              ),
+                          }
+                        : {}),
                 },
             },
             { parent: this },

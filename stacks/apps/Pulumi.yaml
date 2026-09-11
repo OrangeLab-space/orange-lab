@@ -34,6 +34,14 @@ config:
     nextcloud:db/storageSize: 5Gi
     nextcloud:trustedProxies: '10.42.0.0/16,10.43.0.0/16,127.0.0.0/8'
     nextcloud:groupProvisioningWhitelist: '^nextcloud-.*$'
+    nextcloud:smtp/enabled: false
+    # nextcloud:smtp/host: smtp.example.com
+    # nextcloud:smtp/from: noreply@example.com
+    # nextcloud:smtp/username: user
+    # nextcloud:smtp/password:
+    #   secure: <SMTP_PASSWORD>
+    nextcloud:smtp/port: 587
+    nextcloud:smtp/secure: tls
     # nextcloud:auth: pocket
     # nextcloud:auth/clientId: <client-id>
     # nextcloud:auth/clientSecret:
