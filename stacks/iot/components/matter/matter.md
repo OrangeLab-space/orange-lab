@@ -59,31 +59,27 @@ automatically:
 
 The device appears under **Nodes** once commissioned.
 
-## SSO (Pocket ID)
+## Pocket ID Launcher
 
-The Matter dashboard has no built-in authentication, so its route is protected
-by the shared Traefik OIDC middleware (requires the `traefik` routing provider
-and Pocket ID in the core stack, see [Pocket ID](../../../../components/security/pocket/pocket.md)):
+The Matter dashboard has no built-in authentication, but it can appear in Pocket
+ID's App Dashboard as a launcher icon:
 
 ```sh
+# From stacks/iot
 MATTER_URL=$(pulumi stack output --json | jq -er '.endpoints.matterDashboard')
 
 ../../scripts/pocket-client.sh \
   --app-name matter \
   --client-name "Matter Server" \
   --launch-url "$MATTER_URL" \
-  --callback-url "$MATTER_URL/oidc/callback" \
-  --logout-callback-url "$MATTER_URL/oidc/callback" \
-  --pkce-enabled false \
+  --callback-url "$MATTER_URL/" \
   --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/matter.svg \
   --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/matter-light.svg
-
-# Configure the OIDC client
-pulumi config set matter:auth pocket
-pulumi config set matter:auth/clientId <client-id>
-pulumi config set matter:auth/clientSecret <client-secret> --secret
-pulumi up
 ```
 
-Restrict the client to the Pocket ID groups that should manage Matter under
-**Settings → OIDC Clients** in Pocket ID.
+Do not apply the `matter:auth` commands printed by the script; Matter uses the
+client only as a Pocket ID launcher.
+
+> [!WARNING]
+> The Matter dashboard is not protected by Pocket ID - anyone who can reach its
+> URL can manage devices.

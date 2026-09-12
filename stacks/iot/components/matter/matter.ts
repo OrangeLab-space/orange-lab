@@ -12,9 +12,7 @@ export class MatterServer extends pulumi.ComponentResource {
         const bluetoothAdapter = config.getNumber(name, 'bluetoothAdapter') ?? 0;
         const bluetoothEnabled = bluetoothAdapter >= 0;
         const primaryInterface = config.get(name, 'primaryInterface');
-        const app = new Application(this, name, {
-            oidc: { protectRoutes: true },
-        }).addStorage();
+        const app = new Application(this, name).addStorage();
 
         if (app.storageOnly) return;
 
