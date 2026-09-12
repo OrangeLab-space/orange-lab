@@ -2,9 +2,14 @@ import * as pulumi from '@pulumi/pulumi';
 
 import { RpcUser } from './rpc-user';
 
-function createRpc(rpcUsers: Record<string, RpcUser>): pulumi.Output<string> {
-    const authLines = Object.values(rpcUsers).map(
-        user => pulumi.interpolate`${user.rpcAuth}`,
+function createRpc(
+    rpcUsers: Record<string, RpcUser>,
+    useRpcAuthFile: boolean,
+): pulumi.Output<string> {
+    const authLines = Object.values(rpcUsers).map(user =>
+        useRpcAuthFile
+            ? pulumi.interpolate`${user.rpcAuth}`
+            : pulumi.interpolate`rpcauth=${user.rpcAuth}`,
     );
     return pulumi.all(authLines).apply(lines => lines.join('\n'));
 }
@@ -15,13 +20,17 @@ function create({
     debugExclude,
     externalIp,
     maxConnections,
+    rpcUsers,
+    useRpcAuthFile,
 }: {
     prune: number;
     debug?: boolean;
     debugExclude: string;
     externalIp?: string;
     maxConnections: number;
-}): string {
+    rpcUsers: Record<string, RpcUser>;
+    useRpcAuthFile: boolean;
+}): pulumi.Output<string> {
     const debugExcludeLines = debugExclude
         .split(',')
         .map(value => value.trim())
@@ -29,7 +38,11 @@ function create({
         .map(value => `debugexclude=${value}`)
         .join('\n');
 
-    return `
+    const rpcAuth = useRpcAuthFile
+        ? pulumi.output('rpcauthfile=/conf/rpc.conf')
+        : createRpc(rpcUsers, useRpcAuthFile);
+
+    return pulumi.interpolate`
 ${prune > 0 ? `prune=${prune.toString()}` : 'txindex=1'}
 ${externalIp ? `externalip=${externalIp}` : ''}
 ${debug ? 'debug=all' : ''}
@@ -43,7 +56,7 @@ printtoconsole=1
 rpcallowip=0.0.0.0/0
 rpcbind=0.0.0.0
 server=1
-rpcauthfile=/conf/rpc.conf
+${rpcAuth}
 `;
 }
 

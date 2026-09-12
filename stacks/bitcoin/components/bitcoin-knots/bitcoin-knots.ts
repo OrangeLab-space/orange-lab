@@ -33,8 +33,10 @@ export class BitcoinKnots extends pulumi.ComponentResource {
                     debugExclude,
                     externalIp,
                     maxConnections,
+                    rpcUsers: this.args.rpcUsers,
+                    useRpcAuthFile: true,
                 }),
-                'rpc.conf': BitcoinConf.createRpc(this.args.rpcUsers),
+                'rpc.conf': BitcoinConf.createRpc(this.args.rpcUsers, true),
             },
         });
 

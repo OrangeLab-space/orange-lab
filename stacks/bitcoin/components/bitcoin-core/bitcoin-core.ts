@@ -34,8 +34,9 @@ export class BitcoinCore extends pulumi.ComponentResource {
                     debugExclude,
                     externalIp,
                     maxConnections,
+                    rpcUsers: this.args.rpcUsers,
+                    useRpcAuthFile: false,
                 }),
-                'rpc.conf': BitcoinConf.createRpc(this.args.rpcUsers),
             },
         });
 
@@ -61,7 +62,7 @@ export class BitcoinCore extends pulumi.ComponentResource {
                 { name: 'p2p', port: 8333, protocol: 'tcp' },
             ],
             command: command ? command.split(' ') : undefined,
-            commandArgs: commandArgs.split(' '),
+            commandArgs: commandArgs.split(' ').filter(Boolean),
             initContainers: [
                 {
                     name: 'copy-config',
@@ -78,10 +79,7 @@ export class BitcoinCore extends pulumi.ComponentResource {
             ],
             runAsUser,
             volumeOwnerUserId,
-            volumeMounts: [
-                { mountPath: volumePath },
-                { name: 'config', mountPath: '/conf', readOnly: true },
-            ],
+            volumeMounts: [{ mountPath: volumePath }],
         });
     }
 }
