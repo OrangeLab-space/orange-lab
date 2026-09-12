@@ -7,6 +7,7 @@ interface LocalVolumeArgs {
     volumeName: string;
     localPath?: string;
     hostPath?: string;
+    type?: 'Directory' | 'DirectoryOrCreate' | 'FileOrCreate' | 'CharDevice';
     size?: string;
     namespace: pulumi.Input<string>;
     labels: Record<string, string>;
@@ -44,7 +45,7 @@ export class LocalVolume extends pulumi.ComponentResource {
         assert(this.args.hostPath, 'hostPath must be defined');
         return {
             name: this.args.volumeName,
-            hostPath: { path: this.args.hostPath, type: 'Directory' },
+            hostPath: { path: this.args.hostPath, type: this.args.type ?? 'Directory' },
         };
     }
 

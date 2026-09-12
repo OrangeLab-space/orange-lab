@@ -54,6 +54,7 @@ export class Storage extends pulumi.ComponentResource {
                 volumeName: spec.name,
                 localPath: spec.localPath,
                 hostPath: spec.hostPath,
+                type: spec.type,
                 size: spec.size,
                 namespace: this.args.metadata.namespace,
                 labels: this.args.metadata.get({ component: volumeName }).labels,
