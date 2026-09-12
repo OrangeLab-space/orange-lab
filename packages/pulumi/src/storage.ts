@@ -253,7 +253,7 @@ export class Storage extends pulumi.ComponentResource {
                 metadata: this.createMetadata(name),
                 stringData: files,
             },
-            { parent: this },
+            { parent: this, deleteBeforeReplace: true },
         );
     }
 
