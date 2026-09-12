@@ -258,13 +258,14 @@ export class Application {
         },
         opts?: pulumi.CustomResourceOptions,
     ) {
+        const isOci = args.repo.startsWith('oci://');
         const chart = new kubernetes.helm.v3.Release(
             name,
             {
-                chart: args.chart,
+                chart: isOci ? `${args.repo}/${args.chart}` : args.chart,
                 namespace: this.metadata.namespace,
                 version: config.get(this.appName, 'version'),
-                repositoryOpts: { repo: args.repo },
+                repositoryOpts: isOci ? undefined : { repo: args.repo },
                 maxHistory: config.helmHistoryLimit,
                 skipCrds: args.skipCrds,
                 values: args.values,
