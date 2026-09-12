@@ -31,8 +31,12 @@ pulumi config set nextcloud:enabled true
 pulumi config set nextcloud:hostname nextcloud
 # Set storage size (default: 20Gi)
 pulumi config set nextcloud:storageSize 50Gi
-# Set storage size for PostgreSQL database (default: 5Gi)
-pulumi config set nextcloud:storageSize 10Gi
+# Set storage size for MariaDB database (default: 5Gi)
+pulumi config set nextcloud:db/storageSize 10Gi
+# (Required) trusted proxy CIDRs, comma-separated
+pulumi config set nextcloud:trustedProxies '10.42.0.0/16,10.43.0.0/16'
+# (Required) group sync filter for Pocket ID group provisioning
+pulumi config set nextcloud:groupProvisioningWhitelist '^nextcloud-.*$'
 # (Required) admin password, also used to match restored backups
 KEY=$(openssl rand -base64 32)
 pulumi config set nextcloud:adminPassword "$KEY" --secret
@@ -81,7 +85,7 @@ The helper creates or reuses the client and prints the required Pulumi configura
 pulumi config set nextcloud:auth pocket
 pulumi config set nextcloud:auth/clientId <client-id>
 pulumi config set nextcloud:auth/clientSecret <client-secret> --secret
-# Optional: override the default ^nextcloud-.*$ group sync filter.
+# Optional: override the group sync filter set in the basic configuration.
 # All users can still log in; only matching groups are synchronized.
 pulumi config set nextcloud:groupProvisioningWhitelist '^nextcloud-.*$'
 pulumi up

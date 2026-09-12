@@ -29,7 +29,8 @@ pulumi up
 Prometheus monitoring and related Grafana dashboard for vLLM can be enabled with:
 
 ```sh
-pulumi set kubeai:enableMonitoring true
+pulumi config set prometheus:enabled true
+pulumi config set prometheus:enableComponentMonitoring true
 ```
 
 Note that Prometheus has to be installed first before changing that switch.
