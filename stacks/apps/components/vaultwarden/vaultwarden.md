@@ -18,9 +18,11 @@ Unofficial Bitwarden-compatible server written in Rust. Lightweight alternative 
 pulumi config set vaultwarden:enabled true
 
 # (Optional) SMTP configuration
+pulumi config set vaultwarden:smtp/enabled true
 pulumi config set vaultwarden:smtp/host smtp.example.com
 pulumi config set vaultwarden:smtp/from noreply@example.com
 pulumi config set vaultwarden:smtp/port 587
+pulumi config set vaultwarden:smtp/secure starttls # none | starttls | smtps
 pulumi config set vaultwarden:smtp/username your-smtp-username
 pulumi config set vaultwarden:smtp/password your-smtp-password --secret
 

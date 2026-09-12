@@ -34,7 +34,7 @@ config:
     # immich:smtp/password:
     #   secure: <SMTP_PASSWORD>
     immich:smtp/port: 587
-    immich:smtp/secure: false
+    immich:smtp/secure: starttls
 
     # Define shared volume (hostPath)
     # jellyfin-media:hostPath: /mnt/my-drive/media

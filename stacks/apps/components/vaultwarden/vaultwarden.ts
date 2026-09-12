@@ -1,7 +1,20 @@
-import { Application, config, HttpEndpointInfo, OidcAuthConfig } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    HttpEndpointInfo,
+    OidcAuthConfig,
+    SmtpSecurity,
+    SmtpSettings,
+} from '@orangelab/pulumi';
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { VaultwardenToken } from './vaultwarden-token';
+
+const smtpSecurity: Record<SmtpSecurity, string> = {
+    none: 'off',
+    starttls: 'starttls',
+    smtps: 'force_tls',
+};
 
 export class Vaultwarden extends pulumi.ComponentResource {
     public readonly app: Application;
@@ -36,16 +49,12 @@ export class Vaultwarden extends pulumi.ComponentResource {
         httpEndpointInfo: HttpEndpointInfo;
         adminTokenSecret: kubernetes.core.v1.Secret;
     }) {
-        const smtpHost = config.get(this.appName, 'smtp/host');
-        const smtpFrom = config.get(this.appName, 'smtp/from');
-        const smtpUsername = config.get(this.appName, 'smtp/username');
-        const smtpPassword = config.getSecret(this.appName, 'smtp/password');
-        const smtpPort = config.getNumber(this.appName, 'smtp/port');
+        const smtp = this.app.smtp.getSettings();
         const signupsAllowed = config.requireBoolean(this.appName, 'signupsAllowed');
         const signupsVerify = config.requireBoolean(this.appName, 'signupsVerify');
         const auth = this.app.auth.getOidc();
 
-        const smtpSecret = this.createSmtpSecret(smtpUsername, smtpPassword);
+        const smtpSecret = this.createSmtpSecret(smtp);
         const ssoSecret = this.createSsoSecret(auth);
 
         return this.app.addHelmChart(
@@ -71,18 +80,18 @@ export class Vaultwarden extends pulumi.ComponentResource {
                     resourceType: 'Deployment',
                     signupsAllowed,
                     signupsVerify,
-                    smtp: {
-                        ...(smtpHost ? { host: smtpHost } : {}),
-                        ...(smtpFrom ? { from: smtpFrom } : {}),
-                        ...(smtpPort ? { port: smtpPort } : {}),
-                        ...(smtpSecret
+                    smtp:
+                        smtp.enabled && smtpSecret
                             ? {
                                   existingSecret: smtpSecret.metadata.name,
+                                  from: smtp.from,
+                                  host: smtp.host,
+                                  port: smtp.port,
+                                  security: smtpSecurity[smtp.secure],
                                   username: { existingSecretKey: 'SMTP_USERNAME' },
                                   password: { existingSecretKey: 'SMTP_PASSWORD' },
                               }
-                            : {}),
-                    },
+                            : {},
                     sso: this.getSsoConfig(auth, ssoSecret),
                     storage: {
                         enabled: true,
@@ -147,18 +156,17 @@ export class Vaultwarden extends pulumi.ComponentResource {
     }
 
     private createSmtpSecret(
-        username: string | undefined,
-        password: pulumi.Output<string> | undefined,
+        smtp: SmtpSettings,
     ): kubernetes.core.v1.Secret | undefined {
-        if (!username || !password) return undefined;
+        if (!smtp.enabled) return undefined;
 
         return new kubernetes.core.v1.Secret(
             `${this.appName}-smtp`,
             {
                 metadata: this.app.metadata.get({ component: 'smtp' }),
                 stringData: {
-                    SMTP_USERNAME: username,
-                    SMTP_PASSWORD: password,
+                    SMTP_USERNAME: smtp.username,
+                    SMTP_PASSWORD: smtp.password,
                 },
             },
             { parent: this },

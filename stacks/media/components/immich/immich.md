@@ -98,14 +98,14 @@ cd stacks/media
 pulumi config set immich:smtp/enabled true
 pulumi config set immich:smtp/host smtp.example.com
 pulumi config set immich:smtp/port 587
-pulumi config set immich:smtp/secure false
+pulumi config set immich:smtp/secure starttls # none | starttls | smtps
 pulumi config set immich:smtp/from "OrangeLab Immich <admin@orangelab.space>"
 pulumi config set immich:smtp/username admin@example.com
 pulumi config set immich:smtp/password <smtp-password> --secret
 pulumi up
 ```
 
-The `secure` setting defaults to `false` for providers using STARTTLS on port `587`. Providers using implicit TLS can set `immich:smtp/secure true` and override the port to `465`. The generated configuration verifies the server certificate. Port `587` is the default but can be overridden for providers using a different port. The `from` address is used as the sender and reply address. SMTP credentials are included in the Secret-backed config file and are not stored in a ConfigMap.
+Use `secure: starttls` for STARTTLS on port `587`, or `secure: smtps` for implicit TLS on port `465` (override `immich:smtp/port`). Immich cannot force plaintext, so `secure: none` leaves the mode to Immich. The generated configuration verifies the server certificate. The `from` address is used as the sender and reply address. SMTP credentials are included in the Secret-backed config file and are not stored in a ConfigMap.
 
 ## Reset Admin Password
 

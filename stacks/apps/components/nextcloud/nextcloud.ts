@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Application, config, DatabaseConfig, HttpEndpointInfo, OidcAuthConfig } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    DatabaseConfig,
+    HttpEndpointInfo,
+    OidcAuthConfig,
+    SmtpSettings,
+} from '@orangelab/pulumi';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 
@@ -24,8 +31,8 @@ export class Nextcloud extends pulumi.ComponentResource {
         const redisConfig = this.app.databases?.getConfig('redis');
         if (!redisConfig) throw new Error('Redis not found');
         const adminPassword = config.requireSecret(appName, 'adminPassword');
-        const smtpEnabled = config.requireBoolean(appName, 'smtp/enabled');
-        const appSecret = this.createSecret(adminPassword, smtpEnabled);
+        const smtp = this.app.smtp.getSettings();
+        const appSecret = this.createSecret(adminPassword, smtp);
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
         const auth = this.app.auth.getOidc();
         this.users = { admin: adminPassword };
@@ -35,7 +42,7 @@ export class Nextcloud extends pulumi.ComponentResource {
             dbConfig: this.dbConfig,
             redisConfig,
             auth,
-            smtpEnabled,
+            smtp,
         });
         this.serviceUrl = httpEndpointInfo.url;
     }
@@ -46,7 +53,7 @@ export class Nextcloud extends pulumi.ComponentResource {
         dbConfig: DatabaseConfig;
         redisConfig: DatabaseConfig;
         auth: OidcAuthConfig | undefined;
-        smtpEnabled: boolean;
+        smtp: SmtpSettings;
     }) {
         const waitForDb = this.app.databases?.getWaitContainer();
         const waitForRedis = this.app.databases?.getWaitContainer(args.redisConfig);
@@ -105,7 +112,7 @@ export class Nextcloud extends pulumi.ComponentResource {
                             usernameKey: 'username',
                             passwordKey: 'password',
                         },
-                        mail: this.getMailConfig(args.smtpEnabled),
+                        mail: this.getMailConfig(args.smtp),
                         trustedDomains: [args.httpEndpointInfo.hostname],
                     },
                     persistence: {
@@ -154,20 +161,20 @@ $CONFIG = array (
         };
     }
 
-    private getMailConfig(enabled: boolean) {
-        if (!enabled) return { enabled: false };
+    private getMailConfig(smtp: SmtpSettings) {
+        if (!smtp.enabled) return { enabled: false };
 
-        const [fromAddress, domain] = config
-            .require(this.appName, 'smtp/from')
-            .split('@');
+        const [fromAddress, domain] = smtp.from.split('@');
         return {
             enabled: true,
             fromAddress,
             domain,
             smtp: {
                 authtype: 'LOGIN',
-                port: config.requireNumber(this.appName, 'smtp/port'),
-                secure: config.require(this.appName, 'smtp/secure'),
+                port: smtp.port,
+                ...(smtp.secure === 'none'
+                    ? {}
+                    : { secure: smtp.secure === 'starttls' ? 'tls' : 'ssl' }),
             },
         };
     }
@@ -253,7 +260,7 @@ $CONFIG = array (
         );
     }
 
-    private createSecret(password: pulumi.Input<string>, smtpEnabled: boolean) {
+    private createSecret(password: pulumi.Input<string>, smtp: SmtpSettings) {
         return new k8s.core.v1.Secret(
             `${this.appName}-secret`,
             {
@@ -261,14 +268,11 @@ $CONFIG = array (
                 stringData: {
                     username: 'admin',
                     password,
-                    ...(smtpEnabled
+                    ...(smtp.enabled
                         ? {
-                              'smtp-host': config.require(this.appName, 'smtp/host'),
-                              'smtp-username': config.require(this.appName, 'smtp/username'),
-                              'smtp-password': config.requireSecret(
-                                  this.appName,
-                                  'smtp/password',
-                              ),
+                              'smtp-host': smtp.host,
+                              'smtp-username': smtp.username,
+                              'smtp-password': smtp.password,
                           }
                         : {}),
                 },

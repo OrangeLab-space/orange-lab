@@ -4,6 +4,7 @@ import {
     DatabaseConfig,
     HttpEndpointInfo,
     OidcAuthConfig,
+    SmtpSettings,
     VolumeMount,
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
@@ -35,8 +36,8 @@ export class Immich extends pulumi.ComponentResource {
         if (this.app.storageOnly) return;
 
         const auth = this.app.auth.getOidc();
-        const smtpEnabled = config.requireBoolean(this.name, 'smtp/enabled');
-        const configFile = this.createConfigFile(auth, mlEnabled, smtpEnabled);
+        const smtp = this.app.smtp.getSettings();
+        const configFile = this.createConfigFile(auth, mlEnabled, smtp);
         this.app.addConfigVolume({
             secretFiles: { 'immich.json': configFile },
         });
@@ -54,11 +55,11 @@ export class Immich extends pulumi.ComponentResource {
     private createConfigFile(
         auth: OidcAuthConfig | undefined,
         mlEnabled: boolean,
-        smtpEnabled: boolean,
+        smtp: SmtpSettings,
     ) {
         return pulumi.jsonStringify({
             machineLearning: this.getMachineLearningConfig(mlEnabled),
-            notifications: { smtp: this.getSmtpConfig(smtpEnabled) },
+            notifications: { smtp: this.getSmtpConfig(smtp) },
             oauth: this.getOauthConfig(auth),
         });
     }
@@ -70,19 +71,19 @@ export class Immich extends pulumi.ComponentResource {
         };
     }
 
-    private getSmtpConfig(enabled: boolean) {
-        if (!enabled) return { enabled: false };
+    private getSmtpConfig(smtp: SmtpSettings) {
+        if (!smtp.enabled) return { enabled: false };
 
         return {
             enabled: true,
-            from: config.require(this.name, 'smtp/from'),
+            from: smtp.from,
             transport: {
-                host: config.require(this.name, 'smtp/host'),
+                host: smtp.host,
                 ignoreCert: false,
-                password: config.requireSecret(this.name, 'smtp/password'),
-                port: config.requireNumber(this.name, 'smtp/port'),
-                secure: config.requireBoolean(this.name, 'smtp/secure'),
-                username: config.require(this.name, 'smtp/username'),
+                password: smtp.password,
+                port: smtp.port,
+                ...(smtp.secure === 'none' ? {} : { secure: smtp.secure === 'smtps' }),
+                username: smtp.username,
             },
         };
     }

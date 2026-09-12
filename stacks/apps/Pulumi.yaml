@@ -24,7 +24,9 @@ config:
     # vaultwarden:smtp/username: user
     # vaultwarden:smtp/password:
     #   secure: <SMTP_PASSWORD>
+    vaultwarden:smtp/enabled: false
     vaultwarden:smtp/port: 587
+    vaultwarden:smtp/secure: starttls
     vaultwarden:signupsAllowed: false
     vaultwarden:signupsVerify: true
 
@@ -41,7 +43,7 @@ config:
     # nextcloud:smtp/password:
     #   secure: <SMTP_PASSWORD>
     nextcloud:smtp/port: 587
-    nextcloud:smtp/secure: tls
+    nextcloud:smtp/secure: starttls
     # nextcloud:auth: pocket
     # nextcloud:auth/clientId: <client-id>
     # nextcloud:auth/clientSecret:
