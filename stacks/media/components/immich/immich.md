@@ -78,8 +78,6 @@ pulumi config set immich:auth/clientSecret <client-secret> --secret
 pulumi up
 ```
 
-The generated config includes OAuth, machine-learning, and SMTP settings. The OAuth button text defaults to `Login with OrangeLab`; override it with `immich:auth/providerName` if needed. The OIDC issuer URL is resolved from the core stack's `security.oidcProviderUrl`, or can be overridden with `immich:auth/providerUrl`.
-
 ### OAuth settings
 
 The generated OAuth settings use scope `openid email profile`, signing algorithm `RS256`, token endpoint authentication `client_secret_post`, auto registration, and auto launch. For mobile login, keep `app.immich:///oauth-callback` registered with Pocket ID.

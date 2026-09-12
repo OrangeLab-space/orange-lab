@@ -8,6 +8,7 @@ export const OidcProvider = {
 
 export interface OidcAuthConfig {
     providerBaseUrl?: pulumi.Input<string | undefined>;
+    providerName?: string;
     providerUrl?: pulumi.Input<string | undefined>;
     clientId: string;
     clientSecret: pulumi.Output<string>;
@@ -15,6 +16,7 @@ export interface OidcAuthConfig {
 
 export interface OidcProviderSettings {
     providerBaseUrl?: pulumi.Input<string | undefined>;
+    providerName?: string;
     providerUrl?: pulumi.Input<string | undefined>;
     /** Enables the shared Traefik middleware for applications without native OIDC. */
     protectRoutes?: boolean;
@@ -42,6 +44,8 @@ export class Auth {
                 config.get(this.appName, 'auth/providerUrl') ??
                 local?.providerUrl ??
                 coreStack.outputs.security?.apply(security => security?.oidcProviderUrl),
+            providerName:
+                config.get(this.appName, 'auth/providerName') ?? local?.providerName,
             clientId: config.require(this.appName, 'auth/clientId'),
             clientSecret: config.requireSecret(this.appName, 'auth/clientSecret'),
         };

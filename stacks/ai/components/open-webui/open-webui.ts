@@ -105,7 +105,7 @@ export class OpenWebUI extends pulumi.ComponentResource {
         env.OAUTH_AUTO_REDIRECT = 'True';
         env.OAUTH_CLIENT_ID = auth.clientId;
         env.OAUTH_MERGE_ACCOUNTS_BY_EMAIL = 'True';
-        env.OAUTH_PROVIDER_NAME = config.get(this.name, 'auth/providerName') ?? 'SSO';
+        env.OAUTH_PROVIDER_NAME = auth.providerName ?? 'SSO';
         env.OAUTH_UPDATE_EMAIL_ON_LOGIN = 'True';
         env.OAUTH_UPDATE_NAME_ON_LOGIN = 'True';
         env.OAUTH_UPDATE_PICTURE_ON_LOGIN = 'True';

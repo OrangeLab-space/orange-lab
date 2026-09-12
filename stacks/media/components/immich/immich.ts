@@ -93,7 +93,7 @@ export class Immich extends pulumi.ComponentResource {
         return {
             autoLaunch: true,
             autoRegister: true,
-            buttonText: config.get(this.name, 'auth/providerName') ?? 'Login with OrangeLab',
+            buttonText: `Login with ${auth.providerName ?? 'SSO'}`,
             clientId: auth.clientId,
             clientSecret: auth.clientSecret,
             enabled: true,

@@ -108,7 +108,7 @@ The following settings are supported by most applications in OrangeLab:
 | `auth/clientId`       | OIDC client ID                                                                                |
 | `auth/clientSecret`   | OIDC client secret                                                                            |
 | `auth/providerUrl`    | Override the OIDC discovery URL                                                               |
-| `auth/providerName`   | Label shown for the OIDC login button                                                         |
+| `auth/providerName`   | Name of the OIDC provider, used in the login button label                                     |
 
 ### Custom Hostnames
 
