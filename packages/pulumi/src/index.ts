@@ -5,6 +5,7 @@ export { config } from './config';
 export { GrafanaDashboard } from './grafana-dashboard';
 export { Metadata } from './metadata';
 export { Nodes, NodesArgs } from './nodes';
+export { Smtp } from './smtp';
 export {
     createTraefikOidcMiddleware,
     traefikOidcMiddlewareName,
@@ -25,5 +26,9 @@ export {
     RoutingProvider,
     S3Provisioner,
     ServicePort,
+    SmtpSecurity,
+    SmtpSettings,
+    SmtpSettingsDisabled,
+    SmtpSettingsEnabled,
     VolumeMount,
 } from './types';

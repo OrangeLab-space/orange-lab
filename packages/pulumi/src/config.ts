@@ -78,6 +78,20 @@ class Config {
         return this.getConfig(appName).requireNumber(key);
     }
 
+    public requireEnum<T extends string>(
+        appName: string,
+        key: string,
+        allowed: readonly T[],
+    ): T {
+        const value = this.require(appName, key);
+        if (!allowed.includes(value as T)) {
+            throw new Error(
+                `${appName}:${key} has invalid value '${value}'. Use one of: ${allowed.join(', ')}.`,
+            );
+        }
+        return value as T;
+    }
+
     public getBoolean(appName: string, key: string): boolean | undefined {
         return this.getConfig(appName).getBoolean(key);
     }

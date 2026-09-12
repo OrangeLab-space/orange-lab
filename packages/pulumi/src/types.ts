@@ -270,6 +270,24 @@ export interface CoreStackExports {
     };
 }
 
+export const SmtpSecurity = ['none', 'starttls', 'smtps'] as const;
+export type SmtpSecurity = (typeof SmtpSecurity)[number];
+
+export interface SmtpSettingsEnabled {
+    enabled: true;
+    from: string;
+    host: string;
+    port: number;
+    secure: SmtpSecurity;
+    username: string;
+    password: pulumi.Output<string>;
+}
+
+export interface SmtpSettingsDisabled {
+    enabled: false;
+}
+
+export type SmtpSettings = SmtpSettingsEnabled | SmtpSettingsDisabled;
 /**
  * Represents a routing provider that creates HTTP and TCP endpoints.
  */
