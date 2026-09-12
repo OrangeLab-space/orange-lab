@@ -113,9 +113,9 @@ export class Forgejo extends pulumi.ComponentResource {
                 chart: 'forgejo',
                 repo: 'oci://code.forgejo.org/forgejo-helm',
                 values: {
-                    additionalConfigFromEnvs: configFromEnvs,
                     affinity: this.app.nodes.getAffinity(),
                     gitea: {
+                        additionalConfigFromEnvs: configFromEnvs,
                         admin: {
                             existingSecret: this.adminSecret.metadata.name,
                             passwordMode: 'keepUpdated',

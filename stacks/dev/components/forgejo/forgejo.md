@@ -51,7 +51,7 @@ Uses SQLite on a persistent volume by default, with Redis for cache, session and
 
 ## Database
 
-SQLite is the default. To use PostgreSQL instead, enable the CloudNativePG operator in the core stack, then set the database type:
+SQLite is the default. To use PostgreSQL instead, enable the CloudNativePG operator in the core stack and set the dependency in this stack:
 
 ```sh
 # in the core stack
@@ -59,12 +59,13 @@ pulumi config set cloudnative-pg:enabled true
 pulumi up
 
 # in stacks/dev
+pulumi config set cloudnative-pg:enabled true
 pulumi config set forgejo:db/type postgres
 pulumi config set forgejo:db/storageSize 5Gi
 pulumi up
 ```
 
-Switching an existing instance from SQLite to PostgreSQL starts with an empty database; migrate first with `forgejo dump` / `forgejo restore` or start fresh.
+Forgejo creates the PostgreSQL schema automatically on first start. Switching an existing instance from SQLite starts with an empty database; there is no built-in restore command, so migrate the data out-of-band or start fresh. The SQLite file is left in place, so setting `forgejo:db/type` back to `sqlite` brings the previous instance back.
 
 ## OIDC Authentication (Pocket ID)
 
