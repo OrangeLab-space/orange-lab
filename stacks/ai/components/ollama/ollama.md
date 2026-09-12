@@ -30,11 +30,10 @@ pulumi config set ollama:version ""
 # Recommended when using AMD to allow GPU sharing (required to determine image tag)
 pulumi config set ollama:appVersion 0.13.1
 
-# Limit GPU access to specific devices in multi-GPU setups
-# (comma-separated device IDs, 0-indexed)
-pulumi config set ollama:HIP_VISIBLE_DEVICES "0"
-# or for NVIDIA
-pulumi config set ollama:CUDA_VISIBLE_DEVICES "0,1"
+# (Optional, AMD only) override GFX version for RDNA1/2 cards (e.g. 10.3.0)
+pulumi config set ollama:HSA_OVERRIDE_GFX_VERSION "10.3.0"
+# (Optional, AMD only) set ROCm compilation targets (e.g. gfx1030)
+pulumi config set ollama:HCC_AMDGPU_TARGETS "gfx1030"
 
 # Preload models at startup (comma-separated list)
 pulumi config set ollama:models "qwen2.5-coder:1.5b,gpt-oss:20b"
@@ -72,7 +71,7 @@ export OLLAMA_HOST=<endpoint>
 Get the new endpoint with:
 
 ```sh
-pulumi stack output --json | jq -r '.ai.endpoints.ollama'
+pulumi stack output --json | jq -r '.endpoints.ollama'
 ```
 
 You can also setup your tools to use OpenAPI-compatible endpoint by adding `/v1/` to the URL.

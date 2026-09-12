@@ -22,7 +22,7 @@ pulumi config set bitcoin-knots:commandArgs "bitcoind -datadir=/data"
 # Set to external IP of your router. Port forwarding needs to be setup for port 8333
 pulumi config set bitcoin-knots:externalip <public-ip>
 # Increase number of peer connections (default 20)
-pulumi config set bitcoin-core:maxconnections 50
+pulumi config set bitcoin-knots:maxconnections 50
 # Note: Pruned nodes are incompatible with Electrs and Mempool
 pulumi config set bitcoin-knots:prune 1000  # Prune mode (MB), 0 for full node with txindex
 

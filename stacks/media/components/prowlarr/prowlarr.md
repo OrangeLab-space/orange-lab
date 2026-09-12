@@ -26,9 +26,9 @@ After deployment, access Prowlarr at the endpoint URL and complete these steps i
 
 ```sh
 # Show cluster endpoints
-pulumi stack output --show-secrets --json | jq -r '.media.clusterUrls.prowlarr'
-pulumi stack output --show-secrets --json | jq -r '.media.clusterUrls.radarr'
-pulumi stack output --show-secrets --json | jq -r '.media.clusterUrls.sonarr'
+pulumi stack output --show-secrets --json | jq -r '.clusterUrls.prowlarr'
+pulumi stack output --show-secrets --json | jq -r '.clusterUrls.radarr'
+pulumi stack output --show-secrets --json | jq -r '.clusterUrls.sonarr'
 ```
 
 1. **Authentication** — on first access, complete the setup modal (or later via Settings → General → Security): set Authentication to Forms and create an admin user

@@ -29,10 +29,10 @@ pulumi up
 
 ```sh
 # Show cluster endpoint
-pulumi stack output --show-secrets --json | jq -r '.media.clusterUrls.transmission'
+pulumi stack output --show-secrets --json | jq -r '.clusterUrls.transmission'
 
 # Show browser URL
-pulumi stack output --show-secrets --json | jq -r '.media.endpoints.transmission'
+pulumi stack output --show-secrets --json | jq -r '.endpoints.transmission'
 ```
 
 Add Transmission as a download client at **Settings → Download Clients → Add → Transmission**:
