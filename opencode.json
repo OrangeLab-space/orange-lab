@@ -31,7 +31,7 @@
             "kubectl get secrets *": "ask",
             "kubectl logs *": "allow",
             "ls *": "allow",
-            "npm run build": "allow",
+            "npm run build *": "allow",
             "npm run lint": "allow",
             "npm run test": "allow",
             "npm test*": "allow",
@@ -47,7 +47,8 @@
             "sed *": "allow",
             "sort *": "allow",
             "sleep *": "allow",
-            "tail *": "allow"
+            "tail *": "allow",
+            "tr *": "allow"
         },
         "read": {
             "**/Pulumi.*.yaml": "deny"
