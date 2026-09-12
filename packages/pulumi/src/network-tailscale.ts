@@ -6,6 +6,7 @@ import { Metadata } from './metadata';
 import {
     HttpEndpointInfo,
     HttpRouteSpec,
+    PublicTcpServiceConfig,
     RoutingProvider,
     ServicePort,
 } from './types';
@@ -34,6 +35,14 @@ export class TailscaleNetwork implements RoutingProvider {
             url: `https://${hostname}.${this.tailnetDomain}`,
             tls: true,
             domain: this.tailnetDomain,
+        };
+    }
+
+    getPublicTcpService(params: { hostname: string }): PublicTcpServiceConfig {
+        return {
+            type: 'LoadBalancer',
+            loadBalancerClass: 'tailscale',
+            annotations: { 'tailscale.com/hostname': params.hostname },
         };
     }
 

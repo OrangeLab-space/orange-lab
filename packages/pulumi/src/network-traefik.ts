@@ -6,6 +6,7 @@ import { Metadata } from './metadata';
 import {
     HttpEndpointInfo,
     HttpRouteSpec,
+    PublicTcpServiceConfig,
     RoutingProvider,
     ServicePort,
 } from './types';
@@ -37,6 +38,10 @@ export class TraefikNetwork implements RoutingProvider {
                 sectionName: 'websecure',
             },
         };
+    }
+
+    getPublicTcpService(): PublicTcpServiceConfig {
+        return { type: 'LoadBalancer' };
     }
 
     createHttpRoute(

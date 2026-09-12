@@ -288,10 +288,23 @@ export interface SmtpSettingsDisabled {
 }
 
 export type SmtpSettings = SmtpSettingsEnabled | SmtpSettingsDisabled;
+
+/**
+ * Service settings needed to publicly expose a TCP port owned by an existing
+ * Service (e.g. one created by a Helm chart).
+ */
+export interface PublicTcpServiceConfig {
+    type?: 'LoadBalancer';
+    loadBalancerClass?: string;
+    externalTrafficPolicy?: 'Local' | 'Cluster';
+    annotations?: Record<string, pulumi.Input<string>>;
+}
+
 /**
  * Represents a routing provider that creates HTTP and TCP endpoints.
  */
 export interface RoutingProvider {
+    getPublicTcpService: (params: { hostname: string }) => PublicTcpServiceConfig;
     endpoints: Record<string, pulumi.Input<string>>;
     getHttpEndpointInfo: (hostname: string) => HttpEndpointInfo;
     createHttpRoute: (

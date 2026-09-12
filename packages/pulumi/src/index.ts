@@ -23,6 +23,7 @@ export {
     InitContainerSpec,
     LocalVolumeSpec,
     PersistentVolumeSpec,
+    PublicTcpServiceConfig,
     RoutingProvider,
     S3Provisioner,
     ServicePort,

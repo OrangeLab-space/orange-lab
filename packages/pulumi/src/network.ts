@@ -10,6 +10,7 @@ import {
     ContainerSpec,
     HttpEndpointInfo,
     HttpRouteSpec,
+    PublicTcpServiceConfig,
     RoutingProvider,
     ServicePort,
 } from './types';
@@ -71,6 +72,10 @@ export class Network {
         hostname: string = config.require(this.appName, 'hostname'),
     ): HttpEndpointInfo {
         return this.provider.getHttpEndpointInfo(hostname);
+    }
+
+    getPublicTcpService(hostname: string): PublicTcpServiceConfig {
+        return this.provider.getPublicTcpService({ hostname });
     }
 
     createHttpRoute(
