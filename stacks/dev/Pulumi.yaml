@@ -7,13 +7,36 @@ runtime:
         packagemanager: npm
 description: OrangeLab Development Stack
 config:
-    # Required shared defaults (duplicated from root Pulumi.yaml)
-    # orangelab:routingProvider: tailscale | traefik
-    # orangelab:customDomain: 'example.com'
-    # longhorn:backupAllVolumes: false # read from the core stack by default
+    # Required: tailscale | traefik
+    # orangelab:routingProvider: traefik
+
+    orangelab:redis/image: docker.io/redis:8-alpine
 
     debug:enabled: false
     # debug:namespace: bitcoin
     # debug:fromVolume: bitcoin
     # debug:requiredNodeLabel: kubernetes.io/hostname=<host>
     # debug:exportPath: /export
+
+    forgejo:enabled: false
+    forgejo:hostname: forgejo
+    forgejo:storageSize: 10Gi
+    forgejo:db/type: sqlite # sqlite | postgres
+    forgejo:db/storageSize: 5Gi
+    forgejo:adminUsername: gitea_admin
+    # forgejo:adminEmail: forgejo@example.com
+    # forgejo:adminPassword:
+    #   secure: <ADMIN_PASSWORD>
+    forgejo:smtp/enabled: false
+    # forgejo:smtp/host: smtp.example.com
+    # forgejo:smtp/from: noreply@example.com
+    # forgejo:smtp/username: user
+    # forgejo:smtp/password:
+    #   secure: <SMTP_PASSWORD>
+    forgejo:smtp/port: 587
+    forgejo:smtp/secure: starttls
+    # forgejo:auth: pocket
+    # forgejo:auth/clientId: <client-id>
+    # forgejo:auth/clientSecret:
+    #   secure: <client-secret>
+    # forgejo:auth/providerName: SSO

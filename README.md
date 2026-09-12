@@ -150,6 +150,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 [Dev](./stacks/dev/README.md):
 
 - [`debug`](./stacks/dev/components/debug/debug.md) - (Experimental) Troubleshooting utilities and volume access tools
+- [`forgejo`](./stacks/dev/components/forgejo/forgejo.md) - Self-hosted GitHub alternative
 
 [IoT](./stacks/iot/README.md):
 
