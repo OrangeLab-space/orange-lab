@@ -10,7 +10,8 @@ const homeAssistant = config.isEnabled('home-assistant')
     ? new HomeAssistant('home-assistant', {
           trustedProxies: (config.get('home-assistant', 'trustedProxies') ?? '')
               .split(',')
-              .map(s => s.trim()),
+              .map(s => s.trim())
+              .filter(Boolean),
           devices: config.getObject('home-assistant', 'devices') as
               | HomeAssistantDevice[]
               | undefined,
