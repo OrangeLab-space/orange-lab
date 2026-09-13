@@ -48,3 +48,4 @@ pulumi config set <app>:routingProvider tailscale
 - **[Traefik](./traefik/traefik.md)** - Ingress controller for custom domains with automatic TLS
 - **[Cert-manager](./cert-manager/cert-manager.md)** - Automated certificate management (required for Traefik)
 - **[Technitium](./technitium/technitium.md)** - DNS server and ad-blocker
+- **[Zot](./zot/zot.md)** - OCI registry and pull-through image cache

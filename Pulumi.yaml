@@ -57,6 +57,47 @@ config:
     technitium:DNS_SERVER_FORWARDER_PROTOCOL: 'Udp' # Udp, Tcp, Tls, Https, HttpsJson
     # technitium:requiredNodeLabel: kubernetes.io/hostname=<hostname>
 
+    zot:enabled: false
+    zot:image: ghcr.io/project-zot/zot:v2.1.21
+    zot:hostname: registry
+    zot:storageSize: 100Gi
+    # Vulnerability scan interval for cached images (minimum 2h)
+    zot:scanInterval: 24h
+    # Upstream registries cached on-demand: host (K3s mirror key), upstream URL, and
+    # local destination (pull as registry.<domain>/<destination>/<image>).
+    zot:registries:
+        value:
+            - host: docker.io
+              url: https://index.docker.io
+              destination: docker
+            - host: ghcr.io
+              url: https://ghcr.io
+              destination: ghcr
+            - host: quay.io
+              url: https://quay.io
+              destination: quay
+            - host: registry.k8s.io
+              url: https://registry.k8s.io
+              destination: k8s
+            - host: code.forgejo.org
+              url: https://code.forgejo.org
+              destination: forgejo
+            - host: docker.n8n.io
+              url: https://docker.n8n.io
+              destination: n8n
+            - host: lscr.io
+              url: https://lscr.io
+              destination: lscr
+            - host: nvcr.io
+              url: https://nvcr.io
+              destination: nvcr
+            - host: docker-registry1.mariadb.com
+              url: https://docker-registry1.mariadb.com
+              destination: mariadb
+    # Admin password for pushes and web UI. Auto-generated if not set (see zot docs).
+    # zot:adminPassword:
+    #   secure: <password>
+
     ### Storage ###
 
     longhorn:enabled: false

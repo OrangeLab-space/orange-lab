@@ -46,6 +46,10 @@ class Config {
         return this.getConfig(appName).getObject(key);
     }
 
+    public requireObject(appName: string, key: string): unknown {
+        return this.getConfig(appName).requireObject(key);
+    }
+
     public requireCommaSeparated(appName: string, key: string): string[] {
         const value = this.require(appName, key);
         const strings = value

@@ -109,3 +109,5 @@ kubectl label nodes <node-name> topology.kubernetes.io/zone=home
 ```
 
 > Note: GPU nodes are automatically detected and labeled by the [Node Feature Discovery](/components/hardware/nfd/nfd.md) component.
+
+> Note: The [Zot](/components/network/zot/zot.md) registry is an optional component that caches upstream images. Configuring nodes to use it as a mirror is a post-install step, described in the Zot docs. It is not part of K3s installation.
