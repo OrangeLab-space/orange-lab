@@ -1,6 +1,7 @@
 import {
     Application,
     config,
+    HttpEndpointInfo,
     OidcProviderSettings,
 } from '@orangelab/pulumi';
 import * as kubernetes from '@pulumi/kubernetes';
@@ -10,6 +11,7 @@ export class Traefik extends pulumi.ComponentResource {
     private readonly app: Application;
     private chart: kubernetes.helm.v3.Release;
     private readonly customDomain: string;
+    public readonly endpointUrl: pulumi.Input<string>;
 
     constructor(
         private name: string,
@@ -25,7 +27,9 @@ export class Traefik extends pulumi.ComponentResource {
         const crds = this.createGatewayAPICRDs();
         this.chart = this.createChart(crds);
         this.createCertificate();
-        this.createDashboard();
+        const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
+        this.endpointUrl = httpEndpointInfo.url;
+        this.createDashboard(httpEndpointInfo);
     }
 
     private createGatewayAPICRDs(): kubernetes.yaml.ConfigFile {
@@ -183,8 +187,7 @@ export class Traefik extends pulumi.ComponentResource {
         );
     }
 
-    private createDashboard() {
-        const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
+    private createDashboard(httpEndpointInfo: HttpEndpointInfo) {
         this.app.network.createHttpRoute(
             {
                 componentName: 'dashboard',
