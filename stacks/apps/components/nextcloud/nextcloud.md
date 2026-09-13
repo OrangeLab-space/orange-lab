@@ -70,18 +70,7 @@ Requires [Pocket ID](../../../../components/security/pocket/pocket.md) deployed 
 
 ```sh
 cd stacks/apps
-
-NEXTCLOUD_URL=$(pulumi stack output --json | jq -er '.endpoints.nextcloud')
-ENDSESSION_ENDPOINT=$(curl -fsSL "$DISCOVERY_URL" | jq -er '.end_session_endpoint')
-
-../../scripts/pocket-client.sh \
-  --app-name nextcloud \
-  --client-name Nextcloud \
-  --launch-url "$NEXTCLOUD_URL" \
-  --callback-url "$NEXTCLOUD_URL/apps/user_oidc/code" \
-  --logout-callback-url "$NEXTCLOUD_URL/apps/user_oidc/backchannel-logout/PocketID" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/nextcloud.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/nextcloud.svg
+./components/nextcloud/pocket-nextcloud.sh
 ```
 
 The helper creates or reuses the client and prints the required Pulumi configuration. Keep the client non-public with PKCE enabled.

@@ -57,20 +57,10 @@ pulumi up
 
 ## SSO (Pocket ID)
 
-Longhorn has no user management; by default its external endpoint is reachable without authentication. OIDC protection currently requires the Traefik routing provider. Once configured, the UI requires Pocket ID sign-in and is limited to the Pocket ID `admin` group (see [Pocket ID](../../security/pocket/pocket.md)):
+Longhorn has no user management; by default its external endpoint is reachable without authentication. OIDC protection currently requires the Traefik routing provider. Once configured, the UI requires Pocket ID sign-in and is limited to the Pocket ID `admin` group (see [Pocket ID](../../security/pocket/pocket.md)). From the repository root (core stack directory):
 
 ```sh
-LONGHORN_URL=$(pulumi stack output --json | jq -er '.storage.endpoints.longhorn')
-
-./scripts/pocket-client.sh \
-  --app-name longhorn \
-  --client-name "Longhorn" \
-  --launch-url "$LONGHORN_URL" \
-  --callback-url "$LONGHORN_URL/oidc/callback" \
-  --logout-callback-url "$LONGHORN_URL/oidc/callback" \
-  --pkce-enabled false \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rancher-longhorn.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rancher-longhorn-light.svg
+./components/storage/longhorn/pocket-longhorn.sh
 
 # Configure the OIDC client
 pulumi config set longhorn:auth pocket

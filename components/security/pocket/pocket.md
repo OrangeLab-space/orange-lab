@@ -87,9 +87,11 @@ documentation specifically requires an override.
 
 ### (Recommended) Automated setup
 
-The [generic Pocket ID client script](../../../scripts/pocket-client.sh) creates
-the OIDC client, generates its secret, and optionally uploads icons. It requires
-a Pocket ID API key.
+Each application ships a `pocket-<app>.sh` script next to its component. The
+script reads the application URL from the stack outputs and calls the
+[generic Pocket ID client script](../../../scripts/pocket-client.sh), which
+creates the OIDC client, generates its secret, and optionally uploads icons. It
+requires a Pocket ID API key.
 
 Create an API key at **Settings -> Admin -> API Keys**, then store it in the
 core stack:
@@ -112,9 +114,17 @@ Applications with native OIDC support:
 - [Grafana (Prometheus)](../../monitoring/prometheus/prometheus.md)
 - [Forgejo](../../../stacks/dev/components/forgejo/forgejo.md)
 
-Run the script from the application's module stack directory.
+Run the application's script from its stack directory, for example from
+`stacks/apps`:
+
+```sh
+./components/nextcloud/pocket-nextcloud.sh
+```
+
 The script creates or reuses the OIDC client and prints the Pulumi configuration
-required by the application. Run those commands before `pulumi up`.
+required by the application. Run those commands before `pulumi up`. For a custom
+stack, add a `pocket-<app>.sh` next to the component that sets the application
+settings and calls `scripts/pocket-client.sh`.
 
 ### Applications without OIDC
 
@@ -133,7 +143,7 @@ even by opening its URL directly.
 - [Longhorn](../../../components/storage/longhorn/longhorn.md) (no user management)
 - [Traefik Dashboard](../../../components/network/traefik/traefik.md)
 
-Run the script and apply the printed `<app>:auth` commands.
+Run the application's script and apply the printed `<app>:auth` commands.
 
 #### App Dashboard launcher only
 

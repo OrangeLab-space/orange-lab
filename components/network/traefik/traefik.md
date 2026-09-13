@@ -36,17 +36,7 @@ Once configured, the dashboard requires Pocket ID sign-in and is limited to the 
 From the repo root, provision the OIDC client:
 
 ```sh
-TRAEFIK_URL="https://traefik.<domain>"
-
-./scripts/pocket-client.sh \
-  --app-name traefik \
-  --client-name "Traefik Dashboard" \
-  --launch-url "$TRAEFIK_URL" \
-  --callback-url "$TRAEFIK_URL/oidc/callback" \
-  --logout-callback-url "$TRAEFIK_URL/oidc/callback" \
-  --pkce-enabled false \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/traefik.png \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/traefik.png
+./components/network/traefik/pocket-traefik.sh
 
 # Configure the OIDC client
 pulumi config set traefik:auth pocket

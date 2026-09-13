@@ -48,15 +48,7 @@ Grafana supports OAuth login via [Pocket ID](../../security/pocket/pocket.md), f
 1. Run the generic Pocket ID client script from the repository root (where the core stack lives) to create the OIDC client:
 
 ```sh
-GRAFANA_URL=$(pulumi stack output --json | jq -er '.monitoring.endpoints.grafana')
-
-./scripts/pocket-client.sh \
-  --app-name prometheus \
-  --client-name "Grafana" \
-  --launch-url "$GRAFANA_URL" \
-  --callback-url "$GRAFANA_URL/login/generic_oauth" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/grafana.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/grafana-light.svg
+./components/monitoring/prometheus/pocket-prometheus.sh
 
 # Configure the printed values
 pulumi config set prometheus:auth pocket

@@ -27,16 +27,8 @@ can appear in Pocket ID's App Dashboard as a launcher available to every Pocket
 ID user:
 
 ```sh
-# From stacks/iot
-HOME_ASSISTANT_URL=$(pulumi stack output --json | jq -er '.endpoints.homeAssistant')
-
-../../scripts/pocket-client.sh \
-  --app-name home-assistant \
-  --client-name "Home Assistant" \
-  --launch-url "$HOME_ASSISTANT_URL" \
-  --callback-url "$HOME_ASSISTANT_URL/" \
-  --dark-icon-url "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/home-assistant.png" \
-  --light-icon-url "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/home-assistant.png"
+cd stacks/iot
+./components/home-assistant/pocket-home-assistant.sh
 ```
 
 Do not apply the `home-assistant:auth` commands printed by the script; Home

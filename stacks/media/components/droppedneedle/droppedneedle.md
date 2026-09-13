@@ -36,15 +36,8 @@ DroppedNeedle supports OIDC login via [Pocket ID](../../../../components/securit
 1. From `stacks/media`, create the OIDC client with Pocket ID's API key:
 
 ```sh
-DN_URL=$(pulumi stack output --json | jq -er '.endpoints.droppedneedle')
-
-../../scripts/pocket-client.sh \
-  --app-name droppedneedle \
-  --client-name "DroppedNeedle" \
-  --launch-url "$DN_URL" \
-  --callback-url "$DN_URL/api/v1/auth/oidc/callback" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/droppedneedle.png \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/png/droppedneedle.png
+cd stacks/media
+./components/droppedneedle/pocket-droppedneedle.sh
 ```
 
 ```sh

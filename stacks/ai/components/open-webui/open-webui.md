@@ -45,17 +45,7 @@ cd stacks/ai
 # Set the core stack reference if it is not already configured
 pulumi config set orangelab:coreStackRef example-org/orangelab/lab
 
-WEBUI_URL=$(pulumi stack output --json | jq -er '.endpoints["open-webui"]')
-
-# Create or refresh the Pocket ID client
-../../scripts/pocket-client.sh \
-  --app-name open-webui \
-  --client-name "Open WebUI" \
-  --launch-url "$WEBUI_URL" \
-  --callback-url "$WEBUI_URL/oauth/oidc/callback" \
-  --pkce-enabled false \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/open-webui-dark.webp \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/open-webui.webp
+./components/open-webui/pocket-open-webui.sh
 ```
 
 The script can be run after Open WebUI is deployed. It prints the client ID and secret commands. Run those commands, then run `pulumi up`.

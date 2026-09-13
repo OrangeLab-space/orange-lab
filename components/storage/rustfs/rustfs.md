@@ -74,15 +74,7 @@ Requires [Pocket ID](../../security/pocket/pocket.md) deployed in the core stack
 Run the generic Pocket ID client script from the repo root (core stack directory):
 
 ```sh
-RUSTFS_URL=$(pulumi stack output --json | jq -er '.storage.endpoints["rustfs-console"]')
-
-./scripts/pocket-client.sh \
-  --app-name rustfs \
-  --client-name "RustFS" \
-  --launch-url "$RUSTFS_URL" \
-  --callback-url "$RUSTFS_URL/rustfs/admin/v3/oidc/callback/default" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rustfs-dark.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rustfs.svg
+./components/storage/rustfs/pocket-rustfs.sh
 ```
 
 The script can be run after RustFS is deployed. It prints the client ID and secret commands. Run those commands, then deploy:

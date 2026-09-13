@@ -40,16 +40,7 @@ The core stack must have Pocket ID enabled and deployed before configuring OAuth
 
 ```sh
 cd stacks/apps
-
-VAULTWARDEN_URL=$(pulumi stack output --json | jq -er '.endpoints.vaultwarden')
-
-../../scripts/pocket-client.sh \
-  --app-name vaultwarden \
-  --client-name Vaultwarden \
-  --launch-url "$VAULTWARDEN_URL" \
-  --callback-url "$VAULTWARDEN_URL/identity/connect/oidc-signin" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/vaultwarden.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/vaultwarden-light.svg
+./components/vaultwarden/pocket-vaultwarden.sh
 ```
 
 The helper creates or refreshes the Pocket ID client with PKCE enabled and prints the client configuration commands. Existing clients are reused without rotating their secret.

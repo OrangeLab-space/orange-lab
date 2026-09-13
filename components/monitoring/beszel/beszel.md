@@ -45,15 +45,7 @@ Beszel supports OAuth login via [Pocket ID](../../security/pocket/pocket.md), fo
 1. Run the generic Pocket ID client script from the repository root (where the core stack lives) to create the OIDC client:
 
 ```sh
-BESZEL_URL=$(pulumi stack output --json | jq -er '.monitoring.endpoints.beszel')
-
-./scripts/pocket-client.sh \
-  --app-name beszel \
-  --client-name "Beszel" \
-  --launch-url "$BESZEL_URL" \
-  --callback-url "$BESZEL_URL/api/oauth2-redirect" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/beszel.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/beszel-light.svg
+./components/monitoring/beszel/pocket-beszel.sh
 
 # Configure the printed values
 pulumi config set beszel:auth pocket

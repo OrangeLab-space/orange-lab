@@ -54,15 +54,8 @@ Jellyfin supports OIDC login via [Pocket ID](../../../../components/security/poc
 1. From `stacks/media`, create the OIDC client with Pocket ID's API key:
 
 ```sh
-JELLYFIN_URL=$(pulumi stack output --json | jq -er '.endpoints.jellyfin')
-
-../../scripts/pocket-client.sh \
-  --app-name jellyfin \
-  --client-name "Jellyfin" \
-  --launch-url "$JELLYFIN_URL" \
-  --callback-url "$JELLYFIN_URL/sso/OID/redirect/pocketid" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/jellyfin.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/jellyfin-light.svg
+cd stacks/media
+./components/jellyfin/pocket-jellyfin.sh
 ```
 
 2. In Jellyfin (**Dashboard -> Plugins -> Repositories**), add the K0lin manifest:

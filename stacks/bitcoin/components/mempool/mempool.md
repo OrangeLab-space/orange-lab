@@ -45,16 +45,8 @@ Mempool does not support OIDC, but it can appear in Pocket ID's App Dashboard as
 a launcher available to every Pocket ID user:
 
 ```sh
-# From stacks/bitcoin
-MEMPOOL_URL=$(pulumi stack output --json | jq -er '.endpoints."mempool-frontend"')
-
-../../scripts/pocket-client.sh \
-  --app-name mempool \
-  --client-name "Mempool" \
-  --launch-url "$MEMPOOL_URL" \
-  --callback-url "$MEMPOOL_URL/" \
-  --dark-icon-url "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/mempool.png" \
-  --light-icon-url "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/mempool.png"
+cd stacks/bitcoin
+./components/mempool/pocket-mempool.sh
 ```
 
 Do not apply the `mempool:auth` commands printed by the script; Mempool uses

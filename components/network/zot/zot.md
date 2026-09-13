@@ -127,16 +127,7 @@ Zot supports OpenID Connect login for the web UI using [Pocket ID](../../securit
 1. Enable the [security module](../../security/pocket/pocket.md), then create the OIDC client from the repository root (where the core stack lives):
 
 ```sh
-ZOT_URL=$(pulumi stack output --json | jq -er '.network.endpoints.zot')
-
-./scripts/pocket-client.sh \
-  --app-name zot \
-  --client-name "Zot Registry" \
-  --launch-url "$ZOT_URL" \
-  --callback-url "$ZOT_URL/zot/auth/callback/oidc" \
-  --pkce-enabled false \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/zot-registry.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/zot-registry-light.svg
+./components/network/zot/pocket-zot.sh
 
 # Configure the printed values
 pulumi config set zot:auth pocket

@@ -53,18 +53,7 @@ Run the helper from the media stack directory after deploying Pocket ID and conf
 
 ```sh
 cd stacks/media
-
-IMMICH_URL=$(pulumi stack output --json | jq -er '.endpoints.immich')
-
-../../scripts/pocket-client.sh \
-  --app-name immich \
-  --client-name "Immich" \
-  --launch-url "$IMMICH_URL" \
-  --callback-url "$IMMICH_URL/auth/login" \
-  --callback-url "$IMMICH_URL/user-settings" \
-  --callback-url app.immich:///oauth-callback \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/immich-dark.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/immich.svg
+./components/immich/pocket-immich.sh
 ```
 
 The helper creates all required web and mobile callbacks, prints the OIDC issuer URL, client ID, and client secret, and reuses existing clients without rotating their secrets. Configure the printed client values in Pulumi:

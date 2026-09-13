@@ -32,16 +32,8 @@ current component does not configure n8n SSO, so this creates an unrestricted
 Pocket ID App Dashboard launcher:
 
 ```sh
-# From stacks/ai
-N8N_URL=$(pulumi stack output --json | jq -er '.endpoints.n8n')
-
-../../scripts/pocket-client.sh \
-  --app-name n8n \
-  --client-name "n8n" \
-  --launch-url "$N8N_URL" \
-  --callback-url "$N8N_URL/" \
-  --dark-icon-url "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/n8n.svg" \
-  --light-icon-url "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/n8n-light.svg"
+cd stacks/ai
+./components/n8n/pocket-n8n.sh
 ```
 
 Do not apply the `n8n:auth` commands printed by the script; this client is used

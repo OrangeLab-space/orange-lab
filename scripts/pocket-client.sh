@@ -13,9 +13,11 @@ Required parameters:
   --client-name <name>       Pocket ID client display name, e.g. "Open WebUI"
   --launch-url <url>         Public application URL and Pocket ID launch URL
   --callback-url <url>       OIDC callback URL; may be specified multiple times
+  --callback-urls <urls>     Comma- or space-separated OIDC callback URLs
 
 Optional parameters:
-  --logout-callback-url <url>  Logout callback URL; may be specified multiple times
+  --logout-callback-url <url>      Logout callback URL; may be specified multiple times
+  --logout-callback-urls <urls>    Comma- or space-separated logout callback URLs
   --dark-icon-url <url>      URL for the dark-theme client icon
   --light-icon-url <url>     URL for the light-theme client icon
   --pkce-enabled <boolean>   Enable PKCE (default: true)
@@ -44,7 +46,7 @@ pkce_enabled=true
 
 while (($# > 0)); do
     case "$1" in
-        --app-name|--client-name|--launch-url|--callback-url|--logout-callback-url|--dark-icon-url|--light-icon-url|--pkce-enabled)
+        --app-name|--client-name|--launch-url|--callback-url|--callback-urls|--logout-callback-url|--logout-callback-urls|--dark-icon-url|--light-icon-url|--pkce-enabled)
             if [[ $# -lt 2 || "$2" == -* ]]; then
                 printf 'Missing value for %s\n\n' "$1" >&2
                 usage >&2
@@ -55,7 +57,19 @@ while (($# > 0)); do
                 --client-name) client_name="$2" ;;
                 --launch-url) launch_url="$2" ;;
                 --callback-url) callback_urls+=("$2") ;;
+                --callback-urls)
+                    if [[ -n "$2" ]]; then
+                        read -ra values <<<"${2//,/ }"
+                        callback_urls+=("${values[@]}")
+                    fi
+                    ;;
                 --logout-callback-url) logout_callback_urls+=("$2") ;;
+                --logout-callback-urls)
+                    if [[ -n "$2" ]]; then
+                        read -ra values <<<"${2//,/ }"
+                        logout_callback_urls+=("${values[@]}")
+                    fi
+                    ;;
                 --dark-icon-url) dark_icon_url="$2" ;;
                 --light-icon-url) light_icon_url="$2" ;;
                 --pkce-enabled) pkce_enabled="$2" ;;

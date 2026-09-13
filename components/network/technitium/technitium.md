@@ -100,16 +100,7 @@ Technitium supports Single Sign-On via OpenID Connect using [Pocket ID](../../se
 1. Follow the [Pocket ID](../../security/pocket/pocket.md) instructions, then run the generic Pocket ID client script from the repository root (where the core stack lives) to create the OIDC client:
 
 ```sh
-DNS_URL=$(pulumi stack output --json | jq -er '.network.endpoints.technitium')
-
-./scripts/pocket-client.sh \
-  --app-name technitium \
-  --client-name "Technitium DNS" \
-  --launch-url "$DNS_URL" \
-  --callback-url "$DNS_URL/sso/callback" \
-  --pkce-enabled false \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/technitium.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/technitium-light.svg
+./components/network/technitium/pocket-technitium.sh
 
 # Configure the printed values
 pulumi config set technitium:auth pocket

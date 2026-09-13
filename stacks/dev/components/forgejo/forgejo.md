@@ -73,16 +73,7 @@ The core stack must have Pocket ID enabled and deployed before configuring OAuth
 
 ```sh
 cd stacks/dev
-
-FORGEJO_URL=$(pulumi stack output --json | jq -er '.endpoints.forgejo')
-
-../../scripts/pocket-client.sh \
-  --app-name forgejo \
-  --client-name Forgejo \
-  --launch-url "$FORGEJO_URL" \
-  --callback-url "$FORGEJO_URL/user/oauth2/SSO/callback" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/forgejo.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/forgejo-light.svg
+./components/forgejo/pocket-forgejo.sh
 ```
 
 The helper creates or refreshes the Pocket ID client and prints the client configuration commands. Existing clients are reused without rotating their secret.

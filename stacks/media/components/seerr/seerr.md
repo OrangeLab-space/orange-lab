@@ -25,16 +25,8 @@ Seerr has no OIDC support - users log in with a Jellyfin username and password. 
 Seerr itself does not support OIDC, but it can appear in Pocket ID's App Dashboard as a plain launcher icon:
 
 ```sh
-# From stacks/media
-SEERR_URL=$(pulumi stack output --json | jq -er '.endpoints.seerr')
-
-../../scripts/pocket-client.sh \
-  --app-name seerr \
-  --client-name "Seerr" \
-  --launch-url "$SEERR_URL" \
-  --callback-url "$SEERR_URL/sso/OID/redirect/pocketid" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/seerr.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/seerr-light.svg
+cd stacks/media
+./components/seerr/pocket-seerr.sh
 ```
 
 ## Setup

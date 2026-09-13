@@ -65,16 +65,8 @@ The Matter dashboard has no built-in authentication, but it can appear in Pocket
 ID's App Dashboard as a launcher icon:
 
 ```sh
-# From stacks/iot
-MATTER_URL=$(pulumi stack output --json | jq -er '.endpoints.matterDashboard')
-
-../../scripts/pocket-client.sh \
-  --app-name matter \
-  --client-name "Matter Server" \
-  --launch-url "$MATTER_URL" \
-  --callback-url "$MATTER_URL/" \
-  --dark-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/matter.svg \
-  --light-icon-url https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/matter-light.svg
+cd stacks/iot
+./components/matter/pocket-matter.sh
 ```
 
 Do not apply the `matter:auth` commands printed by the script; Matter uses the
