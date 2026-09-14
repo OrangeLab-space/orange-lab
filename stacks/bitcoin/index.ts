@@ -7,10 +7,7 @@ import { Electrs } from './components/electrs/electrs';
 import { Mempool } from './components/mempool/mempool';
 import { RpcUser } from './utils/rpc-user';
 
-const usernames = config
-    .require('bitcoin', 'rpcUsers')
-    .split(',')
-    .map(u => u.trim());
+const usernames = config.requireCommaSeparated('bitcoin', 'rpcUsers');
 const rpcUsers: Record<string, RpcUser> = {};
 const bitcoinUsers: Record<string, pulumi.Output<string>> = {};
 

@@ -50,16 +50,24 @@ class Config {
         return this.getConfig(appName).requireObject(key);
     }
 
+    public getCommaSeparated(appName: string, key: string): string[] | undefined {
+        const value = this.get(appName, key);
+        return value === undefined ? undefined : this.parseCommaSeparated(value);
+    }
+
     public requireCommaSeparated(appName: string, key: string): string[] {
-        const value = this.require(appName, key);
-        const strings = value
+        const strings = this.parseCommaSeparated(this.require(appName, key));
+        if (strings.length === 0) {
+            throw new Error(`${appName}:${key} must contain at least one value.`);
+        }
+        return strings;
+    }
+
+    private parseCommaSeparated(value: string): string[] {
+        return value
             .split(',')
             .map(item => item.trim())
             .filter(Boolean);
-        if (strings.length === 0) {
-            throw new Error(`${appName}:${key} must contain at least one group.`);
-        }
-        return strings;
     }
 
     public require(appName: string, key: string): string {

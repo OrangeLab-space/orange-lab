@@ -8,10 +8,7 @@ import { OpenThreadBorderRouter } from './components/openthread/openthread';
 
 const homeAssistant = config.isEnabled('home-assistant')
     ? new HomeAssistant('home-assistant', {
-          trustedProxies: (config.get('home-assistant', 'trustedProxies') ?? '')
-              .split(',')
-              .map(s => s.trim())
-              .filter(Boolean),
+          trustedProxies: config.getCommaSeparated('home-assistant', 'trustedProxies'),
           devices: config.getObject('home-assistant', 'devices') as
               | HomeAssistantDevice[]
               | undefined,

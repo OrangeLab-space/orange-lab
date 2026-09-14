@@ -102,12 +102,14 @@ export class Databases {
                 name,
                 nodes: this.args.nodes,
                 password: config.getSecret(this.appName, `${name}/password`),
-                postInitApplicationSQL: config
-                    .get(this.appName, `${name}/postInitApplicationSQL`)
-                    ?.split(','),
-                sharedPreloadLibraries: config
-                    .get(this.appName, `${name}/sharedPreloadLibraries`)
-                    ?.split(','),
+                postInitApplicationSQL: config.getCommaSeparated(
+                    this.appName,
+                    `${name}/postInitApplicationSQL`,
+                ),
+                sharedPreloadLibraries: config.getCommaSeparated(
+                    this.appName,
+                    `${name}/sharedPreloadLibraries`,
+                ),
                 storageClassName: fromVolume
                     ? this.args.storage.getStorageClass(name)
                     : this.args.storage.getDefaultStorageClass('postgres'),

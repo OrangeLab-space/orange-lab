@@ -183,10 +183,10 @@ $CONFIG = array (
         args: { httpEndpointInfo: HttpEndpointInfo },
         oidcSecret?: k8s.core.v1.Secret,
     ) {
-        const trustedProxies = config
-            .require('nextcloud', 'trustedProxies')
-            .split(',')
-            .map(s => s.trim());
+        const trustedProxies = config.requireCommaSeparated(
+            'nextcloud',
+            'trustedProxies',
+        );
         const groupProvisioningWhitelist = config.require(
             'nextcloud',
             'groupProvisioningWhitelist',

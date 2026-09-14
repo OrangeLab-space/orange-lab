@@ -16,7 +16,7 @@ export class KubeAi extends pulumi.ComponentResource {
 
         const hostname = config.require(name, 'hostname');
         const huggingfaceToken = config.getSecret(name, 'huggingfaceToken');
-        const models = config.get(name, 'models')?.split(',') ?? [];
+        const models = config.getCommaSeparated(name, 'models') ?? [];
 
         this.app = new Application(this, name);
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();

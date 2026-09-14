@@ -113,7 +113,7 @@ export class Ollama extends pulumi.ComponentResource {
                             number: 1,
                         },
                         models: {
-                            run: config.get(this.name, 'models')?.split(',') ?? [],
+                            run: config.getCommaSeparated(this.name, 'models') ?? [],
                         },
                     },
                     ...(gpu === 'amd'
