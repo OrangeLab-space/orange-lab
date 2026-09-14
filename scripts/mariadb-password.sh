@@ -22,10 +22,17 @@ fi
 
 # Read rootPassword from DB secret
 echo "Retrieving MariaDB root password from secret for app: $appName"
-rootPassword=$(kubectl get secret -n $appName $appName-db-secret -o jsonpath='{.data.rootPassword}' | base64 -d)
+secret=$(kubectl get secret -n "$appName" "$appName-db-secret" -o jsonpath='{.data.rootPassword}')
 
 if [ $? -ne 0 ]; then
     echo "Error: Failed to retrieve root password from secret"
+    exit 1
+fi
+
+rootPassword=$(echo "$secret" | base64 -d)
+
+if [ -z "$rootPassword" ]; then
+    echo "Error: Retrieved root password is empty"
     exit 1
 fi
 

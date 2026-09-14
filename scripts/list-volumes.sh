@@ -20,7 +20,10 @@ EXCLUDE_APPS=(
 )
 
 # Get all config as JSON
-config=$(pulumi config -j 2>/dev/null)
+config=$(pulumi config -j) || {
+  echo "Error: Failed to read Pulumi config. Run this script from a stack directory (e.g. stacks/apps)."
+  exit 1
+}
 
 # Get enabled apps (excluding system components and hostpath apps)
 enabled_apps=$(echo "$config" | jq -r '
