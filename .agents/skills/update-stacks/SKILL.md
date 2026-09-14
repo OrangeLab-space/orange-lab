@@ -17,12 +17,18 @@ Compile shared packages first:
 npm run build
 ```
 
+Skip this when the changes are documentation or comment-only (markdown, or a
+comment/doc-comment edit) — there is no runtime or infrastructure impact.
+
 ### 2. Discover stacks dynamically
 
 - **Core stack**: Look for `Pulumi.<stack>.yaml` in the project root. Use that stack name.
 - **Child stacks**: For each subdirectory in `stacks/`, look for `Pulumi.<stack>.yaml`. Collect all stack names. Each child stack must be run from its own directory (`stacks/<name>/`), not the project root.
 
 ### 3. Preview all stacks
+
+Skip this entirely when the changes are documentation or comment-only — there is
+nothing that can produce an infrastructure diff.
 
 Run previews in parallel where safe:
 

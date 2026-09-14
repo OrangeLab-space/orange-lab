@@ -56,7 +56,7 @@ and which are not.
 **c. Rebuild & preview impact** — a library change is invisible to `pulumi up`/`preview`
 until `npm run build`. What would `pulumi preview --diff` show: which resources
 create/update/delete, which are untouched? (Prefer running it read-only; get approval
-before `up`.)
+before `up`.) For comment/doc-only changes there is nothing to preview or rebuild.
 
 **d. Retroactivity & live verification** — does it affect only *future* resource
 creation or *existing* deployed resources? Check immutability rules (e.g. PVC
@@ -75,9 +75,13 @@ Never read `Pulumi.*.yaml` directly (secrets); use `pulumi config`.
 
 ### 6. Verification
 
+- **Comment/doc-only changes**: If the diff changes no code semantics — markdown, or a
+  comment/doc-comment edit in a `.ts` file — skip both `npm test` and `pulumi preview`.
+  There is no runtime or infrastructure impact; just confirm the comment matches the code
+  it documents.
 - **Linting/Tests**: Run `npm test` to ensure code matches project standards. Skip for
-  markdown-only changes (per AGENTS.md).
-- **Infrastructure Preview**: Run `pulumi preview --diff` to verify intended infrastructure changes.
+  comment/doc-only changes.
+- **Infrastructure Preview**: Run `pulumi preview --diff` to verify intended infrastructure changes. Skip for comment/doc-only changes.
 
 ## Important Rules
 
