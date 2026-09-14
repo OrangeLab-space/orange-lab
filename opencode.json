@@ -17,6 +17,7 @@
             "gh issue list *": "allow",
             "gh pr list *": "allow",
             "gh pr diff *": "allow",
+            "gh pr view *": "allow",
             "gh repo list *": "allow",
             "gh search issues *": "allow",
             "grep *": "allow",
@@ -53,6 +54,7 @@
             "sort *": "allow",
             "sleep *": "allow",
             "tail *": "allow",
+            "timeout *": "allow",
             "tr *": "allow",
             "uniq *": "allow",
             "wc *": "allow"
