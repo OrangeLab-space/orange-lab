@@ -69,8 +69,8 @@ export class Databases {
         if (this.databases[name]) {
             throw new Error(`Database ${this.appName}-${name} already exists.`);
         }
-        const existingVolume = config.get(this.appName, `${name}/fromVolume`);
-        if (existingVolume) {
+        const fromVolume = config.get(this.appName, `${name}/fromVolume`);
+        if (fromVolume) {
             this.args.storage.addPersistentVolume({
                 name,
                 overrideFullname: `${this.appName}-${name}-1`,
@@ -95,9 +95,7 @@ export class Databases {
             {
                 enabled:
                     config.getBoolean(this.appName, `${name}/enabled`) ?? enabledDefault,
-                fromPVC: existingVolume
-                    ? this.args.storage.getClaimName(name)
-                    : undefined,
+                fromVolume,
                 imageName: config.get(this.appName, `${name}/image`),
                 instances: config.getNumber(this.appName, `${name}/instances`),
                 metadata: this.args.metadata,
@@ -110,7 +108,7 @@ export class Databases {
                 sharedPreloadLibraries: config
                     .get(this.appName, `${name}/sharedPreloadLibraries`)
                     ?.split(','),
-                storageClassName: existingVolume
+                storageClassName: fromVolume
                     ? this.args.storage.getStorageClass(name)
                     : this.args.storage.getDefaultStorageClass('postgres'),
                 storageSize: config.require(this.appName, `${name}/storageSize`),

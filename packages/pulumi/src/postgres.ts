@@ -13,7 +13,7 @@ export interface PostgresClusterArgs {
     storageSize: pulumi.Input<string>;
     storageClassName?: pulumi.Input<string>;
     enabled?: boolean;
-    fromPVC?: pulumi.Input<string>;
+    fromVolume?: string;
     instances?: number;
     password?: pulumi.Input<string>;
     imageName?: string;
@@ -99,22 +99,18 @@ export class PostgresCluster extends pulumi.ComponentResource {
                     },
                     storage: {
                         size: this.args.storageSize,
-                        pvcTemplate: this.args.fromPVC
-                            ? {
-                                  dataSource: {
-                                      apiGroup: 'v1',
-                                      name: this.args.fromPVC,
-                                      kind: 'PersistentVolumeClaim',
-                                  },
-                              }
+                        ...(this.args.fromVolume
+                            ? {}
                             : {
-                                  accessModes: ['ReadWriteOnce'],
-                                  resources: {
-                                      requests: { storage: this.args.storageSize },
+                                  pvcTemplate: {
+                                      accessModes: ['ReadWriteOnce'],
+                                      resources: {
+                                          requests: { storage: this.args.storageSize },
+                                      },
+                                      storageClassName: this.args.storageClassName,
+                                      volumeMode: 'Filesystem',
                                   },
-                                  storageClassName: this.args.storageClassName,
-                                  volumeMode: 'Filesystem',
-                              },
+                              }),
                     },
                 },
             },
