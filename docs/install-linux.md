@@ -41,7 +41,7 @@ firewall-cmd --permanent --add-source=10.42.0.0/16 # Pods
 firewall-cmd --permanent --add-source=10.43.0.0/16 # Services
 firewall-cmd --permanent --add-port=6443/tcp # API Server
 firewall-cmd --permanent --add-port=10250/tcp # Kubelet metrics
-firewall-cmd --permanent --add-port=41641/tcp # Tailscale UDP
+firewall-cmd --permanent --add-port=41641/udp # Tailscale UDP
 firewall-cmd --permanent --add-interface=tailscale0 # Pod traffic to tailnet addresses
 
 systemctl reload firewalld
