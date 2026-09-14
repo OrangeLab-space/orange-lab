@@ -53,7 +53,9 @@
             "sort *": "allow",
             "sleep *": "allow",
             "tail *": "allow",
-            "tr *": "allow"
+            "tr *": "allow",
+            "uniq *": "allow",
+            "wc *": "allow"
         },
         "read": {
             "**/Pulumi.*.yaml": "deny"
