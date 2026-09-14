@@ -12,7 +12,7 @@ firewall-cmd --permanent --zone=$ZONE --add-source=$CLUSTER_CIDR
 firewall-cmd --permanent --zone=$ZONE --add-source=$SERVICE_CIDR
 firewall-cmd --permanent --zone=$ZONE --add-port=6443/tcp
 firewall-cmd --permanent --zone=$ZONE --add-port=10250/tcp
-firewall-cmd --permanent --zone=$ZONE --add-port=41641/tcp
+firewall-cmd --permanent --zone=$ZONE --add-port=41641/udp
 firewall-cmd --permanent --zone=$ZONE --add-interface=tailscale0
 
 firewall-cmd --reload
