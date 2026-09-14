@@ -28,7 +28,7 @@ const openWebUI = config.isEnabled('open-webui')
                   automatic1111?.app.network.clusterEndpoints.automatic1111,
           },
           {
-              dependsOn: [ollama, kubeAI, automatic1111].filter(x => x !== undefined),
+              dependsOn: [ollama, kubeAI, automatic1111, sdnext].filter(x => x !== undefined),
           },
       )
     : undefined;

@@ -20,7 +20,7 @@ export class InvokeAi extends pulumi.ComponentResource {
                 INVOKEAI_ENABLE_PARTIAL_LOADING: 'true',
                 INVOKEAI_LOG_LEVEL: this.app.debug ? 'debug' : 'info',
                 INVOKEAI_REMOTE_API_TOKENS: huggingfaceToken
-                    ? `[{"url_regex":"huggingface.co", "token": "${huggingfaceToken.get()}"}]`
+                    ? pulumi.interpolate`[{"url_regex":"huggingface.co", "token": "${huggingfaceToken}"}]`
                     : undefined,
             },
             healthCheck: { httpGet: { path: '/health' } },
