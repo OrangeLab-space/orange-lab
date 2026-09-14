@@ -40,9 +40,9 @@
     ],
     "author": "OrangeLab",
     "dependencies": {
-        "@pulumi/kubernetes": "4.30.0",
-        "@pulumi/pulumi": "3.237.0",
-        "@pulumi/random": "4.19.2"
+        "@pulumi/kubernetes": "4.34.0",
+        "@pulumi/pulumi": "3.261.0",
+        "@pulumi/random": "4.21.1"
     },
     "devDependencies": {
         "typescript": "5.9.3"

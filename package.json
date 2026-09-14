@@ -23,17 +23,17 @@
     },
     "dependencies": {
         "@orangelab/pulumi": "*",
-        "@pulumi/kubernetes": "4.30.0",
-        "@pulumi/pulumi": "3.237.0",
-        "@pulumi/random": "4.19.2",
-        "bcryptjs": "^3.0.3"
+        "@pulumi/kubernetes": "4.34.0",
+        "@pulumi/pulumi": "3.261.0",
+        "@pulumi/random": "4.21.1",
+        "bcryptjs": "3.0.3"
     },
     "devDependencies": {
         "@eslint/js": "9.39.2",
         "@pulumi/eslint-plugin": "0.3.1",
         "@types/node": "25.7.0",
         "eslint": "9.39.2",
-        "prettier": "3.8.3",
+        "prettier": "3.9.6",
         "typescript": "5.9.3",
         "typescript-eslint": "8.59.3"
     }
