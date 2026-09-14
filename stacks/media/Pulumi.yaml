@@ -16,11 +16,11 @@ config:
 
     immich:enabled: false
     immich:hostname: immich
-    immich:image: ghcr.io/immich-app/immich-server:release
+    immich:image: ghcr.io/immich-app/immich-server:v3.2.0
     immich:storageSize: 50Gi
     immich:trustedProxies: '10.42.0.0/16,10.43.0.0/16' # clusterCidr,serviceCidr
     immich:machine-learning/enabled: false
-    immich:machine-learning/image: ghcr.io/immich-app/immich-machine-learning:release
+    immich:machine-learning/image: ghcr.io/immich-app/immich-machine-learning:v3.2.0
     immich:machine-learning/storageSize: 10Gi
     immich:redis/image: docker.io/valkey/valkey:9@sha256:546304417feac0874c3dd576e0952c6bb8f06bb4093ea0c9ca303c73cf458f63
     immich:db/storageSize: 5Gi
