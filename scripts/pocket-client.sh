@@ -21,6 +21,7 @@ Optional parameters:
   --dark-icon-url <url>      URL for the dark-theme client icon
   --light-icon-url <url>     URL for the light-theme client icon
   --pkce-enabled <boolean>   Enable PKCE (default: true)
+  --public-client <boolean>  Register a public (PKCE) client without a secret (default: false)
   -h, --help                 Show this help
 
 Run this script from the application's Pulumi stack directory.
@@ -43,10 +44,11 @@ logout_callback_urls=()
 dark_icon_url=''
 light_icon_url=''
 pkce_enabled=true
+public_client=false
 
 while (($# > 0)); do
     case "$1" in
-        --app-name|--client-name|--launch-url|--callback-url|--callback-urls|--logout-callback-url|--logout-callback-urls|--dark-icon-url|--light-icon-url|--pkce-enabled)
+        --app-name|--client-name|--launch-url|--callback-url|--callback-urls|--logout-callback-url|--logout-callback-urls|--dark-icon-url|--light-icon-url|--pkce-enabled|--public-client)
             if [[ $# -lt 2 || "$2" == -* ]]; then
                 printf 'Missing value for %s\n\n' "$1" >&2
                 usage >&2
@@ -73,6 +75,7 @@ while (($# > 0)); do
                 --dark-icon-url) dark_icon_url="$2" ;;
                 --light-icon-url) light_icon_url="$2" ;;
                 --pkce-enabled) pkce_enabled="$2" ;;
+                --public-client) public_client="$2" ;;
             esac
             shift 2
             ;;
@@ -105,6 +108,14 @@ if ((${#callback_urls[@]} == 0)); then
 fi
 if [[ "${pkce_enabled}" != true && "${pkce_enabled}" != false ]]; then
     printf 'Invalid value for --pkce-enabled: %s (expected true or false)\n' "${pkce_enabled}" >&2
+    exit 2
+fi
+if [[ "${public_client}" != true && "${public_client}" != false ]]; then
+    printf 'Invalid value for --public-client: %s (expected true or false)\n' "${public_client}" >&2
+    exit 2
+fi
+if [[ "${public_client}" == true && "${pkce_enabled}" != true ]]; then
+    printf 'Public clients require PKCE; remove --pkce-enabled false.\n' >&2
     exit 2
 fi
 
@@ -220,12 +231,13 @@ if [[ -z "${client_id}" ]]; then
             --argjson callback_urls "${callback_urls_json}" \
             --argjson logout_callback_urls "${logout_callback_urls_json}" \
             --argjson pkce_enabled "${pkce_enabled}" \
+            --argjson is_public "${public_client}" \
             '{
                 name: $name,
                 callbackURLs: $callback_urls,
                 logoutCallbackURLs: $logout_callback_urls,
                 launchURL: $launch_url,
-                isPublic: false,
+                isPublic: $is_public,
                 pkceEnabled: $pkce_enabled,
                 skipConsent: true
             }')"); then
@@ -233,23 +245,28 @@ if [[ -z "${client_id}" ]]; then
         exit 1
     fi
     client_id=$(jq -er '.id' <<<"${client_response}")
+    client_secret=''
 
-    if ! secret_response=$(pocket_api POST "/api/oidc/clients/${client_id}/secret" \
-        -H "X-API-KEY: ${pocket_api_key}" \
-        -H 'Content-Type: application/json' \
-        --data '{}'); then
-        printf 'Error: secret rotation failed, deleting the client to leave a clean state - re-run the script.\n' >&2
-        pocket_api DELETE "/api/oidc/clients/${client_id}" -H "X-API-KEY: ${pocket_api_key}" >/dev/null || true
-        exit 1
+    if [[ "${public_client}" != true ]]; then
+        if ! secret_response=$(pocket_api POST "/api/oidc/clients/${client_id}/secret" \
+            -H "X-API-KEY: ${pocket_api_key}" \
+            -H 'Content-Type: application/json' \
+            --data '{}'); then
+            printf 'Error: secret rotation failed, deleting the client to leave a clean state - re-run the script.\n' >&2
+            pocket_api DELETE "/api/oidc/clients/${client_id}" -H "X-API-KEY: ${pocket_api_key}" >/dev/null || true
+            exit 1
+        fi
+        client_secret=$(jq -er '.secret' <<<"${secret_response}")
     fi
-    client_secret=$(jq -er '.secret' <<<"${secret_response}")
 
     # commands are printed right away so later (non-fatal) failures
     # cannot hide the config values
     printf '\nClient created: %s\n' "${client_name}"
     printf 'pulumi config set %s:auth pocket\n' "${app_name}"
     printf 'pulumi config set %s:auth/clientId %q\n' "${app_name}" "${client_id}"
-    printf 'pulumi config set %s:auth/clientSecret %q --secret\n' "${app_name}" "${client_secret}"
+    if [[ -n "${client_secret}" ]]; then
+        printf 'pulumi config set %s:auth/clientSecret %q --secret\n' "${app_name}" "${client_secret}"
+    fi
 
     # upload icons on the fresh client, then done
     if [[ -n "${dark_icon_url}" ]]; then
@@ -280,18 +297,20 @@ if [[ "${callback_urls_json}" != '[]' || "${logout_callback_urls_json}" != '[]' 
         --argjson requested "${logout_callback_urls_json}" \
         '$requested - ($existing.logoutCallbackURLs // [])')
     existing_pkce_enabled=$(jq -er '.pkceEnabled // false' <<<"${existing_client}")
-    if [[ "${missing_callback_urls}" != '[]' || "${missing_logout_urls}" != '[]' || "${existing_pkce_enabled}" != "${pkce_enabled}" ]]; then
+    existing_is_public=$(jq -er '.isPublic // false' <<<"${existing_client}")
+    if [[ "${missing_callback_urls}" != '[]' || "${missing_logout_urls}" != '[]' || "${existing_pkce_enabled}" != "${pkce_enabled}" || "${existing_is_public}" != "${public_client}" ]]; then
         update_body=$(jq -c -n \
             --argjson existing "${existing_client}" \
             --argjson requested_callbacks "${callback_urls_json}" \
             --argjson requested_logout "${logout_callback_urls_json}" \
             --argjson pkce_enabled "${pkce_enabled}" \
+            --argjson is_public "${public_client}" \
             '{
                 name: $existing.name,
                 description: ($existing.description // ""),
                 callbackURLs: ((($existing.callbackURLs // []) + $requested_callbacks) | unique),
                 logoutCallbackURLs: ((($existing.logoutCallbackURLs // []) + $requested_logout) | unique),
-                isPublic: ($existing.isPublic // false),
+                isPublic: $is_public,
                 pkceEnabled: $pkce_enabled,
                 requiresReauthentication: ($existing.requiresReauthentication // false),
                 requiresPushedAuthorizationRequests: ($existing.requiresPushedAuthorizationRequests // false),
@@ -329,6 +348,6 @@ printf 'pulumi config set %s:auth pocket\n' "${app_name}"
 printf 'pulumi config set %s:auth/clientId %q\n' "${app_name}" "${client_id}"
 if [[ -n "${client_secret}" ]]; then
     printf 'pulumi config set %s:auth/clientSecret %q --secret\n' "${app_name}" "${client_secret}"
-else
+elif [[ "${public_client}" != true ]]; then
     printf 'Existing client reused; its secret was not rotated.\n'
 fi

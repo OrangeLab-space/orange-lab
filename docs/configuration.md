@@ -106,7 +106,7 @@ The following settings are supported by most applications in OrangeLab:
 | `backupVolume`        | Enable volume backups to S3-compatible storage                                               |
 | `auth`                | Enable OIDC authentication with the selected provider                                         |
 | `auth/clientId`       | OIDC client ID                                                                                |
-| `auth/clientSecret`   | OIDC client secret                                                                            |
+| `auth/clientSecret`   | OIDC client secret (not required by apps using a public/PKCE client)                        |
 | `auth/providerUrl`    | Override the OIDC discovery URL                                                               |
 | `auth/providerName`   | Name of the OIDC provider, used in the login button label                                     |
 

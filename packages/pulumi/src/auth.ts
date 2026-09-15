@@ -11,6 +11,7 @@ export interface OidcAuthConfig {
     providerName?: string;
     providerUrl?: pulumi.Input<string | undefined>;
     clientId: string;
+    /** Empty for public (PKCE) clients. */
     clientSecret: pulumi.Output<string>;
 }
 
@@ -20,6 +21,8 @@ export interface OidcProviderSettings {
     providerUrl?: pulumi.Input<string | undefined>;
     /** Enables the shared Traefik middleware for applications without native OIDC. */
     protectRoutes?: boolean;
+    /** Registers the application as a public (PKCE) client; no client secret is required. */
+    publicClient?: boolean;
 }
 
 export class Auth {
@@ -47,7 +50,9 @@ export class Auth {
             providerName:
                 config.get(this.appName, 'auth/providerName') ?? local?.providerName,
             clientId: config.require(this.appName, 'auth/clientId'),
-            clientSecret: config.requireSecret(this.appName, 'auth/clientSecret'),
+            clientSecret: local?.publicClient
+                ? pulumi.output('')
+                : config.requireSecret(this.appName, 'auth/clientSecret'),
         };
     }
 }
