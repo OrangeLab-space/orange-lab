@@ -113,6 +113,16 @@ export interface LocalVolumeSpec {
 }
 
 /**
+ * Represents an emptyDir volume, optionally backed by memory.
+ * Use `memory` for shared-memory or cache mounts (e.g. /dev/shm, /tmp/cache).
+ */
+export interface EmptyVolumeSpec {
+    name: string;
+    memory?: boolean;
+    sizeLimit?: string;
+}
+
+/**
  * Represents a device mount (e.g., /dev/kfd, /dev/dri).
  * Used for GPU device access and similar hardware.
  */

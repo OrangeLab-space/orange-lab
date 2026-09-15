@@ -14,6 +14,7 @@ import { Storage } from './storage';
 import {
     ConfigVolumeSpec,
     ContainerSpec,
+    EmptyVolumeSpec,
     LocalVolumeSpec,
     PersistentVolumeSpec,
 } from './types';
@@ -171,6 +172,16 @@ export class Application {
 
     addLocalStorage(volume: LocalVolumeSpec) {
         this.getStorage().addLocalVolume(volume);
+        return this;
+    }
+
+    /**
+     * Adds an emptyDir volume, optionally memory-backed.
+     * Useful for shared memory (e.g. /dev/shm) and scratch/cache mounts.
+     */
+    addEmptyVolume(volume: EmptyVolumeSpec) {
+        if (this.storageOnly) return this;
+        this.getStorage().addEmptyVolume(volume);
         return this;
     }
 

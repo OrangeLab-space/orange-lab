@@ -17,6 +17,7 @@ export {
     CoreStackExports,
     DatabaseConfig,
     DeviceMountSpec,
+    EmptyVolumeSpec,
     GpuType,
     HttpEndpointInfo,
     HttpRouteSpec,

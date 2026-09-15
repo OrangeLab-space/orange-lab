@@ -50,6 +50,13 @@ class Config {
         return this.getConfig(appName).requireObject(key);
     }
 
+    public getSecretObject<T>(
+        appName: string,
+        key: string,
+    ): pulumi.Output<T> | undefined {
+        return this.getConfig(appName).getSecretObject<T>(key);
+    }
+
     public getCommaSeparated(appName: string, key: string): string[] | undefined {
         const value = this.get(appName, key);
         return value === undefined ? undefined : this.parseCommaSeparated(value);

@@ -12,6 +12,7 @@ import { Nodes } from './nodes';
 import {
     ConfigVolumeSpec,
     DeviceMountSpec,
+    EmptyVolumeSpec,
     LocalVolumeSpec,
     PersistentVolumeSpec,
 } from './types';
@@ -64,6 +65,17 @@ export class Storage extends pulumi.ComponentResource {
         );
         this.localVolumes.set(volumeName, volume);
         this.volumes.set(volumeName, volume.getVolumeDefinition());
+    }
+
+    addEmptyVolume(volume: EmptyVolumeSpec) {
+        const volumeName = this.getVolumeName(volume.name);
+        this.volumes.set(volumeName, {
+            name: volumeName,
+            emptyDir: {
+                medium: volume.memory ? 'Memory' : undefined,
+                sizeLimit: volume.sizeLimit,
+            },
+        });
     }
 
     addDeviceMount(volume: DeviceMountSpec) {
