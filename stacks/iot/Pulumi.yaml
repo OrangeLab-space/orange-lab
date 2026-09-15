@@ -51,3 +51,10 @@ config:
     matter:bluetoothAdapter: 0
     # (Optional) Primary network interface for Matter mDNS
     # matter:primaryInterface: enp3s0
+
+    mosquitto:enabled: false
+    mosquitto:image: eclipse-mosquitto:2
+    mosquitto:user: mqtt
+    mosquitto:storageSize: 1Gi
+    # Required: set with `pulumi config set --secret mosquitto:password <value>`
+    # Generate one with: openssl rand -base64 24

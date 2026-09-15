@@ -90,3 +90,25 @@ Configure the OpenThread Border Router and Matter integrations with:
 | -------------------------- | --- |
 | OpenThread Border Router   | `http://openthread.openthread:8081` |
 | Matter                     | `ws://matter.matter:5580/ws`        |
+
+## MQTT (Mosquitto)
+
+Enable the [Mosquitto](../mosquitto/mosquitto.md) component, then add the
+integration in the Home Assistant UI (**Settings → Devices & Services → Add
+Integration → MQTT**). The broker cannot be configured from `configuration.yaml`
+— Home Assistant only supports the UI flow for it.
+
+| Setting  | Value             |
+| -------- | ----------------- |
+| Broker   | `mosquitto.mosquitto` |
+| Port     | `1883`            |
+| Username | `mqtt`            |
+
+```sh
+# Password
+cd stacks/iot
+pulumi stack output mqtt --show-secrets --json | jq -r '.password'
+```
+
+Frigate publishes its events to the same broker and its entities show up through
+MQTT discovery.

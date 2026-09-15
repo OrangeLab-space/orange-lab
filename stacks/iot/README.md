@@ -9,6 +9,7 @@ Components related to IoT (Internet of Things) sensors and home automation.
 - [Home Assistant](./components/home-assistant/home-assistant.md) — Open source home automation platform that puts local control and privacy first
 - [OpenThread Border Router](./components/openthread/openthread.md) — Thread border router for Home Assistant
 - [Matter Server](./components/matter/matter.md) — Matter controller for Home Assistant
+- [Mosquitto](./components/mosquitto/mosquitto.md) — MQTT broker for Home Assistant and Frigate
 
 ## Configure Applications
 
