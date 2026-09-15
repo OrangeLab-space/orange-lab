@@ -34,6 +34,10 @@ config:
     home-assistant:oidcVersion: v1.2.1
     # Pocket ID group whose members get the Home Assistant admin role
     home-assistant:auth/adminGroup: admin
+    # Frigate custom integration, installed into /config/custom_components
+    # when the Frigate component is enabled (repo + release tag, fetched from a tarball)
+    home-assistant:frigateRepo: https://github.com/blakeblackshear/frigate-hass-integration
+    home-assistant:frigateVersion: v5.15.6
 
     openthread:enabled: false
     openthread:storageSize: 1Gi
@@ -58,3 +62,30 @@ config:
     mosquitto:storageSize: 1Gi
     # Required: set with `pulumi config set --secret mosquitto:password <value>`
     # Generate one with: openssl rand -base64 24
+
+    frigate:enabled: false
+    frigate:hostname: frigate
+    frigate:image: ghcr.io/blakeblackshear/frigate:stable
+    frigate:config/storageSize: 1Gi
+    frigate:media/storageSize: 50Gi
+    frigate:shmSize: 512Mi
+    frigate:cacheSize: 1Gi
+    frigate:coral: false
+    # Deploy on the node with the Coral USB accelerator / recorded media disk.
+    # frigate:requiredNodeLabel: kubernetes.io/hostname=<node>
+    # Store recordings on a local disk instead of Longhorn.
+    # frigate:media/hostPath: /mnt/media/frigate
+    # Extra host devices, e.g. an iGPU for hardware-accelerated decoding.
+    # frigate:devices:
+    #     - name: dri
+    #       device: /dev/dri
+    # Frigate configuration (JSON object, stored as a Kubernetes Secret).
+    # Set it as a secret since it contains per-camera credentials:
+    #   pulumi config set --secret frigate:config "$(cat frigate.json)"
+    # frigate:config:
+    #     cameras:
+    #         front_door:
+    #             ffmpeg:
+    #                 inputs:
+    #                     - path: rtsp://viewer:password@10.0.10.10:554/live
+    #                       roles: [detect, record]

@@ -1,5 +1,6 @@
 import { config } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
+import { Frigate } from './components/frigate/frigate';
 import {
     HomeAssistant,
     HomeAssistantDevice,
@@ -11,12 +12,27 @@ import { OpenThreadBorderRouter } from './components/openthread/openthread';
 const mosquitto = config.isEnabled('mosquitto')
     ? new Mosquitto('mosquitto')
     : undefined;
+
+const frigate = config.isEnabled('frigate')
+    ? new Frigate('frigate', {
+          mqtt: mosquitto
+              ? {
+                    host: mosquitto.host,
+                    password: mosquitto.password,
+                    port: mosquitto.port,
+                    username: mosquitto.username,
+                }
+              : undefined,
+      })
+    : undefined;
+
 const homeAssistant = config.isEnabled('home-assistant')
     ? new HomeAssistant('home-assistant', {
           trustedProxies: config.getCommaSeparated('home-assistant', 'trustedProxies'),
           devices: config.getObject('home-assistant', 'devices') as
               | HomeAssistantDevice[]
               | undefined,
+          frigateIntegration: frigate !== undefined,
       })
     : undefined;
 
@@ -33,6 +49,7 @@ export const endpoints = {
     openThreadRestApi: openThreadBorderRouter?.restApiUrl,
     matterDashboard: matterServer?.endpointUrl,
     matterWebsocket: matterServer?.websocketUrl,
+    frigate: frigate?.endpointUrl,
     mosquitto: mosquitto?.endpoint,
 };
 

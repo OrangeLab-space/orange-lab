@@ -112,3 +112,35 @@ pulumi stack output mqtt --show-secrets --json | jq -r '.password'
 
 Frigate publishes its events to the same broker and its entities show up through
 MQTT discovery.
+
+## Frigate integration
+
+When the [Frigate](../frigate/frigate.md) component is enabled, its integration
+is installed into `/config/custom_components/frigate` automatically (fetched
+from a repository tarball; override with `home-assistant:frigateRepo` and
+`home-assistant:frigateVersion`). The integration still has to be added once in
+the UI:
+
+1. **Settings → Devices & Services → Add Integration → Frigate**.
+2. URL `http://frigate.frigate:5000` (internal, unauthenticated) or
+   `http://frigate.frigate:8971` to require Frigate's own authentication.
+
+### Manual install and debugging
+
+The init container `install-frigate-integration` downloads
+`<home-assistant:frigateRepo>` at `<home-assistant:frigateVersion>` and copies
+`custom_components/frigate`; it is skipped when that version is already
+installed. Check it with:
+
+```sh
+kubectl logs -n home-assistant deploy/home-assistant -c install-frigate-integration
+```
+
+If it fails, install the integration like any custom component and restart Home
+Assistant:
+
+- Via HACS: add the repo as a custom repository (category *Integration*), install
+  **Frigate**, then restart; or
+- Manually: download
+  `<home-assistant:frigateRepo>/archive/<home-assistant:frigateVersion>.tar.gz`
+  and copy `custom_components/frigate` into `/config/custom_components/`.

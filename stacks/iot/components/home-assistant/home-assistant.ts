@@ -9,6 +9,8 @@ export interface HomeAssistantDevice {
 export interface HomeAssistantArgs {
     trustedProxies?: string[];
     devices?: HomeAssistantDevice[];
+    /** Install the Frigate custom integration into /config/custom_components. */
+    frigateIntegration?: boolean;
 }
 
 export class HomeAssistant extends pulumi.ComponentResource {
@@ -32,6 +34,11 @@ export class HomeAssistant extends pulumi.ComponentResource {
     }
 
     private createHelmChart(name: string, args: HomeAssistantArgs) {
+        const needsConfigVolume = Boolean(this.app.oidc) || args.frigateIntegration;
+        const installContainers = [
+            ...(this.app.oidc ? [this.getOidcInstallContainer(name)] : []),
+            ...(args.frigateIntegration ? [this.getFrigateInstallContainer(name)] : []),
+        ];
         this.app.addHelmChart(
             name,
             {
@@ -54,7 +61,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
                             name,
                             hostPath: { path: device, type: 'CharDevice' },
                         })),
-                        ...(this.app.oidc
+                        ...(needsConfigVolume
                             ? [
                                   {
                                       name: 'ha-config',
@@ -62,8 +69,11 @@ export class HomeAssistant extends pulumi.ComponentResource {
                                           claimName: this.app.storage?.getClaimName(),
                                       },
                                   },
-                                  { name: 'oidc-scratch', emptyDir: {} },
                               ]
+                            : []),
+                        ...(this.app.oidc ? [{ name: 'oidc-scratch', emptyDir: {} }] : []),
+                        ...(args.frigateIntegration
+                            ? [{ name: 'frigate-scratch', emptyDir: {} }]
                             : []),
                     ],
                     affinity: this.app.nodes.getAffinity(),
@@ -82,9 +92,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
                     fullnameOverride: name,
                     hostNetwork: true,
                     ingress: { enabled: false },
-                    ...(this.app.oidc && {
-                        initContainers: [this.getOidcInstallContainer(name)],
-                    }),
+                    ...(installContainers.length > 0 && { initContainers: installContainers }),
                     persistence: {
                         enabled: true,
                         existingClaim: this.app.storage?.getClaimName(),
@@ -179,6 +187,54 @@ export class HomeAssistant extends pulumi.ComponentResource {
             volumeMounts: [
                 { name: 'ha-config', mountPath: '/config' },
                 { name: 'oidc-scratch', mountPath: '/git' },
+            ],
+        };
+    }
+
+    private getFrigateInstallContainer(name: string) {
+        return {
+            name: 'install-frigate-integration',
+            image: 'alpine:3.21',
+            command: ['/bin/sh', '-c'],
+            env: [
+                { name: 'FRIGATE_REPO', value: config.require(name, 'frigateRepo') },
+                {
+                    name: 'FRIGATE_VERSION',
+                    value: config.require(name, 'frigateVersion'),
+                },
+            ],
+            args: [
+                [
+                    'set -e',
+                    'install_dir=/config/custom_components/frigate',
+                    'marker="$install_dir/.orangelab-version"',
+                    'marker_value="tar:$FRIGATE_REPO@$FRIGATE_VERSION"',
+                    'if [ -f "$marker" ] && [ -f "$install_dir/manifest.json" ] && [ "$(cat "$marker")" = "$marker_value" ]; then',
+                    '    echo "frigate integration $FRIGATE_VERSION already installed"',
+                    '    exit 0',
+                    'fi',
+                    'url="${FRIGATE_REPO%/}/archive/refs/tags/${FRIGATE_VERSION}.tar.gz"',
+                    'if ! wget -q -O /git/frigate-integration.tar.gz "$url"; then',
+                    '    if [ -f "$install_dir/manifest.json" ]; then',
+                    '        echo "WARNING: could not fetch frigate integration $FRIGATE_VERSION, keeping existing install" >&2',
+                    '        exit 0',
+                    '    fi',
+                    '    echo "ERROR: could not fetch frigate integration $FRIGATE_VERSION and no existing install" >&2',
+                    '    exit 1',
+                    'fi',
+                    'mkdir -p /git/src',
+                    'tar -xzf /git/frigate-integration.tar.gz -C /git/src --strip-components=1',
+                    'rm -rf "$install_dir"',
+                    'mkdir -p /config/custom_components',
+                    'cp -r /git/src/custom_components/frigate "$install_dir"',
+                    'echo "$marker_value" > "$marker"',
+                    'chmod -R a+rX "$install_dir"',
+                    'echo "frigate integration $FRIGATE_VERSION installed"',
+                ].join('\n'),
+            ],
+            volumeMounts: [
+                { name: 'ha-config', mountPath: '/config' },
+                { name: 'frigate-scratch', mountPath: '/git' },
             ],
         };
     }
