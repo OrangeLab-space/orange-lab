@@ -113,6 +113,7 @@ Applications with native OIDC support:
 - [Beszel](../../monitoring/beszel/beszel.md)
 - [Grafana (Prometheus)](../../monitoring/prometheus/prometheus.md)
 - [Forgejo](../../../stacks/dev/components/forgejo/forgejo.md)
+- [Home Assistant](../../../stacks/iot/components/home-assistant/home-assistant.md)
 
 Run the application's script from its stack directory, for example from
 `stacks/apps`:
@@ -156,7 +157,6 @@ use them. Do not run the printed `<app>:auth` commands.
 - [Mempool](../../../stacks/bitcoin/components/mempool/mempool.md) (no authentication)
 - [InvokeAI](../../../stacks/ai/components/invokeai/invokeai.md) (no authentication)
 - [n8n](../../../stacks/ai/components/n8n/n8n.md) (OIDC is Enterprise-only)
-- [Home Assistant](../../../stacks/iot/components/home-assistant/home-assistant.md)
 
 ### Manual setup
 

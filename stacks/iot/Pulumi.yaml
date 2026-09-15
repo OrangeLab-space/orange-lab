@@ -28,6 +28,12 @@ config:
     # home-assistant:requiredNodeLabel: kubernetes.io/hostname=<value>
 
     home-assistant:trustedProxies: '10.42.0.0/16,10.43.0.0/16,127.0.0.0/8' # clusterCidr,serviceCidr,local
+    # Home Assistant OpenID Connect integration source (used when home-assistant:auth is set)
+    # Release archive is fetched from <oidcRepo>/releases/download/<oidcVersion>/hass-oidc-auth.zip
+    home-assistant:oidcRepo: https://github.com/christiaangoossens/hass-oidc-auth
+    home-assistant:oidcVersion: v1.2.1
+    # Pocket ID group whose members get the Home Assistant admin role
+    home-assistant:auth/adminGroup: admin
 
     openthread:enabled: false
     openthread:storageSize: 1Gi
