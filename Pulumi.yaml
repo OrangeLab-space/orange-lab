@@ -41,7 +41,7 @@ config:
     tailscale:hostname: k8s
 
     traefik:enabled: false
-    traefik:version: 41.5.0
+    traefik:version: 41.6.0
     traefik:hostname: traefik
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml'
 
@@ -127,7 +127,7 @@ config:
     # rustfs:dataPath: /mnt/my-drive/rustfs-data
     # rustfs:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     rustfs:rootUser: admin
-    rustfs:image: rustfs/rustfs:1.0.0-rc.5
+    rustfs:image: rustfs/rustfs:1.0.0
     rustfs:provisioner/image: rustfs/rc:latest
     # rustfs:fixVolumePermissions: '-Rv'
 
