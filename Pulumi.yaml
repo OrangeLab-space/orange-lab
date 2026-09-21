@@ -181,7 +181,7 @@ config:
 
     pocket:enabled: false
     pocket:hostname: pocket
-    pocket:image: pocketid/pocket-id:v2
+    pocket:image: pocketid/pocket-id:v2.14.0
     pocket:storageSize: 1Gi
     # pocket:encryptionKey:
     #   secure: ENCRYPTION_KEY
