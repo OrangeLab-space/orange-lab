@@ -58,20 +58,3 @@ automatically:
    active dataset can be supplied in the dashboard.
 
 The device appears under **Nodes** once commissioned.
-
-## Pocket ID Launcher
-
-The Matter dashboard has no built-in authentication, but it can appear in Pocket
-ID's App Dashboard as a launcher icon:
-
-```sh
-cd stacks/iot
-./components/matter/pocket-matter.sh
-```
-
-Do not apply the `matter:auth` commands printed by the script; Matter uses the
-client only as a Pocket ID launcher.
-
-> [!WARNING]
-> The Matter dashboard is not protected by Pocket ID - anyone who can reach its
-> URL can manage devices.

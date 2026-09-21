@@ -152,7 +152,6 @@ These applications are not protected by Pocket ID; the client is only a launcher
 tile. Several have no login of their own, so anyone who can reach their URL can
 use them. Do not run the printed `<app>:auth` commands.
 
-- [Matter](../../../stacks/iot/components/matter/matter.md) (no authentication)
 - [Seerr](../../../stacks/media/components/seerr/seerr.md) (Jellyfin username/password)
 - [Mempool](../../../stacks/bitcoin/components/mempool/mempool.md) (no authentication)
 - [InvokeAI](../../../stacks/ai/components/invokeai/invokeai.md) (no authentication)
