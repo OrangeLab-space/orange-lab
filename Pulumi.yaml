@@ -49,7 +49,7 @@ config:
     cert-manager:clusterIssuer: letsencrypt-issuer
 
     technitium:enabled: false
-    technitium:image: technitium/dns-server:15.4.0
+    technitium:image: technitium/dns-server:15.5.0
     technitium:hostname: dns
     technitium:storageSize: 5Gi
     # set to empty to use root servers recursion
