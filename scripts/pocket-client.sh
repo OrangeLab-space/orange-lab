@@ -248,7 +248,7 @@ if [[ -z "${client_id}" ]]; then
     client_secret=''
 
     if [[ "${public_client}" != true ]]; then
-        if ! secret_response=$(pocket_api POST "/api/oidc/clients/${client_id}/secret" \
+        if ! secret_response=$(pocket_api POST "/api/oidc/clients/${client_id}/secrets" \
             -H "X-API-KEY: ${pocket_api_key}" \
             -H 'Content-Type: application/json' \
             --data '{}'); then
