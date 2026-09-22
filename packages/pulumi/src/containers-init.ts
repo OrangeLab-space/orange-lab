@@ -1,7 +1,7 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Metadata } from './metadata';
-import { Storage } from './storage';
+import { Storage, resolveVolumeName } from './storage';
 import { ContainerSpec, InitContainerSpec, VolumeMount } from './types';
 import { config } from './config';
 
@@ -39,6 +39,20 @@ export class InitContainers {
         }));
     }
 
+    /**
+     * Volume names referenced by init containers, so the pod can declare
+     * volumes that only an init container mounts.
+     */
+    public getVolumeNames(spec: ContainerSpec): string[] {
+        const names = new Set<string>();
+        for (const initContainer of spec.initContainers ?? []) {
+            for (const mount of initContainer.volumeMounts ?? spec.volumeMounts ?? []) {
+                names.add(resolveVolumeName(this.appName, mount.name));
+            }
+        }
+        return [...names];
+    }
+
     private createPermissionsContainer(
         runAsUser: number,
         mountPaths: string[],
@@ -58,7 +72,8 @@ export class InitContainers {
         return (volumeMounts ?? [])
             .filter(
                 mount =>
-                    !mount.readOnly && volumeNames.includes(mount.name ?? this.appName),
+                    !mount.readOnly &&
+                        volumeNames.includes(resolveVolumeName(this.appName, mount.name)),
             )
             .map(mount => mount.mountPath);
     }
@@ -74,7 +89,7 @@ export class InitContainers {
     ): kubernetes.types.input.core.v1.VolumeMount[] | undefined {
         const mounts = (volumeMounts ?? []).map(volumeMount => ({
             ...volumeMount,
-            ...{ name: volumeMount.name ?? this.appName },
+            ...{ name: resolveVolumeName(this.appName, volumeMount.name) },
         }));
         return mounts;
     }

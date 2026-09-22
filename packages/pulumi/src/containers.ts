@@ -4,7 +4,7 @@ import { config } from './config';
 import { InitContainers } from './containers-init';
 import { Metadata } from './metadata';
 import { Nodes } from './nodes';
-import { Storage } from './storage';
+import { Storage, resolveVolumeName } from './storage';
 import {
     ContainerResources,
     ContainerSpec,
@@ -46,7 +46,11 @@ export class Containers {
                 ? config.require(this.appName, `${spec.name}/image`)
                 : config.require(this.appName, 'image'));
         const volumeMounts = this.createVolumeMounts(spec.volumeMounts, gpu);
-        const volumes = this.createVolumes(volumeMounts, gpu);
+        const volumeNames = [
+            ...volumeMounts.map(mount => mount.name),
+            ...this.initContainers.getVolumeNames(spec),
+        ];
+        const volumes = this.createVolumes(volumeNames, gpu);
         return {
             metadata,
             spec: {
@@ -122,7 +126,7 @@ export class Containers {
     }
 
     private createVolumes(
-        volumeMounts: kubernetes.types.input.core.v1.VolumeMount[],
+        volumeNames: (pulumi.Input<string> | undefined)[],
         gpu?: GpuType,
     ): kubernetes.types.input.core.v1.Volume[] | undefined {
         if (gpu === 'amd') {
@@ -137,7 +141,7 @@ export class Containers {
             });
         }
         const volumes = (this.args.storage?.getVolumes() ?? []).filter(vol =>
-            volumeMounts.find(mount => mount.name === vol.name),
+            volumeNames.includes(vol.name),
         );
         return volumes.length ? volumes : undefined;
     }
@@ -148,7 +152,7 @@ export class Containers {
     ): kubernetes.types.input.core.v1.VolumeMount[] {
         const mounts = (volumeMounts ?? []).map(volumeMount => ({
             ...volumeMount,
-            ...{ name: volumeMount.name ?? this.appName },
+            ...{ name: resolveVolumeName(this.appName, volumeMount.name) },
         }));
         if (gpu === 'amd') {
             mounts.push({ name: 'dev-kfd', mountPath: '/dev/kfd' });

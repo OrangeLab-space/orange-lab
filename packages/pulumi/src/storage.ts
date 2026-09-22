@@ -17,6 +17,14 @@ import {
     PersistentVolumeSpec,
 } from './types';
 
+/**
+ * Resolves a volume name, defaulting to the app name when unspecified.
+ * Shared contract between storage volume keys and container volume mounts.
+ */
+export function resolveVolumeName(appName: string, name?: string): string {
+    return name ?? appName;
+}
+
 export class Storage extends pulumi.ComponentResource {
     private defaultStorageClass = 'longhorn';
     private deviceMounts = new Map<string, DeviceMountSpec>();
@@ -172,7 +180,7 @@ export class Storage extends pulumi.ComponentResource {
     }
 
     private getVolumeName(storageName?: string): string {
-        return storageName ?? this.appName;
+        return resolveVolumeName(this.appName, storageName);
     }
 
     private resolveBackupEnabled(volumeName?: string): pulumi.Input<boolean> {
