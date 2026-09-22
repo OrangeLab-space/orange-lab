@@ -13,6 +13,10 @@ export interface OidcAuthConfig {
     clientId: string;
     /** Empty for public (PKCE) clients. */
     clientSecret: pulumi.Output<string>;
+    /** Forwards the authenticated identity to the upstream app as proxy headers. */
+    forwardIdentity?: boolean;
+    /** Additional static headers to send to the upstream app (e.g. a proxy secret). */
+    headers?: Record<string, pulumi.Input<string>>;
 }
 
 export interface OidcProviderSettings {
@@ -23,6 +27,10 @@ export interface OidcProviderSettings {
     protectRoutes?: boolean;
     /** Registers the application as a public (PKCE) client; no client secret is required. */
     publicClient?: boolean;
+    /** Forwards the authenticated username and groups to the upstream app as proxy headers. */
+    forwardIdentity?: boolean;
+    /** Additional static headers to send to the upstream app (e.g. a proxy secret). */
+    headers?: Record<string, pulumi.Input<string>>;
 }
 
 export class Auth {
@@ -53,6 +61,8 @@ export class Auth {
             clientSecret: local?.publicClient
                 ? pulumi.output('')
                 : config.requireSecret(this.appName, 'auth/clientSecret'),
+            forwardIdentity: local?.forwardIdentity,
+            headers: local?.headers,
         };
     }
 }
