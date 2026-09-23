@@ -1,4 +1,10 @@
-import { Application, GpuType, VolumeMount, config } from '@orangelab/pulumi';
+import {
+    Application,
+    GpuType,
+    InitContainerSpec,
+    VolumeMount,
+    config,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export interface FrigateDevice {
@@ -26,7 +32,7 @@ export class Frigate extends pulumi.ComponentResource {
         const coral = config.requireBoolean(name, 'coral');
         const devices =
             (config.getObject(name, 'devices') as FrigateDevice[] | undefined) ?? [];
-        const app = new Application(this, name);
+        const recreateConfig = config.requireBoolean(name, 'config/recreate');
 
         app.addStorage();
         this.addMediaStorage(app, name);
@@ -68,6 +74,7 @@ export class Frigate extends pulumi.ComponentResource {
             env: { TZ: config.get(name, 'TZ') },
             envSecret: { FRIGATE_MQTT_PASSWORD: args.mqtt?.password },
             healthCheck: { httpGet: { path: '/' } },
+            initContainers: [this.createSeedInitContainer(name, recreateConfig)],
             ports: [
                 { name: 'http', port: 5000, private: true },
                 { name: 'auth', port: 8971 },
@@ -79,7 +86,7 @@ export class Frigate extends pulumi.ComponentResource {
                 requests: { cpu: '500m', memory: '512Mi' },
                 limits: { memory: '4Gi' },
             },
-            volumeMounts: this.createVolumeMounts(coral, devices),
+            volumeMounts: this.createVolumeMounts(name, coral, devices),
         });
 
         this.endpointUrl = app.network.endpoints[`${name}-auth`];
@@ -94,15 +101,13 @@ export class Frigate extends pulumi.ComponentResource {
         }
     }
 
-    private createVolumeMounts(coral: boolean, devices: FrigateDevice[]): VolumeMount[] {
+    private createVolumeMounts(
+        appName: string,
+        coral: boolean,
+        devices: FrigateDevice[],
+    ): VolumeMount[] {
         return [
             { mountPath: '/config', name: appName },
-            {
-                mountPath: '/config/config.yml',
-                name: 'config-yml',
-                readOnly: true,
-                subPath: 'config.yml',
-            },
             { mountPath: '/media/frigate', name: 'media' },
             { mountPath: '/dev/shm', name: 'shm' },
             { mountPath: '/tmp/cache', name: 'cache' },
@@ -113,6 +118,29 @@ export class Frigate extends pulumi.ComponentResource {
         ];
     }
 
+    /**
+     * Frigate's UI owns `config.yml` once deployed, so the Pulumi-managed file
+     * is only copied into the writable data volume when missing or empty. Set
+     * `config/recreate` to overwrite it (and reset UI changes) on the next deploy.
+     */
+    private createSeedInitContainer(
+        appName: string,
+        recreate: boolean,
+    ): InitContainerSpec {
+        const source = '/config-seed/config.yml';
+        const target = '/config/config.yml';
+        const copy = recreate
+            ? `cp -f ${source} ${target}`
+            : `[ -s ${target} ] || cp ${source} ${target}`;
+        return {
+            name: 'seed-config',
+            command: ['sh', '-c', copy],
+            volumeMounts: [
+                { mountPath: '/config', name: appName },
+                { mountPath: '/config-seed', name: 'config-yml', readOnly: true },
+            ],
+        };
+    }
     private createConfig(
         name: string,
         args: {

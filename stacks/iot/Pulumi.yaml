@@ -89,3 +89,7 @@ config:
     #                 inputs:
     #                     - path: rtsp://viewer:password@10.0.10.10:554/live
     #                       roles: [detect, record]
+    # After first deploy Frigate's UI owns /config/config.yml, so the value above
+    # is only a seed. Set to true to overwrite it (and any UI edits) on the next
+    # deploy, then set it back to false.
+    frigate:config/recreate: false
