@@ -98,7 +98,9 @@ pulumi config set --path 'frigate:devices[0].device' /dev/dri
 
 ## Storage
 
-Recordings default to a 50Gi Longhorn volume (`frigate:media/storageSize`). For
+Frigate's data directory (`/config`) defaults to a 1Gi Longhorn volume
+(`frigate:storageSize`). Recordings default to a 50Gi Longhorn volume
+(`frigate:media/storageSize`). For
 continuous recording, a local disk avoids replication overhead — set
 `frigate:media/hostPath` and pin the app to that node:
 

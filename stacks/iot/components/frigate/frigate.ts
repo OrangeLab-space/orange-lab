@@ -28,7 +28,7 @@ export class Frigate extends pulumi.ComponentResource {
             (config.getObject(name, 'devices') as FrigateDevice[] | undefined) ?? [];
         const app = new Application(this, name);
 
-        app.addStorage({ name: 'config' });
+        app.addStorage();
         this.addMediaStorage(app, name);
         app.addEmptyVolume({
             name: 'shm',
@@ -96,7 +96,7 @@ export class Frigate extends pulumi.ComponentResource {
 
     private createVolumeMounts(coral: boolean, devices: FrigateDevice[]): VolumeMount[] {
         return [
-            { mountPath: '/config', name: 'config' },
+            { mountPath: '/config', name: appName },
             {
                 mountPath: '/config/config.yml',
                 name: 'config-yml',

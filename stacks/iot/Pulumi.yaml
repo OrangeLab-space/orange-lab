@@ -66,7 +66,7 @@ config:
     frigate:enabled: false
     frigate:hostname: frigate
     frigate:image: ghcr.io/blakeblackshear/frigate:stable
-    frigate:config/storageSize: 1Gi
+    frigate:storageSize: 1Gi
     frigate:media/storageSize: 50Gi
     frigate:shmSize: 512Mi
     frigate:cacheSize: 1Gi
