@@ -7,6 +7,7 @@ import {
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import * as random from '@pulumi/random';
+import { stringify as yamlStringify } from 'yaml';
 
 export interface FrigateDevice {
     name: string;
@@ -192,7 +193,7 @@ export class Frigate extends pulumi.ComponentResource {
             ])
             .apply(([frigateConfig, mqtt, proxySecret]) => {
                 const userConfig = (frigateConfig ?? {}) as Record<string, unknown>;
-                return JSON.stringify(
+                return yamlStringify(
                     {
                         ...userConfig,
                         ...this.getAuthConfig(name, proxySecret),
@@ -202,8 +203,7 @@ export class Frigate extends pulumi.ComponentResource {
                         // TLS is terminated by the routing provider (Traefik/Tailscale).
                         tls: userConfig.tls ?? { enabled: false },
                     },
-                    undefined,
-                    2,
+                    { lineWidth: 0 },
                 );
             });
     }

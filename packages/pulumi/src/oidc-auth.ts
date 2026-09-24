@@ -22,15 +22,18 @@ const identityHeaders: MiddlewareHeader[] = [
     },
 ];
 
-export function createTraefikOidcMiddleware(args: {
-    appName: string;
-    namespace: pulumi.Input<string>;
-    oidc: OidcAuthConfig;
-    pluginSecret: pulumi.Input<string>;
-}, opts?: {
-    parent?: pulumi.Resource;
-    dependsOn?: pulumi.Resource[];
-}): kubernetes.apiextensions.CustomResource {
+export function createTraefikOidcMiddleware(
+    args: {
+        appName: string;
+        namespace: pulumi.Input<string>;
+        oidc: OidcAuthConfig;
+        pluginSecret: pulumi.Input<string>;
+    },
+    opts?: {
+        parent?: pulumi.Resource;
+        dependsOn?: pulumi.Resource[];
+    },
+): kubernetes.apiextensions.CustomResource {
     const name = traefikOidcMiddlewareName(args.appName);
     const providerUrl = args.oidc.providerBaseUrl;
     if (providerUrl === undefined) {
@@ -59,13 +62,13 @@ export function createTraefikOidcMiddleware(args: {
                 clientSecret: args.oidc.clientSecret,
                 pluginSecret: args.pluginSecret,
             },
-            },
-            {
-                parent: opts?.parent,
-                dependsOn: opts?.dependsOn,
-                deleteBeforeReplace: true,
-            },
-        );
+        },
+        {
+            parent: opts?.parent,
+            dependsOn: opts?.dependsOn,
+            deleteBeforeReplace: true,
+        },
+    );
 
     return new kubernetes.apiextensions.CustomResource(
         name,
@@ -76,19 +79,17 @@ export function createTraefikOidcMiddleware(args: {
             spec: {
                 plugin: {
                     [pluginName]: {
-                        secret:
-                            pulumi.interpolate`urn:k8s:secret:${secret.metadata.name}:pluginSecret`,
+                        secret: pulumi.interpolate`urn:k8s:secret:${secret.metadata.name}:pluginSecret`,
                         provider: {
                             url: providerUrl,
                             clientId: args.oidc.clientId,
-                            clientSecret:
-                                pulumi.interpolate`urn:k8s:secret:${secret.metadata.name}:clientSecret`,
+                            clientSecret: pulumi.interpolate`urn:k8s:secret:${secret.metadata.name}:clientSecret`,
                         },
-                    Scopes: scopes,
-                    ...(headers.length > 0 ? { Headers: headers } : {}),
+                        Scopes: scopes,
+                        ...(headers.length > 0 ? { Headers: headers } : {}),
+                    },
                 },
             },
-        },
         },
         { parent: opts?.parent, dependsOn: [secret, ...(opts?.dependsOn ?? [])] },
     );

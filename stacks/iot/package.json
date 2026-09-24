@@ -10,6 +10,7 @@
     "dependencies": {
         "@orangelab/pulumi": "*",
         "@pulumi/pulumi": "3.261.0",
-        "@pulumi/random": "4.21.1"
+        "@pulumi/random": "4.21.1",
+        "yaml": "2.9.1"
     }
 }
