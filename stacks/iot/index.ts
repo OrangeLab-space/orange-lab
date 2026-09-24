@@ -59,3 +59,11 @@ export const mqtt = mosquitto
           password: pulumi.secret(mosquitto.password),
       }
     : undefined;
+
+export const apps = {
+    frigate: frigate
+        ? {
+              proxySecret: frigate.proxySecret,
+          }
+        : undefined,
+};

@@ -146,6 +146,17 @@ even by opening its URL directly.
 
 Run the application's script and apply the printed `<app>:auth` commands.
 
+#### Header forwarding (`forwardIdentity`)
+
+Frigate has no native OIDC either and uses the same middleware, but rather than
+gating access by group it forwards the signed-in user and groups
+(`X-Forwarded-User` / `X-Forwarded-Groups`) so the application can map them to its
+own roles.
+
+- [Frigate](../../../stacks/iot/components/frigate/frigate.md) (own login disabled; Pocket ID groups map to Frigate admin/viewer roles)
+
+Run the application's script and apply the printed `<app>:auth` commands.
+
 #### App Dashboard launcher only
 
 These applications are not protected by Pocket ID; the client is only a launcher

@@ -6,6 +6,7 @@ import {
     config,
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
+import * as random from '@pulumi/random';
 
 export interface FrigateDevice {
     name: string;
@@ -25,6 +26,7 @@ export interface FrigateArgs {
 
 export class Frigate extends pulumi.ComponentResource {
     public readonly endpointUrl?: pulumi.Input<string>;
+    public readonly proxySecret?: pulumi.Input<string>;
 
     constructor(name: string, args: FrigateArgs, opts?: pulumi.ResourceOptions) {
         super('orangelab:iot:Frigate', name, args, opts);
@@ -33,6 +35,20 @@ export class Frigate extends pulumi.ComponentResource {
         const devices =
             (config.getObject(name, 'devices') as FrigateDevice[] | undefined) ?? [];
         const recreateConfig = config.requireBoolean(name, 'config/recreate');
+        this.proxySecret = this.getProxySecret(name);
+        const app = new Application(
+            this,
+            name,
+            this.proxySecret
+                ? {
+                      oidc: {
+                          protectRoutes: true,
+                          forwardIdentity: true,
+                          headers: { 'X-Proxy-Secret': this.proxySecret },
+                      },
+                  }
+                : undefined,
+        );
 
         app.addStorage();
         this.addMediaStorage(app, name);
@@ -65,6 +81,7 @@ export class Frigate extends pulumi.ComponentResource {
                     coral,
                     gpu: app.nodes.getGpu(),
                     mqtt: args.mqtt,
+                    proxySecret: this.proxySecret,
                 }),
             },
         });
@@ -130,8 +147,8 @@ export class Frigate extends pulumi.ComponentResource {
         const source = '/config-seed/config.yml';
         const target = '/config/config.yml';
         const copy = recreate
-            ? `cp -f ${source} ${target}`
-            : `[ -s ${target} ] || cp ${source} ${target}`;
+            ? `cp -vf ${source} ${target}`
+            : `[ -s ${target} ] || cp -v ${source} ${target}`;
         return {
             name: 'seed-config',
             command: ['sh', '-c', copy],
@@ -141,34 +158,82 @@ export class Frigate extends pulumi.ComponentResource {
             ],
         };
     }
+
+    /**
+     * Shared secret for the Traefik OIDC middleware and Frigate's proxy auth.
+     * Only generated when SSO is enabled via `frigate:auth`.
+     */
+    private getProxySecret(name: string): pulumi.Input<string> | undefined {
+        if (config.get(name, 'auth') === undefined) return undefined;
+        return new random.RandomPassword(
+            `${name}-proxy-secret`,
+            { length: 32, special: false },
+            { parent: this },
+        ).result;
+    }
+
     private createConfig(
         name: string,
         args: {
             coral: boolean;
             gpu?: GpuType;
             mqtt?: FrigateMqttConfig;
+            proxySecret?: pulumi.Input<string>;
         },
     ): pulumi.Output<string> {
         const configured: pulumi.Output<Record<string, unknown> | undefined> =
             config.getSecretObject<Record<string, unknown>>(name, 'config') ??
             pulumi.output<Record<string, unknown> | undefined>(undefined);
-        return configured.apply(frigateConfig =>
-            pulumi.output(this.getMqtt(args.mqtt)).apply(mqtt =>
-                JSON.stringify(
+        return pulumi
+            .all([
+                configured,
+                pulumi.output(this.getMqtt(args.mqtt)),
+                pulumi.output(args.proxySecret),
+            ])
+            .apply(([frigateConfig, mqtt, proxySecret]) => {
+                const userConfig = (frigateConfig ?? {}) as Record<string, unknown>;
+                return JSON.stringify(
                     {
-                        ...(frigateConfig ?? {}),
-                        cameras: frigateConfig?.cameras ?? this.getDefaultCameras(),
-                        detectors:
-                            frigateConfig?.detectors ?? this.getDetectors(args),
-                        mqtt: frigateConfig?.mqtt ?? mqtt,
+                        ...userConfig,
+                        ...this.getAuthConfig(name, proxySecret),
+                        cameras: userConfig.cameras ?? this.getDefaultCameras(),
+                        detectors: userConfig.detectors ?? this.getDetectors(args),
+                        mqtt: userConfig.mqtt ?? mqtt,
                         // TLS is terminated by the routing provider (Traefik/Tailscale).
-                        tls: frigateConfig?.tls ?? { enabled: false },
+                        tls: userConfig.tls ?? { enabled: false },
                     },
                     undefined,
                     2,
-                ),
-            ),
-        );
+                );
+            });
+    }
+
+    /**
+     * Disables Frigate's own authentication and trusts the Pocket ID groups
+     * forwarded by the Traefik OIDC middleware (see `forwardIdentity`).
+     */
+    private getAuthConfig(name: string, proxySecret?: string) {
+        if (!proxySecret) return {};
+        const groupMap = config.requireObject(name, 'auth/groupMap') as Record<
+            string,
+            string[]
+        >;
+        const defaultRole = config.requireEnum(name, 'auth/defaultRole', [
+            'admin',
+            'viewer',
+        ]);
+        return {
+            auth: { enabled: false },
+            proxy: {
+                auth_secret: proxySecret,
+                header_map: {
+                    user: 'x-forwarded-user',
+                    role: 'x-forwarded-groups',
+                    role_map: groupMap,
+                },
+                default_role: defaultRole,
+            },
+        };
     }
 
     private getDefaultCameras() {

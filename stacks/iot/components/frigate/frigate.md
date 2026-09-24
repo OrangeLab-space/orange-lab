@@ -1,13 +1,13 @@
 # Frigate
 
-|               |                                                                       |
-| ------------- | --------------------------------------------------------------------- |
-| Homepage      | https://frigate.video/                                                |
-| Source code   | https://github.com/blakeblackshear/frigate                            |
-| Documentation | https://docs.frigate.video/                                           |
-| Configuration | https://docs.frigate.video/configuration/                             |
-| Docker Image  | https://github.com/blakeblackshear/frigate/pkgs/container/frigate     |
-| Endpoints     | `https://frigate.<domain>/`                                           |
+|               |                                                                   |
+| ------------- | ----------------------------------------------------------------- |
+| Homepage      | https://frigate.video/                                            |
+| Source code   | https://github.com/blakeblackshear/frigate                        |
+| Documentation | https://docs.frigate.video/                                       |
+| Configuration | https://docs.frigate.video/configuration/                         |
+| Docker Image  | https://github.com/blakeblackshear/frigate/pkgs/container/frigate |
+| Endpoints     | `https://frigate.<domain>/`                                       |
 
 Frigate is a local NVR that performs realtime AI object detection on IP camera
 streams. Detection runs on a CPU by default, or on a Google Coral USB accelerator,
@@ -49,7 +49,7 @@ cat > frigate.json <<'EOF'
         "inputs": [
           {
             "path": "rtsp://viewer:cam-password@10.0.10.10:554/main",
-            "roles": ["record"]
+            "roles": ["record","audio"]
           },
           {
             "path": "rtsp://viewer:cam-password@10.0.10.10:554/sub",
@@ -57,7 +57,8 @@ cat > frigate.json <<'EOF'
           }
         ]
       },
-      "detect": { "fps": 5 }
+      "detect": { "fps": 5 },
+      "motion": { "threshold": 40 }
     }
   },
   "record": { "enabled": true }
@@ -167,6 +168,61 @@ pulumi config set --secret frigate:config "$(cat frigate.json)"
 pulumi up
 ```
 
+### Single sign-on (Pocket ID)
+
+Frigate has no native OIDC, but it can trust an upstream proxy. Setting
+`frigate:auth pocket` disables Frigate's own login and protects the route with
+[Pocket ID](../../../../components/security/pocket/pocket.md) through the shared
+Traefik OIDC middleware. The middleware forwards the authenticated user and
+groups (`X-Forwarded-User` / `X-Forwarded-Groups`), which Frigate maps to roles:
+
+- each key of `frigate:auth/groupMap` is a Frigate role (`admin`, `viewer`, or a
+  custom role);
+- each value lists the Pocket ID groups that grant that role;
+- authenticated users matching no group get `frigate:auth/defaultRole` (default
+  `viewer`; must be `admin` or `viewer`).
+
+`groupMap` defaults to `{admin: [admin]}`. Set the whole map to add a read-only
+role for the `viewers` group:
+
+```sh
+pulumi config set frigate:auth/groupMap '{"admin":["admin"],"viewer":["viewers"]}'
+```
+
+Roles other than `admin`/`viewer` are custom read-only roles and must also be
+defined in `frigate:config` under `auth.roles`, otherwise they grant no camera
+access.
+
+Create the OIDC client from the iot stack directory and apply the printed
+commands:
+
+```sh
+cd stacks/iot
+./components/frigate/pocket-frigate.sh
+
+pulumi config set frigate:auth pocket
+pulumi config set frigate:auth/clientId <client-id>
+pulumi config set frigate:auth/clientSecret <secret> --secret
+pulumi up
+```
+
+The shared Traefik/Frigate proxy secret is generated automatically (it is not
+configurable). Read it for debugging with:
+
+```sh
+pulumi stack output apps --show-secrets --json | jq -r '.frigate.proxySecret'
+```
+
+While SSO is enabled, Frigate's own user database is ignored. The internal API on
+port `5000` stays unauthenticated, so the Home Assistant integration and
+recordings are unaffected. If Pocket ID is unavailable, remove `frigate:auth` and
+deploy to re-enable Frigate's own login:
+
+```sh
+pulumi config rm frigate:auth
+pulumi up
+```
+
 ## Manual and debugging
 
 `frigate:config` is rendered into `/config/config.yml` and stored as the
@@ -179,9 +235,8 @@ kubectl logs -n frigate deploy/frigate -f
 ```
 
 If a config section is invalid, Frigate starts in safe mode and logs the
-validation error — fix `frigate:config` and `pulumi up` again. The
-`Config file is read-only, unable to migrate config file` error is expected and
-harmless (the file is managed by Pulumi).
+validation error — fix it in the UI, or in `frigate:config` with
+`frigate:config/recreate true`, then `pulumi up` again.
 
 ## Post-Installation
 

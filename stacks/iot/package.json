@@ -9,6 +9,7 @@
     },
     "dependencies": {
         "@orangelab/pulumi": "*",
-        "@pulumi/pulumi": "3.261.0"
+        "@pulumi/pulumi": "3.261.0",
+        "@pulumi/random": "4.21.1"
     }
 }

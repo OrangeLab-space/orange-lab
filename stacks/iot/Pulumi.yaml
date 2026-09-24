@@ -93,3 +93,17 @@ config:
     # is only a seed. Set to true to overwrite it (and any UI edits) on the next
     # deploy, then set it back to false.
     frigate:config/recreate: false
+    # Single sign-on via Pocket ID (disabled by default). Create the OIDC client
+    # first with ./components/frigate/pocket-frigate.sh, then apply the printed
+    # commands (frigate:auth, frigate:auth/clientId, frigate:auth/clientSecret).
+    # Frigate's own login is disabled while SSO is enabled.
+    # Pocket ID groups mapped to Frigate roles (Frigate role -> list of groups).
+    # Roles other than admin/viewer must also be defined in frigate:config.auth.roles.
+    frigate:auth/groupMap:
+        value:
+            admin:
+                - admin
+            # viewer:
+            #     - viewers
+    # Fallback role for authenticated users not matched above (admin | viewer).
+    frigate:auth/defaultRole: viewer
