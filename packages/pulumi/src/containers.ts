@@ -134,6 +134,8 @@ export class Containers {
                 name: 'dev-kfd',
                 hostPath: '/dev/kfd',
             });
+        }
+        if (gpu === 'amd' || gpu === 'intel') {
             this.args.storage?.addDeviceMount({
                 name: 'dev-dri',
                 hostPath: '/dev/dri',
@@ -156,6 +158,8 @@ export class Containers {
         }));
         if (gpu === 'amd') {
             mounts.push({ name: 'dev-kfd', mountPath: '/dev/kfd' });
+        }
+        if (gpu === 'amd' || gpu === 'intel') {
             mounts.push({ name: 'dev-dri', mountPath: '/dev/dri' });
         }
         return mounts;

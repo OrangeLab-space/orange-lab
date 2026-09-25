@@ -1,6 +1,6 @@
 import * as pulumi from '@pulumi/pulumi';
 
-export type GpuType = 'amd' | 'nvidia';
+export type GpuType = 'amd' | 'nvidia' | 'intel';
 
 export type VolumeAccessMode = 'ReadWriteOnce' | 'ReadWriteMany';
 

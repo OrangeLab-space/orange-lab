@@ -97,6 +97,9 @@ export class Nodes {
             if (gpu === 'nvidia') {
                 terms.push(this.getNodeSelectorTerm('orangelab/gpu-nvidia=true'));
             }
+            if (gpu === 'intel') {
+                terms.push(this.getNodeSelectorTerm('orangelab/gpu-intel=true'));
+            }
         }
 
         if (excludeNodeLabel) {
