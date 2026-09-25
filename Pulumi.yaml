@@ -120,6 +120,9 @@ config:
     longhorn:replicaAutoBalance: disabled
     # Set to "best-effort" to create a local replica on the pod's node
     longhorn:dataLocality: disabled
+    # Semicolon-separated orphan resource types to auto-delete:
+    # replica-data, instance (empty to disable)
+    longhorn:orphanResourceAutoDeletion: replica-data;instance
 
     rustfs:enabled: false
     rustfs:hostname: rustfs
