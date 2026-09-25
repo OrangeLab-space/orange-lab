@@ -23,6 +23,7 @@ config:
     forgejo:storageSize: 10Gi
     forgejo:db/type: sqlite # sqlite | postgres
     forgejo:db/storageSize: 5Gi
+    forgejo:redis/enabled: false
     forgejo:adminUsername: gitea_admin
     # forgejo:adminEmail: forgejo@example.com
     # forgejo:adminPassword:

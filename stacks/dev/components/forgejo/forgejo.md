@@ -35,6 +35,9 @@ pulumi config set forgejo:adminEmail forgejo@example.com
 ADMIN_PASSWORD=$(openssl rand -base64 32)
 pulumi config set forgejo:adminPassword "$ADMIN_PASSWORD" --secret
 
+# (Optional) Redis for cache, session and queue, recommended only for large instances
+pulumi config set forgejo:redis/enabled true
+
 # (Optional) Outbound email for notifications and password resets
 pulumi config set forgejo:smtp/enabled true
 pulumi config set forgejo:smtp/host smtp.example.com
@@ -47,7 +50,7 @@ pulumi config set forgejo:smtp/password your-smtp-password --secret
 pulumi up
 ```
 
-Uses SQLite on a persistent volume by default, with Redis for cache, session and queue.
+Uses SQLite on a persistent volume by default, with cache, session and queue stored locally. For large instances, enable Redis to offload them with `forgejo:redis/enabled`.
 
 ## Database
 

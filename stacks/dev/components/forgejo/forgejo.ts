@@ -44,12 +44,14 @@ export class Forgejo extends pulumi.ComponentResource {
 
         this.app = new Application(this, appName).addStorage();
         if (dbType === 'postgres') this.app.addPostgres();
-        this.app.addRedis();
+        const redisEnabled = config.requireBoolean(appName, 'redis/enabled');
+        if (redisEnabled) this.app.addRedis();
         if (this.app.storageOnly) return;
 
         const dbConfig = dbType === 'postgres' ? this.app.databases?.getConfig() : undefined;
-        const redisConfig = this.app.databases?.getConfig('redis');
-        if (!redisConfig) throw new Error('Redis not found');
+        const redisConfig = redisEnabled
+            ? this.app.databases?.getConfig('redis')
+            : undefined;
         const auth = this.app.auth.getOidc();
         const smtp = this.app.smtp.getSettings();
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
@@ -67,14 +69,16 @@ export class Forgejo extends pulumi.ComponentResource {
 
     private createHelmChart(args: {
         httpEndpointInfo: HttpEndpointInfo;
-        redisConfig: DatabaseConfig;
+        redisConfig: DatabaseConfig | undefined;
         dbConfig: DatabaseConfig | undefined;
         auth: OidcAuthConfig | undefined;
         smtp: SmtpSettings;
     }) {
         assert(this.adminSecret);
         const adminEmail = config.get(this.appName, 'adminEmail');
-        const redisUrl = pulumi.interpolate`redis://${args.redisConfig.hostname}:${args.redisConfig.port}`;
+        const redisUrl = args.redisConfig
+            ? pulumi.interpolate`redis://${args.redisConfig.hostname}:${args.redisConfig.port}`
+            : undefined;
         const sshService = this.app.network.getPublicTcpService(
             config.require(this.appName, 'hostname'),
         );
@@ -123,10 +127,22 @@ export class Forgejo extends pulumi.ComponentResource {
                             ...(adminEmail ? { email: adminEmail } : {}),
                         },
                         config: {
-                            cache: {
-                                ADAPTER: 'redis',
-                                HOST: pulumi.interpolate`${redisUrl}/1`,
-                            },
+                            ...(redisUrl
+                                ? {
+                                      cache: {
+                                          ADAPTER: 'redis',
+                                          HOST: pulumi.interpolate`${redisUrl}/1`,
+                                      },
+                                      queue: {
+                                          CONN_STR: pulumi.interpolate`${redisUrl}/0`,
+                                          TYPE: 'redis',
+                                      },
+                                      session: {
+                                          PROVIDER: 'redis',
+                                          PROVIDER_CONFIG: pulumi.interpolate`${redisUrl}/2`,
+                                      },
+                                  }
+                                : {}),
                             ...(args.dbConfig
                                 ? {
                                       database: {
@@ -149,10 +165,6 @@ export class Forgejo extends pulumi.ComponentResource {
                                       },
                                   }
                                 : {}),
-                            queue: {
-                                CONN_STR: pulumi.interpolate`${redisUrl}/0`,
-                                TYPE: 'redis',
-                            },
                             server: {
                                 SSH_DOMAIN: args.httpEndpointInfo.hostname,
                                 SSH_PORT,
@@ -165,10 +177,6 @@ export class Forgejo extends pulumi.ComponentResource {
                                       },
                                   }
                                 : {}),
-                            session: {
-                                PROVIDER: 'redis',
-                                PROVIDER_CONFIG: pulumi.interpolate`${redisUrl}/2`,
-                            },
                         },
                         metrics: {
                             enabled: config.enableMonitoring(),
