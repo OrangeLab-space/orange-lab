@@ -65,12 +65,18 @@ config:
 
     frigate:enabled: false
     frigate:hostname: frigate
-    frigate:image: ghcr.io/blakeblackshear/frigate:stable
+    # With frigate:gpu set the tag is managed (append -tensorrt / -rocm); to pin a
+    # tag yourself, leave frigate:gpu unset and set the full tag here.
+    frigate:image: ghcr.io/blakeblackshear/frigate
     frigate:storageSize: 1Gi
     frigate:media/storageSize: 50Gi
     frigate:shmSize: 512Mi
     frigate:cacheSize: 1Gi
     frigate:coral: false
+    # GPU: nvidia | amd (image variant + device access). Detection stays on CPU;
+    # set the detector in the Frigate UI. See frigate.md for other accelerators
+    # and the AMD iGPU chipset override.
+    # frigate:gpu: nvidia
     # Deploy on the node with the Coral USB accelerator / recorded media disk.
     # frigate:requiredNodeLabel: kubernetes.io/hostname=<node>
     # Store recordings on a local disk instead of Longhorn.

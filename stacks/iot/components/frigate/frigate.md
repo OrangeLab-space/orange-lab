@@ -10,8 +10,8 @@
 | Endpoints     | `https://frigate.<domain>/`                                       |
 
 Frigate is a local NVR that performs realtime AI object detection on IP camera
-streams. Detection runs on a CPU by default, or on a Google Coral USB accelerator,
-NVIDIA/AMD GPU, or Intel GPU when configured. Events are published through
+streams. Detection runs on a CPU by default, or on a Google Coral USB accelerator
+or NVIDIA/AMD GPU when configured. Events are published through
 [Mosquitto](../mosquitto/mosquitto.md) and can be consumed by
 [Home Assistant](../home-assistant/home-assistant.md).
 
@@ -24,11 +24,11 @@ cd stacks/iot
 pulumi config set mosquitto:enabled true
 pulumi config set --secret mosquitto:password "$(openssl rand -base64 24)"
 
-# Frigate with a USB Coral accelerator
+# Frigate with AMD GPU
 pulumi config set frigate:enabled true
-pulumi config set frigate:coral true
+pulumi config set frigate:gpu amd
 
-# Run on the node with the Coral (and the recordings disk, if used)
+# Run on the node with the Coral
 pulumi config set frigate:requiredNodeLabel "kubernetes.io/hostname=<node>"
 
 pulumi up
@@ -57,8 +57,6 @@ cat > frigate.json <<'EOF'
           }
         ]
       },
-      "detect": { "fps": 5 },
-      "motion": { "threshold": 40 }
     }
   },
   "record": { "enabled": true }
@@ -68,34 +66,39 @@ EOF
 pulumi config set --secret frigate:config "$(cat frigate.json)"
 ```
 
-`detect.width`/`height` are optional — omit them and Frigate auto-detects the
-stream resolution. Point `detect` at a low-resolution sub stream and `record` at
+Point `detect` at a low-resolution sub stream and `record` at
 the main stream when the camera offers both.
 
 The `detectors`, `mqtt` and `tls` sections are generated automatically from
 `frigate:coral`, `frigate:gpu` and the enabled Mosquitto broker — set them
 explicitly in `frigate:config` to override the defaults. `tls` is disabled
 because the routing provider terminates TLS. When no cameras are configured, a
-disabled placeholder camera is used so Frigate starts normally. The config file
-is managed by Pulumi and read-only in the container; edit it here rather than in
-the Frigate UI (Frigate logs a harmless "Config file is read-only" error).
+disabled placeholder camera is used so Frigate starts normally.
 
 ## Detectors and hardware acceleration
 
-- **USB Coral (recommended)** — `frigate:coral true` mounts `/dev/bus/usb` and
-  configures the `edgetpu` detector. Pin the pod to the node with the device.
-- **NVIDIA / AMD GPU** — set `frigate:gpu nvidia` or `frigate:gpu amd` and point
-  `frigate:image` at the matching image tag (`-tensorrt` / `-rocm`).
-- **CPU** — the fallback when no accelerator is configured; expect higher CPU
-  usage per camera.
+- **USB Coral** — `frigate:coral true` mounts the Coral and configures the `edgetpu` detector.
+- **NVIDIA GPU** — `frigate:gpu nvidia` selects the `-tensorrt` image, GPU device access, and a node labelled `orangelab/gpu-nvidia`.
+- **AMD GPU** — `frigate:gpu amd` selects the `-rocm` image, GPU device access, and a node labelled `orangelab/gpu-amd`.
+- **CPU** — fallback when no accelerator is configured.
 
-For hardware-accelerated video decoding, mount the render device and set
-`ffmpeg.hwaccel_args` in `frigate:config`:
+With `frigate:gpu` set the image tag is managed for you (`-tensorrt` / `-rocm` appended); to control the tag yourself, leave `frigate:gpu` unset and set the full tag in `frigate:image`.
+
+Object detection is configured in the Frigate UI (**Settings → System → Detectors and model**): add an **ONNX** detector (device `AUTO`) and, on the **Custom Model** tab, use path `/config/model_cache/yolo.onnx`, label map `/labelmap/coco-80.txt`, `320x320`, `rgb` / `nchw` / `float`, model type `yolo-generic`. Export the model first (see the [Frigate guide](https://docs.frigate.video/configuration/object_detectors/#onnx)) and put it in `/config/model_cache/` — Frigate loads local ONNX files only; on `-rocm` it is converted to MIGraphX on first start.
+
+An Intel iGPU is not covered by `frigate:gpu`; pass its render device through for
+hardware-accelerated decoding (e.g. Coral for detection plus iGPU decode):
 
 ```sh
 pulumi config set --path 'frigate:devices[0].name' dri
 pulumi config set --path 'frigate:devices[0].device' /dev/dri
 ```
+
+With `frigate:gpu amd` `/dev/dri` is already mounted.
+
+### AMD (ROCm)
+
+`frigate:gpu amd` uses the `:stable-rocm` image and mounts `/dev/kfd` / `/dev/dri`. ROCm does not officially support integrated GPUs; if it fails to initialise, override the chipset, e.g. `pulumi config set frigate:HSA_OVERRIDE_GFX_VERSION 11.0.0`.
 
 ## Storage
 
@@ -114,7 +117,7 @@ Shared memory (`frigate:shmSize`) and the cache (`frigate:cacheSize`) are
 memory-backed. Increase `frigate:shmSize` when running many high-resolution
 cameras.
 
-## Configuration
+## Applying config changes
 
 `frigate:config` seeds `/config/config.yml` on first start. The `detectors`,
 `mqtt`, `tls` and (with SSO) `auth`/`proxy` sections are generated by OrangeLab
@@ -213,10 +216,13 @@ configurable). Read it for debugging with:
 pulumi stack output apps --show-secrets --json | jq -r '.frigate.proxySecret'
 ```
 
-While SSO is enabled, Frigate's own user database is ignored. The internal API on
-port `5000` stays unauthenticated, so the Home Assistant integration and
-recordings are unaffected. If Pocket ID is unavailable, remove `frigate:auth` and
-deploy to re-enable Frigate's own login:
+While SSO is enabled, Frigate's own user database is ignored. Logging out is
+handled by the middleware: Frigate's generated `proxy.logout_url` is `/logout`
+(the Traefik OIDC middleware's logout route), which ends the Pocket ID session and
+returns to Frigate instead of falling back to Frigate's built-in login. The
+internal API on port `5000` stays unauthenticated, so the Home Assistant
+integration and recordings are unaffected. If Pocket ID is unavailable, remove
+`frigate:auth` and deploy to re-enable Frigate's own login:
 
 ```sh
 pulumi config rm frigate:auth

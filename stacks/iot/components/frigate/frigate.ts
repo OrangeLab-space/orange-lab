@@ -25,6 +25,9 @@ export interface FrigateArgs {
     mqtt?: FrigateMqttConfig;
 }
 
+/** GPUs that map to a Frigate image variant. Other accelerators use the default image. */
+const IMAGE_VARIANTS: Record<string, string> = { nvidia: 'tensorrt', amd: 'rocm' };
+
 export class Frigate extends pulumi.ComponentResource {
     public readonly endpointUrl?: pulumi.Input<string>;
     public readonly proxySecret?: pulumi.Input<string>;
@@ -50,6 +53,7 @@ export class Frigate extends pulumi.ComponentResource {
                   }
                 : undefined,
         );
+        const gpu = app.nodes.getGpu();
 
         app.addStorage();
         this.addMediaStorage(app, name);
@@ -80,7 +84,6 @@ export class Frigate extends pulumi.ComponentResource {
             secretFiles: {
                 'config.yml': this.createConfig(name, {
                     coral,
-                    gpu: app.nodes.getGpu(),
                     mqtt: args.mqtt,
                     proxySecret: this.proxySecret,
                 }),
@@ -89,6 +92,7 @@ export class Frigate extends pulumi.ComponentResource {
         if (app.storageOnly) return;
 
         app.addDeployment({
+            image: this.getImage(name, gpu),
             env: { TZ: config.get(name, 'TZ') },
             envSecret: { FRIGATE_MQTT_PASSWORD: args.mqtt?.password },
             healthCheck: { httpGet: { path: '/' } },
@@ -117,6 +121,18 @@ export class Frigate extends pulumi.ComponentResource {
         } else {
             app.addStorage({ name: 'media' });
         }
+    }
+
+    /** Frigate image with the `frigate:gpu` variant appended to the tag. */
+    private getImage(name: string, gpu?: GpuType): string {
+        const image = config.require(name, 'image');
+        if (image.includes('@')) return image;
+        const tag = /:([^/:]+)$/.exec(image)?.[1];
+        const repo = tag ? image.slice(0, -(tag.length + 1)) : image;
+        const base = tag ?? 'stable';
+        const variant = gpu ? IMAGE_VARIANTS[gpu] : undefined;
+        if (!variant || base.endsWith(`-${variant}`)) return `${repo}:${base}`;
+        return `${repo}:${base}-${variant}`;
     }
 
     private createVolumeMounts(
@@ -177,7 +193,6 @@ export class Frigate extends pulumi.ComponentResource {
         name: string,
         args: {
             coral: boolean;
-            gpu?: GpuType;
             mqtt?: FrigateMqttConfig;
             proxySecret?: pulumi.Input<string>;
         },
@@ -248,10 +263,9 @@ export class Frigate extends pulumi.ComponentResource {
         };
     }
 
-    private getDetectors(args: { coral: boolean; gpu?: GpuType }) {
+    /** CPU detector; GPU object detection is configured in the Frigate UI. */
+    private getDetectors(args: { coral: boolean }) {
         if (args.coral) return { coral: { type: 'edgetpu', device: 'usb' } };
-        if (args.gpu === 'nvidia') return { tensorrt: { type: 'tensorrt' } };
-        if (args.gpu === 'amd') return { rocm: { type: 'rocm' } };
         return { cpu: { type: 'cpu' } };
     }
 
