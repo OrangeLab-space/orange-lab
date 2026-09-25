@@ -7,7 +7,7 @@ import {
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import * as random from '@pulumi/random';
-import { stringify as yamlStringify } from 'yaml';
+import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 
 export interface FrigateDevice {
     name: string;
@@ -199,9 +199,14 @@ export class Frigate extends pulumi.ComponentResource {
             proxySecret?: pulumi.Input<string>;
         },
     ): pulumi.Output<string> {
-        const configured: pulumi.Output<Record<string, unknown> | undefined> =
-            config.getSecretObject<Record<string, unknown>>(name, 'config') ??
-            pulumi.output<Record<string, unknown> | undefined>(undefined);
+        const configured: pulumi.Output<Record<string, unknown> | undefined> = (
+            config.getSecret(name, 'config') ??
+            pulumi.output<string | undefined>(undefined)
+        ).apply(value =>
+            value === undefined
+                ? undefined
+                : (yamlParse(value) as Record<string, unknown>),
+        );
         return pulumi
             .all([
                 configured,

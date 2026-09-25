@@ -85,16 +85,17 @@ config:
     # frigate:devices:
     #     - name: dri
     #       device: /dev/dri
-    # Frigate configuration (JSON object, stored as a Kubernetes Secret).
-    # Set it as a secret since it contains per-camera credentials:
-    #   pulumi config set --secret frigate:config "$(cat frigate.json)"
+    # Frigate configuration (YAML, see frigate.md). Per-camera credentials live
+    # in the RTSP URLs; storing it here keeps them plaintext in this file. For
+    # encrypted storage use:
+    #   pulumi config set --secret frigate:config "$(cat frigate.yml)"
     # frigate:config:
     #     cameras:
     #         front_door:
     #             ffmpeg:
     #                 inputs:
     #                     - path: rtsp://viewer:password@10.0.10.10:554/live
-    #                       roles: [detect, record]
+    #                       roles: [detect, record, audio]
     # After first deploy Frigate's UI owns /config/config.yml, so the value above
     # is only a seed. Set to true to overwrite it (and any UI edits) on the next
     # deploy, then set it back to false.

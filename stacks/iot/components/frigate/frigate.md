@@ -41,34 +41,30 @@ pulumi up
 
 ## Configuration
 
-The Frigate configuration is a JSON object in `frigate:config`. It is stored as a
-Kubernetes Secret and mounted as `/config/config.yml`, so each camera's
-credentials go directly in its own RTSP URL. Set it as a secret:
+The Frigate configuration is a YAML document under `frigate:config`. Examples
+from the [Frigate documentation](https://docs.frigate.video/configuration/) can
+be used as-is. Add it to the stack config — convenient, but each camera's
+credentials go in its RTSP URL and are stored in plaintext in
+`Pulumi.<stack>.yaml`:
+
+```yaml
+frigate:config:
+    cameras:
+        front_door:
+            ffmpeg:
+                inputs:
+                    - path: rtsp://viewer:cam-password@10.0.10.10:554/main
+                      roles: [record, audio]
+                    - path: rtsp://viewer:cam-password@10.0.10.10:554/sub
+                      roles: [detect]
+    record:
+        enabled: true
+```
+
+To keep the credentials encrypted instead, store the same document as a secret:
 
 ```sh
-cat > frigate.json <<'EOF'
-{
-  "cameras": {
-    "front_door": {
-      "ffmpeg": {
-        "inputs": [
-          {
-            "path": "rtsp://viewer:cam-password@10.0.10.10:554/main",
-            "roles": ["record","audio"]
-          },
-          {
-            "path": "rtsp://viewer:cam-password@10.0.10.10:554/sub",
-            "roles": ["detect"]
-          }
-        ]
-      },
-    }
-  },
-  "record": { "enabled": true }
-}
-EOF
-
-pulumi config set --secret frigate:config "$(cat frigate.json)"
+pulumi config set --secret frigate:config "$(cat frigate.yml)"
 ```
 
 Point `detect` at a low-resolution sub stream and `record` at
@@ -151,20 +147,13 @@ Log in at `https://frigate.<domain>/` (port `8971`) and change the password unde
 
 ### Reset password
 
-If you are locked out, temporarily add `auth.reset_admin_password: true` to your
-`frigate:config`, deploy, and read the new password from the logs. This prints a
-fresh random password and replaces the whole config value, so include your
-existing cameras:
+If you are locked out, add `auth.reset_admin_password: true` under
+`frigate:config` in your stack config and deploy. The logs show a fresh random
+password; remove the entry and deploy again afterwards:
 
 ```sh
-jq '.auth.reset_admin_password = true' frigate.json > frigate-reset.json
-pulumi config set --secret frigate:config "$(cat frigate-reset.json)"
 pulumi up
 kubectl logs -n frigate deploy/frigate | grep -i password
-
-# restore the original config without the reset flag
-pulumi config set --secret frigate:config "$(cat frigate.json)"
-pulumi up
 ```
 
 ### Single sign-on (Pocket ID)
