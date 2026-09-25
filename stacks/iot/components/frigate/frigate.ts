@@ -232,6 +232,7 @@ export class Frigate extends pulumi.ComponentResource {
                     role_map: groupMap,
                 },
                 default_role: defaultRole,
+                logout_url: '/logout',
             },
         };
     }
