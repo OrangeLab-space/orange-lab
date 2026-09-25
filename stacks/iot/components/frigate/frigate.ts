@@ -84,6 +84,7 @@ export class Frigate extends pulumi.ComponentResource {
             secretFiles: {
                 'config.yml': this.createConfig(name, {
                     coral,
+                    gpu,
                     mqtt: args.mqtt,
                     proxySecret: this.proxySecret,
                 }),
@@ -193,6 +194,7 @@ export class Frigate extends pulumi.ComponentResource {
         name: string,
         args: {
             coral: boolean;
+            gpu?: GpuType;
             mqtt?: FrigateMqttConfig;
             proxySecret?: pulumi.Input<string>;
         },
@@ -214,6 +216,7 @@ export class Frigate extends pulumi.ComponentResource {
                         ...this.getAuthConfig(name, proxySecret),
                         cameras: userConfig.cameras ?? this.getDefaultCameras(),
                         detectors: userConfig.detectors ?? this.getDetectors(args),
+                        ...(this.getOpenVinoModel(args, userConfig) ?? {}),
                         mqtt: userConfig.mqtt ?? mqtt,
                         // TLS is terminated by the routing provider (Traefik/Tailscale).
                         tls: userConfig.tls ?? { enabled: false },
@@ -263,10 +266,35 @@ export class Frigate extends pulumi.ComponentResource {
         };
     }
 
-    /** CPU detector; GPU object detection is configured in the Frigate UI. */
-    private getDetectors(args: { coral: boolean }) {
+    /** OpenVINO on an Intel iGPU, else Coral, else CPU. */
+    private getDetectors(args: { coral: boolean; gpu?: GpuType }) {
+        if (args.gpu === 'intel') return { ov: { type: 'openvino', device: 'GPU' } };
         if (args.coral) return { coral: { type: 'edgetpu', device: 'usb' } };
         return { cpu: { type: 'cpu' } };
+    }
+
+    /**
+     * Workaround: Frigate sizes detector shared memory from the per-detector model
+     * but runs DetectProcess with the root `model`, so OpenVINO's built-in 300x300
+     * model must be mirrored in the root (else 320x320 shm and a shifted labelmap).
+     */
+    private getOpenVinoModel(
+        args: { gpu?: GpuType },
+        userConfig: Record<string, unknown>,
+    ): { model: Record<string, unknown> } | undefined {
+        if (args.gpu !== 'intel' || userConfig.model || userConfig.detectors) {
+            return undefined;
+        }
+        return {
+            model: {
+                path: '/openvino-model/ssdlite_mobilenet_v2.xml',
+                labelmap_path: '/openvino-model/coco_91cl_bkgr.txt',
+                width: 300,
+                height: 300,
+                input_tensor: 'nhwc',
+                input_pixel_format: 'bgr',
+            },
+        };
     }
 
     private getMqtt(mqtt?: FrigateMqttConfig) {

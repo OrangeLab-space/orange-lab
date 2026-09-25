@@ -11,7 +11,7 @@
 
 Frigate is a local NVR that performs realtime AI object detection on IP camera
 streams. Detection runs on a CPU by default, or on a Google Coral USB accelerator
-or NVIDIA/AMD GPU when configured. Events are published through
+or an NVIDIA/AMD/Intel GPU when configured. Events are published through
 [Mosquitto](../mosquitto/mosquitto.md) and can be consumed by
 [Home Assistant](../home-assistant/home-assistant.md).
 
@@ -24,11 +24,16 @@ cd stacks/iot
 pulumi config set mosquitto:enabled true
 pulumi config set --secret mosquitto:password "$(openssl rand -base64 24)"
 
-# Frigate with AMD GPU
+# Frigate with an AMD GPU
 pulumi config set frigate:enabled true
 pulumi config set frigate:gpu amd
 
-# Run on the node with the Coral
+# Frigate with an Intel iGPU and a USB Coral accelerator
+pulumi config set frigate:enabled true
+pulumi config set frigate:gpu intel
+pulumi config set frigate:coral true
+
+# Run on the node with the accelerator
 pulumi config set frigate:requiredNodeLabel "kubernetes.io/hostname=<node>"
 
 pulumi up
@@ -80,21 +85,12 @@ disabled placeholder camera is used so Frigate starts normally.
 - **USB Coral** — `frigate:coral true` mounts the Coral and configures the `edgetpu` detector.
 - **NVIDIA GPU** — `frigate:gpu nvidia` selects the `-tensorrt` image, GPU device access, and a node labelled `orangelab/gpu-nvidia`.
 - **AMD GPU** — `frigate:gpu amd` selects the `-rocm` image, GPU device access, and a node labelled `orangelab/gpu-amd`.
+- **Intel GPU** — `frigate:gpu intel` keeps the default image, mounts `/dev/dri`, schedules onto a node with an Intel GPU, and runs the OpenVINO detector on the iGPU (takes precedence over `frigate:coral`).
 - **CPU** — fallback when no accelerator is configured.
 
 With `frigate:gpu` set the image tag is managed for you (`-tensorrt` / `-rocm` appended); to control the tag yourself, leave `frigate:gpu` unset and set the full tag in `frigate:image`.
 
-Object detection is configured in the Frigate UI (**Settings → System → Detectors and model**): add an **ONNX** detector (device `AUTO`) and, on the **Custom Model** tab, use path `/config/model_cache/yolo.onnx`, label map `/labelmap/coco-80.txt`, `320x320`, `rgb` / `nchw` / `float`, model type `yolo-generic`. Export the model first (see the [Frigate guide](https://docs.frigate.video/configuration/object_detectors/#onnx)) and put it in `/config/model_cache/` — Frigate loads local ONNX files only; on `-rocm` it is converted to MIGraphX on first start.
-
-An Intel iGPU is not covered by `frigate:gpu`; pass its render device through for
-hardware-accelerated decoding (e.g. Coral for detection plus iGPU decode):
-
-```sh
-pulumi config set --path 'frigate:devices[0].name' dri
-pulumi config set --path 'frigate:devices[0].device' /dev/dri
-```
-
-With `frigate:gpu amd` `/dev/dri` is already mounted.
+For NVIDIA/AMD, object detection is configured in the Frigate UI (**Settings → System → Detectors and model**): add an **ONNX** detector (device `AUTO`) and, on the **Custom Model** tab, use path `/config/model_cache/yolo.onnx`, label map `/labelmap/coco-80.txt`, `320x320`, `rgb` / `nchw` / `float`, model type `yolo-generic`. Export the model first (see the [Frigate guide](https://docs.frigate.video/configuration/object_detectors/#onnx)) and put it in `/config/model_cache/` — Frigate loads local ONNX files only; on `-rocm` it is converted to MIGraphX on first start.
 
 ### AMD (ROCm)
 

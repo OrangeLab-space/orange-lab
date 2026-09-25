@@ -73,9 +73,9 @@ config:
     frigate:shmSize: 512Mi
     frigate:cacheSize: 1Gi
     frigate:coral: false
-    # GPU: nvidia | amd (image variant + device access). Detection stays on CPU;
-    # set the detector in the Frigate UI. See frigate.md for other accelerators
-    # and the AMD iGPU chipset override.
+    # GPU: nvidia | amd | intel (image variant + device access). Detection stays
+    # on CPU, except Intel (OpenVINO on the iGPU); other GPUs are set up in the
+    # Frigate UI. See frigate.md, including the AMD iGPU chipset override.
     # frigate:gpu: nvidia
     # Deploy on the node with the Coral USB accelerator / recorded media disk.
     # frigate:requiredNodeLabel: kubernetes.io/hostname=<node>
