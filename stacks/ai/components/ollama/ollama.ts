@@ -77,6 +77,18 @@ export class Ollama extends pulumi.ComponentResource {
         }
         let imageTag = config.get(this.name, 'appVersion');
         if (gpu === 'amd' && imageTag) imageTag = imageTag.concat('-rocm');
+
+        const deviceVolumes: { name: string; hostPath: { path: string } }[] = [];
+        const deviceVolumeMounts: { name: string; mountPath: string }[] = [];
+        if (gpu === 'amd') {
+            deviceVolumes.push({ name: 'kfd', hostPath: { path: '/dev/kfd' } });
+            deviceVolumeMounts.push({ name: 'kfd', mountPath: '/dev/kfd' });
+        }
+        if (gpu === 'amd' || gpu === 'intel') {
+            deviceVolumes.push({ name: 'dri', hostPath: { path: '/dev/dri' } });
+            deviceVolumeMounts.push({ name: 'dri', mountPath: '/dev/dri' });
+        }
+
         this.app.addHelmChart(
             this.name,
             {
@@ -116,22 +128,10 @@ export class Ollama extends pulumi.ComponentResource {
                             run: config.getCommaSeparated(this.name, 'models') ?? [],
                         },
                     },
-                    ...(gpu === 'amd'
+                    ...(deviceVolumes.length
                         ? {
-                              volumes: [
-                                  {
-                                      name: 'kfd',
-                                      hostPath: { path: '/dev/kfd' },
-                                  },
-                                  {
-                                      name: 'dri',
-                                      hostPath: { path: '/dev/dri' },
-                                  },
-                              ],
-                              volumeMounts: [
-                                  { name: 'kfd', mountPath: '/dev/kfd' },
-                                  { name: 'dri', mountPath: '/dev/dri' },
-                              ],
+                              volumes: deviceVolumes,
+                              volumeMounts: deviceVolumeMounts,
                           }
                         : {}),
                     persistentVolume: {
@@ -139,7 +139,10 @@ export class Ollama extends pulumi.ComponentResource {
                         existingClaim: this.app.storage?.getClaimName(),
                     },
                     replicaCount: 1,
-                    securityContext: gpu === 'amd' ? { privileged: true } : undefined,
+                    securityContext:
+                        gpu === 'amd' || gpu === 'intel'
+                            ? { privileged: true }
+                            : undefined,
                 },
             },
             { dependsOn: this.app.storage },

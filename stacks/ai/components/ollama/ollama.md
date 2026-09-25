@@ -58,6 +58,18 @@ pulumi up
 
 Models will be stored on local Longhorn volume with no replication across nodes.
 
+## Intel GPU
+
+Set `ollama:gpu intel` to schedule on a node with an Intel GPU (`orangelab/gpu-intel`)
+and mount `/dev/dri`. The official image includes the Intel Vulkan driver, so no
+GPU operator or custom image is needed. Set `ollama:OLLAMA_IGPU_ENABLE` to `"1"`
+to keep integrated GPUs enabled (Ollama drops them by default).
+
+```sh
+pulumi config set ollama:gpu intel
+pulumi config set ollama:OLLAMA_IGPU_ENABLE "1"
+```
+
 ## Ollama CLI
 
 Default endpoint used by ollama is `localhost:11434`.

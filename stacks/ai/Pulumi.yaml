@@ -21,7 +21,7 @@ config:
     ollama:storageSize: 50Gi
     ollama:storageOnly: false
     ollama:storageClass: longhorn-gpu
-    # Set to 'nvidia' or 'amd' to enable GPU support, Use '' for CPU-only mode
+    # Set to 'nvidia', 'amd' or 'intel' to enable GPU support, Use '' for CPU-only mode
     ollama:gpu: nvidia
     # ollama:HSA_OVERRIDE_GFX_VERSION: "11.0.2"
     # ollama:HCC_AMDGPU_TARGETS: "gfx1103"

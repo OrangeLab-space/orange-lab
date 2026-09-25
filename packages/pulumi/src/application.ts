@@ -93,7 +93,7 @@ export class Application {
         );
         assert(
             !config.get(this.appName, 'amd-gpu'),
-            `${this.appName}:amd-gpu is deprecated. Use ${this.appName}:gpu instead (amd|nvidia).`,
+            `${this.appName}:amd-gpu is deprecated. Use ${this.appName}:gpu instead (amd|nvidia|intel).`,
         );
     }
 
