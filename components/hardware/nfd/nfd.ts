@@ -19,6 +19,7 @@ export class NodeFeatureDiscovery extends pulumi.ComponentResource {
         if (config.getBoolean(name, 'gpu-autodetect')) {
             this.createAmdGpuRule();
             this.createNvidiaGpuRule();
+            this.createIntelGpuRule();
         }
     }
 
@@ -107,6 +108,48 @@ export class NodeFeatureDiscovery extends pulumi.ComponentResource {
                             labels: {
                                 'node-role.kubernetes.io/gpu': 'true',
                                 'orangelab/gpu-nvidia': 'true',
+                            },
+                            matchAny: [
+                                {
+                                    matchFeatures: [
+                                        {
+                                            feature: 'pci.device',
+                                            matchExpressions: {
+                                                vendor: { op: 'In', value: vendorId },
+                                                class: { op: 'In', value: gpuClass },
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+            { parent: this, dependsOn: [this.chart] },
+        );
+    }
+
+    private createIntelGpuRule(): kubernetes.apiextensions.CustomResource {
+        const vendorId = ['8086']; // Intel vendor ID
+        const gpuClass = ['0300', '0380']; // Display/GPU controller classes
+        return new kubernetes.apiextensions.CustomResource(
+            `${this.name}-rule-intel`,
+            {
+                apiVersion: 'nfd.k8s-sigs.io/v1alpha1',
+                kind: 'NodeFeatureRule',
+                metadata: { name: 'intel-gpu-label-nfd-rule' },
+                spec: {
+                    rules: [
+                        {
+                            name: 'intel-gpu',
+                            annotations: {
+                                'node.longhorn.io/default-node-tags':
+                                    '["gpu", "gpu-intel"]',
+                            },
+                            labels: {
+                                'node-role.kubernetes.io/gpu': 'true',
+                                'orangelab/gpu-intel': 'true',
                             },
                             matchAny: [
                                 {

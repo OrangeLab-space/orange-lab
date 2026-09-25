@@ -18,7 +18,7 @@ pulumi up
 
 ## GPU node labels
 
-Automatic detection of AMD and NVIDIA GPUs is enabled by default.
+Automatic detection of AMD, NVIDIA and Intel GPUs is enabled by default.
 
 Nodes with GPUs will have the following labels added:
 
@@ -31,6 +31,11 @@ For AMD GPUs:
 
 - `node-role.kubernetes.io/gpu: "true"`
 - `orangelab/gpu-amd: "true"`
+
+For Intel GPUs:
+
+- `node-role.kubernetes.io/gpu: "true"`
+- `orangelab/gpu-intel: "true"`
 
 These labels can be used for node selection in applications.
 
@@ -45,6 +50,7 @@ pulumi up
 kubectl label nodes <node_name> node-role.kubernetes.io/gpu-
 kubectl label nodes <node_name> orangelab/gpu-nvidia-
 kubectl label nodes <node_name> orangelab/gpu-amd-
+kubectl label nodes <node_name> orangelab/gpu-intel-
 ```
 
 ## Alpine nodes
