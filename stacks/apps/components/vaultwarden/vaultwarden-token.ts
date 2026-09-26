@@ -1,7 +1,6 @@
-import { config, Metadata } from '@orangelab/pulumi';
+import { config, createPassword, Metadata } from '@orangelab/pulumi';
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import * as random from '@pulumi/random';
 import { Argon2Hash } from './argon2-hash';
 
 export class VaultwardenToken extends pulumi.ComponentResource {
@@ -15,7 +14,8 @@ export class VaultwardenToken extends pulumi.ComponentResource {
     ) {
         super('orangelab:apps:VaultwardenToken', `${appName}-token`, {}, opts);
         const plainToken =
-            config.getSecret(appName, 'adminToken') ?? this.createPlainToken(appName);
+            config.getSecret(appName, 'adminToken') ??
+            createPassword(this, `${appName}-admin-token`);
 
         const argon2Hash = new Argon2Hash(`${appName}-admin-hash`, plainToken, {
             parent: this,
@@ -45,13 +45,5 @@ export class VaultwardenToken extends pulumi.ComponentResource {
             },
             { parent: this },
         );
-    }
-
-    private createPlainToken(appName: string): pulumi.Output<string> {
-        return new random.RandomPassword(
-            `${appName}-admin-token`,
-            { length: 32, special: false },
-            { parent: this },
-        ).result;
     }
 }

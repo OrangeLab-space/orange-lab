@@ -1,6 +1,5 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import * as random from '@pulumi/random';
 import assert from 'node:assert';
 import { Auth, OidcAuthConfig, OidcProviderSettings } from './auth';
 import { config } from './config';
@@ -8,6 +7,7 @@ import { Databases } from './databases';
 import { Metadata } from './metadata';
 import { Network } from './network';
 import { Nodes } from './nodes';
+import { createPassword } from './secrets';
 import { Services } from './services';
 import { Smtp } from './smtp';
 import { Storage } from './storage';
@@ -75,7 +75,7 @@ export class Application {
                 oidc: routeOidc,
                 pluginSecret: routeOidc
                     ? config.getSecret(appName, 'auth/pluginSecret') ??
-                      this.createPassword('oidc-secret')
+                      createPassword(this.scope, `${appName}-oidc-secret`)
                     : undefined,
             },
             { parent: this.scope },
@@ -201,14 +201,6 @@ export class Application {
         this.getServices().createDeployment(spec);
         this.network.createEndpoints(spec);
         return this;
-    }
-
-    createPassword(name: string, args?: { length?: number }) {
-        return new random.RandomPassword(
-            `${this.appName}-${name}`,
-            { length: args?.length ?? 32, special: false },
-            { parent: this.scope },
-        ).result;
     }
 
     /**

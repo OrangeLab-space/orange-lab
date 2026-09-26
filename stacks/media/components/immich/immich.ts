@@ -1,6 +1,7 @@
 import {
     Application,
     config,
+    createPassword,
     DatabaseConfig,
     HttpEndpointInfo,
     OidcAuthConfig,
@@ -22,7 +23,8 @@ export class Immich extends pulumi.ComponentResource {
 
         this.app = new Application(this, name).addStorage().addPostgres().addRedis();
         this.jwtSecret = pulumi.output(
-            config.get(name, 'JWT_SECRET') ?? this.app.createPassword('jwt-secret'),
+            config.get(name, 'JWT_SECRET') ??
+                createPassword(this, `${name}-jwt-secret`),
         );
 
         this.dbConfig = this.app.databases?.getConfig();

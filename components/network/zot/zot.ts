@@ -1,4 +1,4 @@
-import { Application, config, OidcProviderSettings } from '@orangelab/pulumi';
+import { Application, config, createPassword, OidcProviderSettings } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import bcrypt from 'bcryptjs';
 
@@ -32,12 +32,12 @@ export class Zot extends pulumi.ComponentResource {
 
         const adminPassword =
             config.getSecret(name, 'adminPassword') ??
-            app.createPassword('admin-password');
+            createPassword(this, `${name}-admin-password`);
         this.users = { admin: adminPassword };
 
         app.addConfigVolume({
             files: { 'config.json': createConfigJson(app, name, externalUrl) },
-            secretFiles: createSecretFiles(app, adminPassword),
+            secretFiles: createSecretFiles(app, name, this, adminPassword),
         });
 
         app.addDeployment({
@@ -59,9 +59,11 @@ export class Zot extends pulumi.ComponentResource {
 
 function createSecretFiles(
     app: Application,
+    name: string,
+    scope: pulumi.Resource,
     adminPassword: pulumi.Output<string>,
 ): Record<string, pulumi.Input<string>> {
-    const salt = app.createPassword('htpasswd-salt', { length: 22 });
+    const salt = createPassword(scope, `${name}-htpasswd-salt`, { length: 22 });
     const htpasswd = pulumi
         .all([adminPassword, salt])
         .apply(([password, s]) => `admin:${bcrypt.hashSync(password, `$2a$10$${s}`)}`);

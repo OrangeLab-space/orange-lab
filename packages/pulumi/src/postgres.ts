@@ -1,9 +1,9 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import * as random from '@pulumi/random';
 import { config } from './config';
 import { Metadata } from './metadata';
 import { Nodes } from './nodes';
+import { createPassword } from './secrets';
 import { DatabaseConfig } from './types';
 
 export interface PostgresClusterArgs {
@@ -37,16 +37,17 @@ export class PostgresCluster extends pulumi.ComponentResource {
         this.clusterName = `${appName}-${this.args.name}`;
         this.dbUser = appName;
         this.dbPassword = pulumi.output(
-            this.args.password ?? this.createPassword(this.dbUser),
+            this.args.password ??
+                createPassword(this, `${this.clusterName}-${this.dbUser}-password`),
         );
 
-        this.secret = this.createSecret();
+        this.secret = this.createCredentialsSecret();
         if (!args.enabled) return;
 
         this.createCluster();
     }
 
-    private createSecret() {
+    private createCredentialsSecret() {
         return new kubernetes.core.v1.Secret(
             `${this.clusterName}-secret`,
             {
@@ -128,13 +129,5 @@ export class PostgresCluster extends pulumi.ComponentResource {
             password: this.dbPassword,
             port: 5432,
         };
-    }
-
-    private createPassword(username: string) {
-        return new random.RandomPassword(
-            `${this.clusterName}-${username}-password`,
-            { length: 32, special: false },
-            { parent: this },
-        ).result;
     }
 }

@@ -1,3 +1,4 @@
+import { createPassword } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import * as random from '@pulumi/random';
 import * as crypto from 'crypto';
@@ -21,16 +22,11 @@ export class RpcUser extends pulumi.ComponentResource {
     ) {
         super('orangelab:bitcoin:RpcUser', `${name}-${args.username}`, args, opts);
         this.username = args.username;
-        this.password = this.createPassword();
-        this.rpcAuth = this.createRpcAuth();
-    }
-
-    private createPassword() {
-        return new random.RandomPassword(
+        this.password = createPassword(
+            this,
             `${this.name}-${this.args.username}-password`,
-            { length: 32, special: false },
-            { parent: this },
-        ).result;
+        );
+        this.rpcAuth = this.createRpcAuth();
     }
 
     private createRpcAuth(): pulumi.Output<string> {

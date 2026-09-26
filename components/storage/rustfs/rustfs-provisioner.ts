@@ -1,7 +1,6 @@
-import { config, Metadata, S3Provisioner } from '@orangelab/pulumi';
+import { config, createPassword, Metadata, S3Provisioner } from '@orangelab/pulumi';
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import * as random from '@pulumi/random';
 
 export interface RustfsProvisionerArgs {
     appName: string;
@@ -28,11 +27,10 @@ export class RustfsProvisioner extends pulumi.ComponentResource implements S3Pro
         accessKey: pulumi.Output<string>;
         secretKey: pulumi.Output<string>;
     } {
-        const password = new random.RandomPassword(
+        const password = createPassword(
+            this,
             `${this.name}-${args.username}-password`,
-            { length: 32, special: false },
-            { parent: this },
-        ).result;
+        );
 
         const job = this.createJob(args.username, password, args.bucket);
 

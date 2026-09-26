@@ -1,4 +1,4 @@
-import { Application, config } from '@orangelab/pulumi';
+import { Application, config, createPassword } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { getMediaStorage } from '../media-storage';
 
@@ -16,16 +16,19 @@ export class Slskd extends pulumi.ComponentResource {
         super('orangelab:media:Slskd', name, {}, opts);
 
         this.app = new Application(this, name).addStorage();
-        this.apiKey = config.getSecret(name, 'SLSKD_API_KEY') ?? this.app.createPassword('api-key');
+        this.apiKey =
+            config.getSecret(name, 'SLSKD_API_KEY') ??
+            createPassword(this, `${name}-api-key`);
         this.soulseekUsername = pulumi.output(
             config.get(name, 'soulseek/username') ??
-            this.app.createPassword('soulseek-username', { length: 12 }),
+                createPassword(this, `${name}-soulseek-username`, { length: 12 }),
         );
         this.soulseekPassword =
             config.getSecret(name, 'soulseek/password') ??
-            this.app.createPassword('soulseek-password');
+            createPassword(this, `${name}-soulseek-password`);
         this.webPassword =
-            config.getSecret(this.name, 'web/password') ?? this.app.createPassword('web-password');
+            config.getSecret(this.name, 'web/password') ??
+            createPassword(this, `${name}-web-password`);
 
         const mediaStorage = getMediaStorage(this.name);
 

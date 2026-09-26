@@ -1,6 +1,7 @@
 import {
     Application,
     config,
+    createPassword,
     OidcAuthConfig,
     OidcProviderSettings,
 } from '@orangelab/pulumi';
@@ -30,7 +31,7 @@ export class Technitium extends pulumi.ComponentResource {
 
         const adminPassword =
             config.getSecret(name, 'adminPassword') ??
-            this.app.createPassword('admin-password');
+            createPassword(this, `${name}-admin-password`);
         this.users = { admin: adminPassword };
 
         const env: Record<string, pulumi.Input<string> | undefined> = {

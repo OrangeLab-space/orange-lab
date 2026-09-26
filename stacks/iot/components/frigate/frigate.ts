@@ -1,12 +1,12 @@
 import {
     Application,
+    createPassword,
     GpuType,
     InitContainerSpec,
     VolumeMount,
     config,
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
-import * as random from '@pulumi/random';
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 
 export interface FrigateDevice {
@@ -183,11 +183,7 @@ export class Frigate extends pulumi.ComponentResource {
      */
     private getProxySecret(name: string): pulumi.Input<string> | undefined {
         if (config.get(name, 'auth') === undefined) return undefined;
-        return new random.RandomPassword(
-            `${name}-proxy-secret`,
-            { length: 32, special: false },
-            { parent: this },
-        ).result;
+        return createPassword(this, `${name}-proxy-secret`);
     }
 
     private createConfig(

@@ -1,7 +1,7 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import * as random from '@pulumi/random';
 import { Metadata } from './metadata';
+import { createPassword } from './secrets';
 import { DatabaseConfig } from './types';
 
 export interface MariaDbClusterArgs {
@@ -34,18 +34,20 @@ export class MariaDbCluster extends pulumi.ComponentResource {
         this.clusterName = `${appName}-${this.args.name}`;
         this.dbUser = appName;
         this.dbPassword = pulumi.output(
-            args.password ?? this.createPassword(this.dbUser),
+            args.password ??
+                createPassword(this, `${this.clusterName}-${this.dbUser}-password`),
         );
         this.rootPassword = pulumi.output(
-            this.args.rootPassword ?? this.createPassword('root'),
+            this.args.rootPassword ??
+                createPassword(this, `${this.clusterName}-root-password`),
         );
 
-        this.secret = this.createSecret();
+        this.secret = this.createCredentialsSecret();
         if (!args.enabled) return;
         this.createCluster();
     }
 
-    private createSecret() {
+    private createCredentialsSecret() {
         return new kubernetes.core.v1.Secret(
             `${this.clusterName}-secret`,
             {
@@ -126,13 +128,5 @@ export class MariaDbCluster extends pulumi.ComponentResource {
             password: this.dbPassword,
             port: 3306,
         };
-    }
-
-    private createPassword(username: string) {
-        return new random.RandomPassword(
-            `${this.clusterName}-${username}-password`,
-            { length: 32, special: false },
-            { parent: this },
-        ).result;
     }
 }

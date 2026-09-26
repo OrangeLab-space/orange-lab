@@ -5,6 +5,7 @@ export { config } from './config';
 export { GrafanaDashboard } from './grafana-dashboard';
 export { Metadata } from './metadata';
 export { Nodes, NodesArgs } from './nodes';
+export { createPassword } from './secrets';
 export { Smtp } from './smtp';
 export {
     createTraefikOidcMiddleware,

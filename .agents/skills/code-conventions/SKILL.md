@@ -57,7 +57,7 @@ Example: n8n, open-webui, nextcloud adminPassword, rustfs rootPassword, promethe
 
 ### Rotation-safe Secrets
 
-Login passwords or external credentials that don't protect restored data may keep an auto-generated fallback (`config.getSecret(...) ?? this.app.createPassword(...)`). Docs should instruct retrieving from stack outputs and persisting with `--secret` for stability, but rotation is acceptable.
+Login passwords or external credentials that don't protect restored data may keep an auto-generated fallback (`config.getSecret(...) ?? createPassword(...)`). Docs should instruct retrieving from stack outputs and persisting with `--secret` for stability, but rotation is acceptable.
 
 Example: slskd, technitium, immich JWT_SECRET, vaultwarden adminToken
 
