@@ -22,7 +22,7 @@ export class Traefik extends pulumi.ComponentResource {
         this.customDomain = config.require('orangelab', 'customDomain');
         config.requireEnabled(name, 'cert-manager');
         this.app = new Application(this, name, {
-            oidc: args.oidc ? { ...args.oidc, protectRoutes: true } : undefined,
+            oidc: args.oidc,
         });
         const crds = this.createGatewayAPICRDs();
         this.chart = this.createChart(crds);
@@ -194,7 +194,6 @@ export class Traefik extends pulumi.ComponentResource {
                 hostname: httpEndpointInfo.hostname,
                 serviceName: 'api@internal',
                 serviceKind: 'TraefikService',
-                middlewareName: this.app.network.oidcMiddlewareName,
             },
             { parent: this, dependsOn: this.chart },
         );

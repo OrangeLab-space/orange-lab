@@ -44,6 +44,8 @@ config:
     traefik:version: 41.6.0
     traefik:hostname: traefik
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml'
+    # Pocket ID group granted the Traefik dashboard admin role
+    traefik:auth/adminGroup: admin
 
     cert-manager:enabled: false
     cert-manager:clusterIssuer: letsencrypt-issuer

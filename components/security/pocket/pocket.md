@@ -94,13 +94,13 @@ The shared global admin group (default `admin`) is never created by the scripts,
 because it is shared across applications - create it once under **Groups ->
 Create group** before restricting clients to it.
 
-Admin-only applications ([Longhorn](../../storage/longhorn/longhorn.md),
-[Traefik Dashboard](../../network/traefik/traefik.md)) have no role
-mapping of their own. Their OIDC client is restricted so only admins can sign in,
-and non-admins do not even see the app in **My Apps**. Their script passes
-`--create-groups <app>-admin` plus `--restrict-access <adminGroup>,<app>-admin`:
-the app's admin group is created first, then the client is restricted to exactly
-those groups (every listed group must exist).
+Admin-only applications ([Longhorn](../../storage/longhorn/longhorn.md)) have no
+role mapping of their own. Their OIDC client is restricted so only admins can
+sign in, and non-admins do not even see the app in **My Apps**. Their script
+passes `--create-groups <app>-admin` plus
+`--restrict-access <adminGroup>,<app>-admin`: the app's admin group is created
+first, then the client is restricted to exactly those groups (every listed group
+must exist).
 
 ## Using Pocket ID with Applications
 
