@@ -56,6 +56,18 @@ config:
     technitium:DNS_SERVER_FORWARDERS: '1.1.1.1'
     technitium:DNS_SERVER_FORWARDER_PROTOCOL: 'Udp' # Udp, Tcp, Tls, Https, HttpsJson
     # technitium:requiredNodeLabel: kubernetes.io/hostname=<hostname>
+    # Pocket ID groups mapped to Technitium roles for SSO (Technitium role -> list of groups).
+    technitium:auth/groupMap:
+        value:
+            Administrators:
+                - admin
+                - technitium-admin
+            # DNS Administrators:
+            #     - admin
+            #     - technitium-dns-admin
+            # DHCP Administrators:
+            #     - admin
+            #     - technitium-dhcp-admin
 
     zot:enabled: false
     zot:image: ghcr.io/project-zot/zot:v2.1.21

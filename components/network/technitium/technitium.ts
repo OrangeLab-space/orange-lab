@@ -7,6 +7,12 @@ import {
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
+function serializeGroupMap(groupMap: Record<string, string[]>): string {
+    return Object.entries(groupMap)
+        .flatMap(([role, groups]) => groups.map(group => `${group}:${role}`))
+        .join(',');
+}
+
 export interface TechnitiumArgs {
     oidc?: OidcProviderSettings;
 }
@@ -76,6 +82,11 @@ export class Technitium extends pulumi.ComponentResource {
                 'Technitium: SSO enabled (technitium:auth) but the OIDC provider is unavailable. Enable the security module (orangelab:security) in this stack, then deploy.',
             );
         }
+        if (auth.groupMap === undefined) {
+            throw new Error(
+                'Technitium: SSO enabled (technitium:auth) but technitium:auth/groupMap is not configured.',
+            );
+        }
 
         env.DNS_SERVER_SSO_ALLOW_SIGNUP = 'true';
         env.DNS_SERVER_SSO_ALLOW_SIGNUP_ONLY_FOR_MAPPED_USERS = 'true';
@@ -88,9 +99,7 @@ export class Technitium extends pulumi.ComponentResource {
             return url;
         });
         env.DNS_SERVER_SSO_CLIENT_ID = auth.clientId;
-        env.DNS_SERVER_SSO_GROUP_MAP =
-            config.get(this.name, 'auth/groupMap') ??
-            'technitium_admins:Administrators,technitium_dns_admins:DNS Administrators,technitium_dhcp_admins:DHCP Administrators';
+        env.DNS_SERVER_SSO_GROUP_MAP = serializeGroupMap(auth.groupMap);
         env.DNS_SERVER_SSO_METADATA_ADDRESS = pulumi
             .output(auth.providerUrl)
             .apply(url => {

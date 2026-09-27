@@ -97,7 +97,7 @@ Settings in the UI (use after initial deployment):
 
 Technitium supports Single Sign-On via OpenID Connect using [Pocket ID](../../security/pocket/pocket.md), documented in the [Technitium example](https://pocket-id.org/docs/client-examples/technitium-dns). Requires Technitium DNS Server 15.2+ and the [security module](../../security/pocket/pocket.md) (Pocket ID) enabled in this stack.
 
-1. Follow the [Pocket ID](../../security/pocket/pocket.md) instructions, then run the generic Pocket ID client script from the repository root (where the core stack lives) to create the OIDC client:
+1. Follow the [Pocket ID](../../security/pocket/pocket.md) instructions, then from the repository root (where the core stack lives) run the Technitium Pocket ID setup script to create the OIDC client:
 
 ```sh
 ./components/network/technitium/pocket-technitium.sh
@@ -109,25 +109,44 @@ pulumi config set technitium:auth/clientSecret <client-secret> --secret
 pulumi up
 ```
 
-2. Create the user groups in Pocket ID (**Groups -> Create group**) with these exact names - they are mapped in the component and referenced by the `groups` claim; users not in any of them cannot log in:
+2. The script creates the groups listed in `technitium:auth/groupMap` (for example `technitium-admin`) and limits sign-in to those groups. The shared `admin` group must already exist. Groups that already exist are reused as they are, so their members are unaffected; re-running the script resets the sign-in groups to exactly those in the map.
 
-| Pocket ID group          | Technitium group      |
-| ------------------------ | --------------------- |
-| `technitium_admins`      | `Administrators`      |
-| `technitium_dns_admins`  | `DNS Administrators`  |
-| `technitium_dhcp_admins` | `DHCP Administrators` |
+The default map grants each Pocket ID group the corresponding Technitium role:
 
-Groups that don't apply to your setup stay uncreated; only names that actually exist matter.
+| Pocket ID group         | Technitium role       |
+| ----------------------- | --------------------- |
+| `admin`                 | `Administrators`      |
+| `technitium-admin`      | `Administrators`      |
+| `technitium-dns-admin`  | `DNS Administrators`  |
+| `technitium-dhcp-admin` | `DHCP Administrators` |
 
-> **Important:** the `groups` claim contains the Pocket ID group's **Name** field (machine name), not the optional friendly/display name. For a group displayed as `Admins` with the name `admin`, use `admin:...` in the group map. Use the group's name exactly, case-sensitive.
+`admin` is the shared admin group; each `technitium-*-admin` group grants a single Technitium role without granting global admin. Comment out the roles you don't use.
 
-The group map can be customized (e.g. to reuse existing role groups) with:
+> **Note:** use each Pocket ID group's **Name** (the case-sensitive machine name), not its friendly/display name. For a group shown as `Admins` with the name `admin`, use `admin`.
+
+The group map can be customized (e.g. to reuse existing role groups) with a JSON
+object mapping the Technitium role to Pocket ID groups:
 
 ```sh
-pulumi config set technitium:auth/groupMap 'admin:Administrators'
+pulumi config set technitium:auth/groupMap '{"Administrators":["admin"]}'
 ```
 
-Failed logins with "Access denied" mean the Pocket ID user is not a member of any group listed in the group map. The signup error "SSO authentication succeeded but new user sign up is restricted only to members of mapped groups" additionally appears when the **Scopes** field is missing `groups` - without it the token carries no `groups` claim at all and every user is rejected regardless of membership.
+In `Pulumi.yaml` the same value is written as YAML under `value:` (the defaults
+live in the core stack's `Pulumi.yaml`); with `pulumi config set` it must be a
+JSON object string, since Pulumi parses the value as JSON:
+
+```yaml
+technitium:auth/groupMap:
+    value:
+        Administrators:
+            - admin
+            - technitium-admin
+        DNS Administrators:
+            - admin
+            - technitium-dns-admin
+```
+
+Failed logins with "Access denied" mean the Pocket ID user is not a member of any group in `technitium:auth/groupMap`. The signup error "SSO authentication succeeded but new user sign up is restricted only to members of mapped groups" additionally appears when the **Scopes** field is missing `groups` - without it the token carries no group information at all and every user is rejected regardless of membership.
 
 Like the other bootstrap environment variables, SSO is only applied when Technitium initialises from scratch (no config on the volume). Existing installations must configure it instead in the web UI as follows.
 
@@ -151,7 +170,7 @@ Then enable SSO and fill in these exact fields:
 | Scopes                             | `openid profile email groups` (includes `groups` for the group map) |
 | Allow Signup                       | on (auto-provisions accounts on first SSO login)                    |
 | Allow Signup Only for Mapped Users | on (only users in a mapped group can log in)                        |
-| Group Map                          | `admin:Administrators` (or matching `technitium:auth/groupMap`)     |
+| Group Map                          | `admin:Administrators,technitium-admin:Administrators,technitium-dns-admin:DNS Administrators,technitium-dhcp-admin:DHCP Administrators` (or matching `technitium:auth/groupMap`) |
 
 Saving restarts the web service; a **Login with SSO** button then appears on the login page.
 
