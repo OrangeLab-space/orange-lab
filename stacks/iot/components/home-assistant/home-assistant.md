@@ -78,6 +78,38 @@ scheduled, so pin it with `home-assistant:requiredNodeLabel`. Device mounts
 automatically enable privileged mode for the container, as required by the Home
 Assistant Helm chart. Only configure the device paths Home Assistant needs.
 
+## Home Assistant Connect ZBT-2
+
+The ZBT-2 ships with Zigbee firmware and runs one protocol at a time. Zigbee and
+Thread use different firmware, so switching between them reflashes the adapter.
+
+Use the [Open Home Foundation
+Toolbox](https://toolbox.openhomefoundation.org/home-assistant-connect-zbt-2/install/) to flash the firmware to Zigbee/Thread.
+
+### Zigbee (ZHA)
+
+Mount the adapter (see [Device access](#device-access)) and set up ZHA:
+
+```sh
+pulumi config set home-assistant:devices '[{"name":"connect-zbt-2","device":"/dev/serial/by-id/usb-Nabu_Casa_ZBT-2_<serial>-if00"}]'
+pulumi config set home-assistant:requiredNodeLabel "kubernetes.io/hostname=<node>"
+pulumi up
+```
+
+Then in the UI: **Settings -> Devices & Services** -> discover **Home Assistant
+Connect ZBT-2** -> **Use as Zigbee adapter**, then add **Zigbee Home Automation**
+and point it at the same device path.
+
+Use the `/dev/serial/by-id/...` path rather than `/dev/ttyACM*`: the raw index can
+change after a reflash or reboot, and the Deployment then fails to start with
+`hostPath type check failed: ... is not a character device`.
+
+### Thread
+
+Thread mode is owned by the separate [OpenThread Border
+Router](../openthread/openthread.md) component; see
+[Integrations](#integrations-openthread-matter).
+
 ## Integrations (OpenThread Matter)
 
 The ZBT-2 Thread radio is owned by the separate [OpenThread Border
@@ -86,10 +118,10 @@ REST API and does not mount or access the radio directly.
 
 Configure the OpenThread Border Router and Matter integrations with:
 
-| Integration                | URL |
-| -------------------------- | --- |
-| OpenThread Border Router   | `http://openthread.openthread:8081` |
-| Matter                     | `ws://matter.matter:5580/ws`        |
+| Integration              | URL                                 |
+| ------------------------ | ----------------------------------- |
+| OpenThread Border Router | `http://openthread.openthread:8081` |
+| Matter                   | `ws://matter.matter:5580/ws`        |
 
 ## MQTT (Mosquitto)
 
@@ -98,11 +130,11 @@ integration in the Home Assistant UI (**Settings → Devices & Services → Add
 Integration → MQTT**). The broker cannot be configured from `configuration.yaml`
 — Home Assistant only supports the UI flow for it.
 
-| Setting  | Value             |
-| -------- | ----------------- |
+| Setting  | Value                 |
+| -------- | --------------------- |
 | Broker   | `mosquitto.mosquitto` |
-| Port     | `1883`            |
-| Username | `mqtt`            |
+| Port     | `1883`                |
+| Username | `mqtt`                |
 
 ```sh
 # Password
@@ -139,7 +171,7 @@ kubectl logs -n home-assistant deploy/home-assistant -c install-frigate-integrat
 If it fails, install the integration like any custom component and restart Home
 Assistant:
 
-- Via HACS: add the repo as a custom repository (category *Integration*), install
+- Via HACS: add the repo as a custom repository (category _Integration_), install
   **Frigate**, then restart; or
 - Manually: download
   `<home-assistant:frigateRepo>/archive/<home-assistant:frigateVersion>.tar.gz`
