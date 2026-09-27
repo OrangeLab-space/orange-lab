@@ -171,6 +171,8 @@ config:
     prometheus:enabled: false
     #prometheus:requiredNodeLabel: node-role.kubernetes.io/prometheus=true
     # prometheus:grafana/password: admin # auto-generated if not set
+    # Pocket ID group granted the Grafana Admin role (others get Viewer)
+    prometheus:auth/adminGroup: admin
     prometheus:hostname: prometheus
     prometheus:alertmanager/hostname: alertmanager
     prometheus:grafana/hostname: grafana
