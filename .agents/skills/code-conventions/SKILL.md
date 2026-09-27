@@ -33,7 +33,7 @@ When a value from `Application` (like `this.app.debug`) is needed during chained
 ## Shell Scripts & Tooling
 
 - Scripts under `scripts/` are generic tools driven entirely by explicit arguments. They must not read app-specific Pulumi config or infer app-specific names.
-- App-specific knowledge (stack outputs, `auth/*` values, group/client names) stays in the per-app wrapper that calls the shared script, which passes explicit parameters. Example: `pocket-<app>.sh` resolves app-owned groups from its `auth/groupMap` and passes them as `--create-groups "technitium-admin"` / `--restrict-access "admin,technitium-admin"`; `scripts/pocket-client.sh` only acts on the arguments it is given.
+- App-specific knowledge (stack outputs, `auth/*` values, group/client names) stays in the per-app wrapper that calls the shared script, which passes explicit parameters. Example: `pocket-<app>.sh` reads its `<app>:auth/allowedGroups` (unset = unrestricted) and passes them as `--restrict-access "admin,power-user"`; `scripts/pocket-client.sh` only acts on the arguments it is given.
 - An existing group is reused, never modified, so members are not dropped.
 - If a shared tool needs something from another component's config to work, pass it as a parameter instead of reading it — and raise the new coupling for discussion first (see AGENTS.md).
 
