@@ -13,6 +13,8 @@ export interface OidcAuthConfig {
     clientId: string;
     /** Empty for public (PKCE) clients. */
     clientSecret: pulumi.Output<string>;
+    /** App role → Pocket ID group names for applications with native role mapping. */
+    groupMap?: Record<string, string[]>;
     /** Forwards the authenticated identity to the upstream app as proxy headers. */
     forwardIdentity?: boolean;
     /** Additional static headers to send to the upstream app (e.g. a proxy secret). */
@@ -27,6 +29,8 @@ export interface OidcProviderSettings {
     protectRoutes?: boolean;
     /** Registers the application as a public (PKCE) client; no client secret is required. */
     publicClient?: boolean;
+    /** Default app role → Pocket ID group names for applications with native role mapping. */
+    groupMap?: Record<string, string[]>;
     /** Forwards the authenticated username and groups to the upstream app as proxy headers. */
     forwardIdentity?: boolean;
     /** Additional static headers to send to the upstream app (e.g. a proxy secret). */
@@ -61,6 +65,10 @@ export class Auth {
             clientSecret: local?.publicClient
                 ? pulumi.output('')
                 : config.requireSecret(this.appName, 'auth/clientSecret'),
+            groupMap:
+                (config.getObject(this.appName, 'auth/groupMap') as
+                    | Record<string, string[]>
+                    | undefined) ?? local?.groupMap,
             forwardIdentity: local?.forwardIdentity,
             headers: local?.headers,
         };

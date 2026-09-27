@@ -54,6 +54,54 @@ Admins cannot add passkeys for users - each user registers their own passkey via
 
 Alternatively enable signup tokens (**Application Configuration** -> **Enable User Signups** -> **Signup with token**) so users can create accounts themselves. Email-based one-time access links are also available but require an SMTP server configured in the admin UI.
 
+## Groups and Access Control
+
+Pocket ID groups are created in the admin UI under **Groups -> Create group** and
+referenced by name - the case-sensitive machine name, not the friendly/display
+name. Two shared settings connect groups to applications:
+
+| Setting                 | Purpose                                                         |
+| ----------------------- | --------------------------------------------------------------- |
+| `<app>:auth/groupMap`   | App role -> Pocket ID groups, for apps with native role mapping |
+| `<app>:auth/adminGroup` | Shortcut for `groupMap.admin[0]`                                |
+
+For example, mapping Pocket ID groups to Technitium roles:
+
+```yaml
+technitium:auth/groupMap:
+    value:
+        Administrators:
+            - admin
+            - technitium-admin
+        DNS Administrators:
+            - admin
+            - technitium-dns-admin
+```
+
+Applications that map roles run their `pocket-<app>.sh` with
+`--create-groups <groups>`, listing the app-owned groups to create (for example
+`technitium-admin`, resolved from `auth/groupMap`). Existing groups are reused
+as-is, so their members are never dropped.
+
+A script may also pass `--restrict-access <groups>` to limit who can sign in.
+This sets the client's allowed groups to **exactly** the listed groups, so a
+re-run removes any group that is no longer listed (for example Technitium
+restricts its client to the `auth/groupMap` groups). Applications that don't pass
+it - such as Frigate - leave the client unrestricted and rely on role mapping
+alone.
+
+The shared global admin group (default `admin`) is never created by the scripts,
+because it is shared across applications - create it once under **Groups ->
+Create group** before restricting clients to it.
+
+Admin-only applications ([Longhorn](../../storage/longhorn/longhorn.md),
+[Traefik Dashboard](../../network/traefik/traefik.md)) have no role
+mapping of their own. Their OIDC client is restricted so only admins can sign in,
+and non-admins do not even see the app in **My Apps**. Their script passes
+`--create-groups <app>-admin` plus `--restrict-access <adminGroup>,<app>-admin`:
+the app's admin group is created first, then the client is restricted to exactly
+those groups (every listed group must exist).
+
 ## Using Pocket ID with Applications
 
 There are two ways to connect an application to Pocket ID. In both cases, the
@@ -132,17 +180,24 @@ settings and calls `scripts/pocket-client.sh`.
 Some applications cannot log in through Pocket ID. They can still appear in
 Pocket ID's **My Apps** dashboard using a launcher client.
 
+#### Launcher-only applications
+
+Apps that are safe to reach without authentication can register a client purely
+to control who sees the **My Apps** tile. The client is restricted to the admin
+groups, but the app's route stays public - non-admins can still open its URL
+directly. The [Traefik Dashboard](../../network/traefik/traefik.md) works this
+way (read-only, VPN-only).
+
 #### Route protection (`protectRoutes`)
 
 Admin tools that have no authentication of their own are protected by the shared
 Traefik OIDC middleware. Requires the **Traefik** routing provider (it raises an
-error with Tailscale). Restrict the OIDC client to the Pocket ID `admin` group
-under **Settings -> OIDC Clients** - Pocket ID then refuses the sign-in for
-non-admins and hides the launcher tile from them, so they cannot reach the tool
-even by opening its URL directly.
+error with Tailscale). These apps run their `pocket-<app>.sh` script with
+`--create-groups <app>-admin` and `--restrict-access <adminGroup>,<app>-admin` -
+Pocket ID then refuses the sign-in for non-admins and hides the launcher tile
+from them, so they cannot reach the tool even by opening its URL directly.
 
-- [Longhorn](../../../components/storage/longhorn/longhorn.md) (no user management)
-- [Traefik Dashboard](../../../components/network/traefik/traefik.md)
+- [Longhorn](../../storage/longhorn/longhorn.md) (no user management)
 
 Run the application's script and apply the printed `<app>:auth` commands.
 
