@@ -22,6 +22,10 @@ Optional parameters:
   --light-icon-url <url>     URL for the light-theme client icon
   --pkce-enabled <boolean>   Enable PKCE (default: true)
   --public-client <boolean>  Register a public (PKCE) client without a secret (default: false)
+  --create-groups <groups>   Comma-separated groups to create if missing (existing
+                             groups are reused, their members untouched)
+  --restrict-access <groups> Comma-separated Pocket ID groups allowed to sign in;
+                             all must already exist (fails otherwise)
   -h, --help                 Show this help
 
 Run this script from the application's Pulumi stack directory.
@@ -45,10 +49,12 @@ dark_icon_url=''
 light_icon_url=''
 pkce_enabled=true
 public_client=false
+create_group_names=()
+restrict_groups=()
 
 while (($# > 0)); do
     case "$1" in
-        --app-name|--client-name|--launch-url|--callback-url|--callback-urls|--logout-callback-url|--logout-callback-urls|--dark-icon-url|--light-icon-url|--pkce-enabled|--public-client)
+        --app-name|--client-name|--launch-url|--callback-url|--callback-urls|--logout-callback-url|--logout-callback-urls|--dark-icon-url|--light-icon-url|--pkce-enabled|--public-client|--create-groups|--restrict-access)
             if [[ $# -lt 2 || "$2" == -* ]]; then
                 printf 'Missing value for %s\n\n' "$1" >&2
                 usage >&2
@@ -76,6 +82,18 @@ while (($# > 0)); do
                 --light-icon-url) light_icon_url="$2" ;;
                 --pkce-enabled) pkce_enabled="$2" ;;
                 --public-client) public_client="$2" ;;
+                --create-groups)
+                    if [[ -n "$2" ]]; then
+                        read -ra values <<<"${2//,/ }"
+                        create_group_names+=("${values[@]}")
+                    fi
+                    ;;
+                --restrict-access)
+                    if [[ -n "$2" ]]; then
+                        read -ra values <<<"${2//,/ }"
+                        restrict_groups+=("${values[@]}")
+                    fi
+                    ;;
             esac
             shift 2
             ;;
@@ -214,6 +232,77 @@ upload_icon() {
 }
 
 #
+# Echo the ID of an existing Pocket ID group by exact name; fail if missing.
+#
+find_group() {
+    local group_name="$1" group_list
+    group_list=$(pocket_api GET "/api/user-groups?search=$(jq -rn --arg v "${group_name}" '$v|@uri')" \
+        -H "X-API-KEY: ${pocket_api_key}")
+    jq -er --arg name "${group_name}" \
+        '[.data[] | select(.name == $name) | .id][0] // empty' <<<"${group_list}"
+}
+
+#
+# Create a group and echo its ID.
+#
+create_group() {
+    local group_name="$1" group_response
+    if ! group_response=$(pocket_api POST /api/user-groups \
+        -H "X-API-KEY: ${pocket_api_key}" \
+        -H 'Content-Type: application/json' \
+        --data "$(jq -n --arg name "${group_name}" '{name: $name, friendlyName: $name}')"); then
+        printf 'Error: could not create group %s.\n' "${group_name}" >&2
+        exit 1
+    fi
+    printf 'Created group: %s\n' "${group_name}" >&2
+    jq -er '.id' <<<"${group_response}"
+}
+
+#
+# Echo a group's ID, reusing an existing group when present (members untouched)
+# and creating it only when missing.
+#
+ensure_group() {
+    local group_name="$1" group_id
+    if group_id=$(find_group "${group_name}"); then
+        printf '%s' "${group_id}"
+        return 0
+    fi
+    create_group "${group_name}"
+}
+
+#
+# Create the given groups, reusing any that already exist (members untouched).
+#
+create_groups() {
+    local group_name
+    for group_name in "${create_group_names[@]}"; do
+        ensure_group "${group_name}" > /dev/null
+        printf 'Group ready: %s\n' "${group_name}" >&2
+    done
+}
+
+#
+# Restrict the client to the given groups. Every group must already exist.
+#
+apply_restriction() {
+    local group_ids=() group_name group_id
+    for group_name in "${restrict_groups[@]}"; do
+        if ! group_id=$(find_group "${group_name}"); then
+            printf 'Error: Pocket ID group not found: %s\n' "${group_name}" >&2
+            exit 1
+        fi
+        group_ids+=("${group_id}")
+    done
+
+    pocket_api PUT "/api/oidc/clients/${client_id}/allowed-user-groups" \
+        -H "X-API-KEY: ${pocket_api_key}" \
+        -H 'Content-Type: application/json' \
+        --data "$(jq -n '{userGroupIds: $ARGS.positional}' --args "${group_ids[@]}")" > /dev/null
+    printf 'Client restricted to groups: %s\n' "${restrict_groups[*]}"
+}
+
+#
 # Create client
 #
 client_list=$(pocket_api GET "/api/oidc/clients?pagination%5Bpage%5D=1&pagination%5Blimit%5D=100" \
@@ -276,6 +365,13 @@ if [[ -z "${client_id}" ]]; then
         upload_icon "${light_icon_url}" light false || true
     fi
 
+    if ((${#create_group_names[@]} > 0)); then
+        create_groups
+    fi
+    if ((${#restrict_groups[@]} > 0)); then
+        apply_restriction
+    fi
+
     printf 'Done. If icon uploads warned above, re-run to retry them.\n'
     exit 0
 else
@@ -296,8 +392,8 @@ if [[ "${callback_urls_json}" != '[]' || "${logout_callback_urls_json}" != '[]' 
         --argjson existing "${existing_client}" \
         --argjson requested "${logout_callback_urls_json}" \
         '$requested - ($existing.logoutCallbackURLs // [])')
-    existing_pkce_enabled=$(jq -er '.pkceEnabled // false' <<<"${existing_client}")
-    existing_is_public=$(jq -er '.isPublic // false' <<<"${existing_client}")
+    existing_pkce_enabled=$(jq -r '.pkceEnabled // false' <<<"${existing_client}")
+    existing_is_public=$(jq -r '.isPublic // false' <<<"${existing_client}")
     if [[ "${missing_callback_urls}" != '[]' || "${missing_logout_urls}" != '[]' || "${existing_pkce_enabled}" != "${pkce_enabled}" || "${existing_is_public}" != "${public_client}" ]]; then
         update_body=$(jq -c -n \
             --argjson existing "${existing_client}" \
@@ -338,6 +434,13 @@ if [[ -n "${dark_icon_url}" ]]; then
 fi
 if [[ -n "${light_icon_url}" ]]; then
     upload_icon "${light_icon_url}" light false || true
+fi
+
+if ((${#create_group_names[@]} > 0)); then
+    create_groups
+fi
+if ((${#restrict_groups[@]} > 0)); then
+    apply_restriction
 fi
 
 #
