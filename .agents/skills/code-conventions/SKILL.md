@@ -30,6 +30,13 @@ description: Use when creating or editing TypeScript code in the orange-lab repo
 
 When a value from `Application` (like `this.app.debug`) is needed during chained initialization, create the Application instance first: `this.app = new Application(...);`, then continue with chained methods: `this.app.addStorage().addConfigVolume(...)`.
 
+## Shell Scripts & Tooling
+
+- Scripts under `scripts/` are generic tools driven entirely by explicit arguments. They must not read app-specific Pulumi config or infer app-specific names.
+- App-specific knowledge (stack outputs, `auth/*` values, group/client names) stays in the per-app wrapper that calls the shared script, which passes explicit parameters. Example: `pocket-<app>.sh` resolves app-owned groups from its `auth/groupMap` and passes them as `--create-groups "technitium-admin"` / `--restrict-access "admin,technitium-admin"`; `scripts/pocket-client.sh` only acts on the arguments it is given.
+- An existing group is reused, never modified, so members are not dropped.
+- If a shared tool needs something from another component's config to work, pass it as a parameter instead of reading it — and raise the new coupling for discussion first (see AGENTS.md).
+
 ## Configuration
 
 - **Pulumi stack files**: Never modify or read `Pulumi.*.yaml` files directly — they may contain secrets. Use `pulumi config set/get` (`--secret` for sensitive values).

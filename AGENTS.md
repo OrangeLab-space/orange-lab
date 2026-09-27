@@ -44,6 +44,7 @@ During implementation, stop and switch back to discussion mode when:
 
 1. **Library change may be needed**: If the implementation would require manual Kubernetes manifests or workarounds for something the library (`@orangelab/pulumi`) should handle, stop. Propose the library change instead so other components can reuse it.
 2. **Scope changes or faulty assumptions surface**: If something unexpected comes up (a conflict, a wrong assumption, a side effect), stop. Agree on a path forward before continuing — the user may want to defer the fix to a separate task.
+3. **New coupling or assumption**: If the change would introduce a new cross-dependency or assumption (e.g. a shared tool reading app-specific config, one module reaching into another's state), stop and propose it. Don't add couplings silently — they have consequences and need to be discussed.
 
 ### Asking for Confirmation
 

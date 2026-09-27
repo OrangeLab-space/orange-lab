@@ -29,7 +29,10 @@ blast radius — what merging/pulling the change would actually affect.
 ### 3. Review for OrangeLab Principles
 
 - **Simplicity (KISS/YAGNI)**: Does the solution avoid over-engineering? Is it only implementing what's needed now?
-- **Loose Coupling**: Are components independent? Any new circular dependencies?
+- **Loose Coupling**: Are components independent? Any new circular or implicit
+  dependencies (e.g. a shared script reading app-specific config, one module
+  reaching into another's state)? New cross-dependencies or assumptions must be
+  raised for discussion, not introduced silently.
 - **Single Responsibility**: Do classes follow the established patterns (Metadata for labels, Network for ingress, etc.)?
 
 ### 4. Technical Review
@@ -93,6 +96,7 @@ Never read `Pulumi.*.yaml` directly (secrets); use `pulumi config`.
 ❌ Don't use "refactor:" for breaking changes
 ❌ Don't expose passwords in command line arguments
 ❌ Avoid `any` type
+❌ Don't introduce new cross-dependencies or assumptions silently — raise them for discussion
 
 ## Expected Output
 
