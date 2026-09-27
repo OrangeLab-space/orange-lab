@@ -110,6 +110,7 @@ config:
         value:
             admin:
                 - admin
+                - frigate-admin
             # viewer:
             #     - viewers
     # Fallback role for authenticated users not matched above (admin | viewer).

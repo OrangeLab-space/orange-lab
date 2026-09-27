@@ -83,6 +83,7 @@ export class Frigate extends pulumi.ComponentResource {
             name: 'config-yml',
             secretFiles: {
                 'config.yml': this.createConfig(name, {
+                    app,
                     coral,
                     gpu,
                     mqtt: args.mqtt,
@@ -189,6 +190,7 @@ export class Frigate extends pulumi.ComponentResource {
     private createConfig(
         name: string,
         args: {
+            app: Application;
             coral: boolean;
             gpu?: GpuType;
             mqtt?: FrigateMqttConfig;
@@ -214,7 +216,7 @@ export class Frigate extends pulumi.ComponentResource {
                 return yamlStringify(
                     {
                         ...userConfig,
-                        ...this.getAuthConfig(name, proxySecret),
+                        ...this.getAuthConfig(name, args.app, proxySecret),
                         cameras: userConfig.cameras ?? this.getDefaultCameras(),
                         detectors: userConfig.detectors ?? this.getDetectors(args),
                         ...(this.getOpenVinoModel(args, userConfig) ?? {}),
@@ -231,12 +233,14 @@ export class Frigate extends pulumi.ComponentResource {
      * Disables Frigate's own authentication and trusts the Pocket ID groups
      * forwarded by the Traefik OIDC middleware (see `forwardIdentity`).
      */
-    private getAuthConfig(name: string, proxySecret?: string) {
+    private getAuthConfig(name: string, app: Application, proxySecret?: string) {
         if (!proxySecret) return {};
-        const groupMap = config.requireObject(name, 'auth/groupMap') as Record<
-            string,
-            string[]
-        >;
+        const groupMap = app.oidc?.groupMap;
+        if (!groupMap) {
+            throw new Error(
+                `${name}: SSO enabled but auth/groupMap is not configured.`,
+            );
+        }
         const defaultRole = config.requireEnum(name, 'auth/defaultRole', [
             'admin',
             'viewer',
