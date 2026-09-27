@@ -91,7 +91,17 @@ pulumi config set forgejo:auth/clientSecret <client-secret> --secret
 pulumi up
 ```
 
-On first sign-in, Forgejo creates the account automatically from your identity provider, with no registration form; the username comes from the `nickname` claim, falling back to `preferred_username`. If `forgejo:adminEmail` matches your identity provider email, the sign-in is linked to the existing admin account, and members of the Pocket ID `admin` group become Forgejo administrators. Profile pictures are synced from the identity provider on each sign-in. Forgejo reserves the username `admin`. While OIDC is enabled, Forgejo is SSO-only: local username/password sign-in and self-registration are disabled. To regain local admin access, remove `forgejo:auth` (`pulumi config rm forgejo:auth`) and deploy again.
+### Sign-in and accounts
+
+- **Automatic accounts** - on first sign-in Forgejo creates the account from your identity provider; there is no registration form. The username comes from the `nickname` claim, falling back to `preferred_username`.
+- **Admin linking** - if `forgejo:adminEmail` matches your identity provider email, the sign-in is linked to the existing admin account.
+- **Administrators** - members of the Pocket ID group in `forgejo:auth/adminGroup` (default `admin`, from `stacks/dev/Pulumi.yaml`) become Forgejo administrators.
+- **Profile pictures** - synced from the identity provider on each sign-in.
+- **Reserved username** - Forgejo reserves the name `admin`.
+
+### SSO-only mode
+
+While OIDC is enabled, Forgejo is SSO-only: local username/password sign-in and self-registration are disabled. To regain local admin access, remove `forgejo:auth` (`pulumi config rm forgejo:auth`) and deploy again.
 
 ## SSH access
 

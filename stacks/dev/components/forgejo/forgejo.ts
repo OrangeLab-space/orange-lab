@@ -185,7 +185,10 @@ export class Forgejo extends pulumi.ComponentResource {
                             args.auth && this.oidcSecret
                                 ? [
                                       {
-                                          adminGroup: 'admin',
+                                          adminGroup: config.require(
+                                              this.appName,
+                                              'auth/adminGroup',
+                                          ),
                                           autoDiscoverUrl: args.auth.providerUrl,
                                           existingSecret: this.oidcSecret.metadata.name,
                                           groupClaimName: 'groups',
