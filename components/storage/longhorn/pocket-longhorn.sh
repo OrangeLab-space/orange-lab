@@ -14,6 +14,7 @@ logout_callback_urls=("$launch_url/oidc/callback")
 dark_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rancher-longhorn.svg
 light_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rancher-longhorn-light.svg
 pkce_enabled=false
+admin_group=$(pulumi config get longhorn:auth/adminGroup)
 
 #
 # Shared invocation - identical in every app wrapper.
@@ -26,4 +27,6 @@ exec "$(git rev-parse --show-toplevel)/scripts/pocket-client.sh" \
     --logout-callback-urls "${logout_callback_urls[*]}" \
     --dark-icon-url "$dark_icon_url" \
     --light-icon-url "$light_icon_url" \
-    --pkce-enabled "$pkce_enabled"
+    --pkce-enabled "$pkce_enabled" \
+    --create-groups "longhorn-admin" \
+    --restrict-access "$admin_group,longhorn-admin"

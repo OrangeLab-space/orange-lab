@@ -115,6 +115,8 @@ config:
     longhorn:enabled: false
     longhorn:version: 1.12.1
     longhorn:hostname: longhorn
+    # Pocket ID group granted the Longhorn admin role
+    longhorn:auth/adminGroup: admin
     # Initial value for default storage. Adjust each volume in Longhorn UI
     longhorn:replicaCount: 2
     longhorn:snapshotEnabled: false

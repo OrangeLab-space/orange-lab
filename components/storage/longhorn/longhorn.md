@@ -57,7 +57,7 @@ pulumi up
 
 ## SSO (Pocket ID)
 
-Longhorn has no user management; by default its external endpoint is reachable without authentication. OIDC protection currently requires the Traefik routing provider. Once configured, the UI requires Pocket ID sign-in and is limited to the Pocket ID `admin` group (see [Pocket ID](../../security/pocket/pocket.md)). From the repository root (core stack directory):
+Longhorn has no user management; by default its external endpoint is reachable without authentication. OIDC protection currently requires the Traefik routing provider. Once configured, the UI requires Pocket ID sign-in and is limited to the admin groups (see [Pocket ID](../../security/pocket/pocket.md)). From the repository root (core stack directory):
 
 ```sh
 ./components/storage/longhorn/pocket-longhorn.sh
@@ -69,7 +69,7 @@ pulumi config set longhorn:auth/clientSecret <client-secret> --secret
 pulumi up
 ```
 
-Restrict the Pocket ID OIDC client to the groups that should access Longhorn. Group access is managed in Pocket ID under **Settings -> OIDC Clients**.
+The script runs with `--create-groups longhorn-admin` and `--restrict-access`: it creates the `longhorn-admin` group and restricts the OIDC client to `longhorn:auth/adminGroup` and `longhorn-admin`, so non-admins cannot sign in and do not see Longhorn in Pocket ID's **My Apps**. The admin group must already exist. Add users to either group; adjust the client's allowed groups in Pocket ID under **Settings -> OIDC Clients** to grant more (for example a `longhorn-user` group).
 
 ## Using Extra Disks
 
