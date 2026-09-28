@@ -14,11 +14,6 @@ logout_callback_urls=("$launch_url/oidc/callback")
 dark_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/frigate.svg
 light_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/frigate-light.svg
 pkce_enabled=false
-# App-owned groups from frigate:auth/groupMap (e.g. frigate-admin);
-# shared groups such as admin must already exist.
-create_groups=$(pulumi config get frigate:auth/groupMap 2>/dev/null \
-    | jq -r --arg prefix "${app_name}-" '[.[] | .[]] | unique | map(select(startswith($prefix))) | join(",")' \
-    || true)
 
 #
 # Shared invocation - identical in every app wrapper.
@@ -31,5 +26,4 @@ exec "$(git rev-parse --show-toplevel)/scripts/pocket-client.sh" \
     --logout-callback-urls "${logout_callback_urls[*]}" \
     --dark-icon-url "$dark_icon_url" \
     --light-icon-url "$light_icon_url" \
-    --pkce-enabled "$pkce_enabled" \
-    --create-groups "$create_groups"
+    --pkce-enabled "$pkce_enabled"

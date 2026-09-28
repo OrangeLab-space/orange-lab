@@ -95,7 +95,7 @@ pulumi up
 
 - **Automatic accounts** - on first sign-in Forgejo creates the account from your identity provider; there is no registration form. The username comes from the `nickname` claim, falling back to `preferred_username`.
 - **Admin linking** - if `forgejo:adminEmail` matches your identity provider email, the sign-in is linked to the existing admin account.
-- **Administrators** - members of the Pocket ID group in `forgejo:auth/adminGroup` (default `admin`, from `stacks/dev/Pulumi.yaml`) become Forgejo administrators.
+- **Administrators** - members of the admin group (`orangelab:auth/adminGroup`, default `admin`) become Forgejo administrators. The Pocket ID client is restricted to `admin` and `power-user`; `power-user` members get a normal account.
 - **Profile pictures** - synced from the identity provider on each sign-in.
 - **Reserved username** - Forgejo reserves the name `admin`.
 

@@ -110,7 +110,8 @@ The following settings are supported by most applications in OrangeLab:
 | `auth/providerUrl`    | Override the OIDC discovery URL                                                               |
 | `auth/providerName`   | Name of the OIDC provider, used in the login button label                                     |
 | `auth/groupMap`       | App role -> Pocket ID groups, for apps with native role mapping (object)                      |
-| `auth/adminGroup`     | Pocket ID group granting the app's admin role; shortcut for `groupMap.admin[0]`               |
+| `auth/adminGroup`     | Pocket ID group granting the app's admin role (overrides `orangelab:auth/adminGroup`)         |
+| `auth/allowedGroups`  | Comma-separated Pocket ID groups allowed to sign in; unset keeps the client unrestricted      |
 
 ### Custom Hostnames
 

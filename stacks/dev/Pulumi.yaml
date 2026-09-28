@@ -41,5 +41,5 @@ config:
     # forgejo:auth/clientSecret:
     #   secure: <client-secret>
     # forgejo:auth/providerName: SSO
-    # Pocket ID group granted the Forgejo admin role
-    forgejo:auth/adminGroup: admin
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    forgejo:auth/allowedGroups: admin,power-user

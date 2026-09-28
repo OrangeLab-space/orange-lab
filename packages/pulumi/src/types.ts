@@ -270,6 +270,7 @@ export interface HttpRouteSpec {
 export interface CoreStackExports {
     config?: {
         customDomain?: string;
+        adminGroup?: string;
         longhorn?: {
             backupAllVolumes?: boolean;
         };

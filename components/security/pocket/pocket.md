@@ -23,20 +23,6 @@ pulumi config set pocket:encryptionKey "$KEY" --secret
 pulumi up
 ```
 
-Changing the hostname later does not require undeploying - just set the new hostname and run `pulumi up`. Passkeys are bound to the origin though, so after the switch users cannot log in with existing passkeys. Re-register them by generating a one-time access link:
-
-```sh
-kubectl -n pocket exec deploy/pocket -- /app/pocket-id one-time-access-token <username>
-```
-
-## Encryption Key
-
-The key is stored encrypted in the Pulumi stack config, but also save it in a password manager - it is required to decrypt data when restoring a volume backup to a new stack:
-
-```sh
-pulumi config get pocket:encryptionKey
-```
-
 ## Post-Installation
 
 1. Go to `https://pocket.<domain>/setup` (not the root URL) and create the admin account by registering a passkey.
@@ -54,53 +40,11 @@ Admins cannot add passkeys for users - each user registers their own passkey via
 
 Alternatively enable signup tokens (**Application Configuration** -> **Enable User Signups** -> **Signup with token**) so users can create accounts themselves. Email-based one-time access links are also available but require an SMTP server configured in the admin UI.
 
-## Groups and Access Control
+Passkeys are bound to the origin though, so after hostname change users cannot log in with existing passkeys. Re-register them by generating a one-time access link:
 
-Pocket ID groups are created in the admin UI under **Groups -> Create group** and
-referenced by name - the case-sensitive machine name, not the friendly/display
-name. Two shared settings connect groups to applications:
-
-| Setting                 | Purpose                                                         |
-| ----------------------- | --------------------------------------------------------------- |
-| `<app>:auth/groupMap`   | App role -> Pocket ID groups, for apps with native role mapping |
-| `<app>:auth/adminGroup` | Shortcut for `groupMap.admin[0]`                                |
-
-For example, mapping Pocket ID groups to Technitium roles:
-
-```yaml
-technitium:auth/groupMap:
-    value:
-        Administrators:
-            - admin
-            - technitium-admin
-        DNS Administrators:
-            - admin
-            - technitium-dns-admin
+```sh
+kubectl -n pocket exec deploy/pocket -- /app/pocket-id one-time-access-token <username>
 ```
-
-Applications that map roles run their `pocket-<app>.sh` with
-`--create-groups <groups>`, listing the app-owned groups to create (for example
-`technitium-admin`, resolved from `auth/groupMap`). Existing groups are reused
-as-is, so their members are never dropped.
-
-A script may also pass `--restrict-access <groups>` to limit who can sign in.
-This sets the client's allowed groups to **exactly** the listed groups, so a
-re-run removes any group that is no longer listed (for example Technitium
-restricts its client to the `auth/groupMap` groups). Applications that don't pass
-it - such as Frigate - leave the client unrestricted and rely on role mapping
-alone.
-
-The shared global admin group (default `admin`) is never created by the scripts,
-because it is shared across applications - create it once under **Groups ->
-Create group** before restricting clients to it.
-
-Admin-only applications ([Longhorn](../../storage/longhorn/longhorn.md)) have no
-role mapping of their own. Their OIDC client is restricted so only admins can
-sign in, and non-admins do not even see the app in **My Apps**. Their script
-passes `--create-groups <app>-admin` plus
-`--restrict-access <adminGroup>,<app>-admin`: the app's admin group is created
-first, then the client is restricted to exactly those groups (every listed group
-must exist).
 
 ## Using Pocket ID with Applications
 
@@ -183,19 +127,18 @@ Pocket ID's **My Apps** dashboard using a launcher client.
 #### Launcher-only applications
 
 Apps that are safe to reach without authentication can register a client purely
-to control who sees the **My Apps** tile. The client is restricted to the admin
-groups, but the app's route stays public - non-admins can still open its URL
-directly. The [Traefik Dashboard](../../network/traefik/traefik.md) works this
-way (read-only, VPN-only).
+to control who sees the **My Apps** tile. The client is restricted to `admin`
+and `power-user`, but the app's route stays public - others can still open its
+URL directly. The [Traefik Dashboard](../../network/traefik/traefik.md) works
+this way (read-only, VPN-only).
 
 #### Route protection (`protectRoutes`)
 
 Admin tools that have no authentication of their own are protected by the shared
 Traefik OIDC middleware. Requires the **Traefik** routing provider (it raises an
-error with Tailscale). These apps run their `pocket-<app>.sh` script with
-`--create-groups <app>-admin` and `--restrict-access <adminGroup>,<app>-admin` -
-Pocket ID then refuses the sign-in for non-admins and hides the launcher tile
-from them, so they cannot reach the tool even by opening its URL directly.
+error with Tailscale). The client is restricted to `admin` and `power-user`, so
+Pocket ID refuses sign-in for everyone else and hides the launcher tile from
+them - they cannot reach the tool even by opening its URL directly.
 
 - [Longhorn](../../storage/longhorn/longhorn.md) (no user management)
 
@@ -280,3 +223,55 @@ pulumi up
 ```
 
 Keep `pocket:fromVolume` set afterwards - it wires the app to the restored (static) volume. The same `pocket:encryptionKey` must be used for the restored data to decrypt.
+
+## Groups and Access Control
+
+Two shared Pocket ID groups are commonly used:
+
+| Group        | Purpose                                                    |
+| ------------ | ---------------------------------------------------------- |
+| `admin`      | Application admins - mapped to each app's admin role       |
+| `power-user` | Access to advanced apps (dev, monitoring, storage, network) |
+
+The admin group name is configured once in the core stack and can be overridden
+per app:
+
+| Setting                     | Purpose                            |
+| --------------------------- | ---------------------------------- |
+| `orangelab:auth/adminGroup` | Admin group name (default `admin`) |
+| `<app>:auth/adminGroup`     | Per-app override of the admin group |
+
+Create the groups under **Groups -> Create group** and add yourself to `admin` -
+the scripts never create them. Applications map Pocket ID groups to their own
+roles with `<app>:auth/groupMap` (Pocket ID group -> app role), for example
+Technitium:
+
+```yaml
+technitium:auth/groupMap:
+    value:
+        Administrators:
+            - admin
+            - power-user
+```
+
+### Restricting who sees an application
+
+An OIDC client is **unrestricted by default** - any Pocket ID user can sign in
+and sees the app in **My Apps**. Setting `<app>:auth/allowedGroups` restricts it
+to exactly those groups, so everyone else is refused sign-in and does not see the
+launcher tile. Pocket ID enforces this from the client's *restricted* flag, which
+`pocket-<app>.sh --restrict-access` sets alongside the allowed groups.
+
+Advanced apps ([Grafana](../../monitoring/prometheus/prometheus.md),
+[Beszel](../../monitoring/beszel/beszel.md), [Zot](../../network/zot/zot.md),
+[RustFS](../../storage/rustfs/rustfs.md),
+[Forgejo](../../../stacks/dev/components/forgejo/forgejo.md),
+[Technitium](../../network/technitium/technitium.md), the
+[Traefik dashboard](../../network/traefik/traefik.md) and
+[Longhorn](../../storage/longhorn/longhorn.md)) ship with
+`<app>:auth/allowedGroups: admin,power-user`.
+
+All other applications leave the key unset and stay unrestricted. Re-running an
+advanced wrapper resets the client to its configured `allowedGroups`; wrappers
+without an `allowedGroups` value never restrict, so any restriction you add in
+the Pocket UI is preserved.

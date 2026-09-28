@@ -13,6 +13,8 @@ export interface OidcAuthConfig {
     clientId: string;
     /** Empty for public (PKCE) clients. */
     clientSecret: pulumi.Output<string>;
+    /** Pocket ID group that grants the application's admin role. */
+    adminGroup: pulumi.Input<string>;
     /** App role → Pocket ID group names for applications with native role mapping. */
     groupMap?: Record<string, string[]>;
     /** Forwards the authenticated identity to the upstream app as proxy headers. */
@@ -65,6 +67,12 @@ export class Auth {
             clientSecret: local?.publicClient
                 ? pulumi.output('')
                 : config.requireSecret(this.appName, 'auth/clientSecret'),
+            adminGroup:
+                config.get(this.appName, 'auth/adminGroup') ??
+                coreStack.outputs.config?.apply(
+                    coreConfig => coreConfig?.adminGroup ?? 'admin',
+                ) ??
+                'admin',
             groupMap:
                 (config.getObject(this.appName, 'auth/groupMap') as
                     | Record<string, string[]>

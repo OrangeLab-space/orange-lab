@@ -81,7 +81,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
                         enabled: true,
                         trusted_proxies: args.trustedProxies ?? [],
                         ...(this.app.oidc && {
-                            initContainer: this.getOidcInitContainer(name),
+                            initContainer: this.getOidcInitContainer(),
                         }),
                     },
                     controller: {
@@ -116,33 +116,30 @@ export class HomeAssistant extends pulumi.ComponentResource {
         );
     }
 
-    private getOidcInitContainer(name: string) {
-        const adminGroup = config.require(name, 'auth/adminGroup');
+    private getOidcInitContainer() {
         return {
             env: [
                 { name: 'OIDC_CLIENT_ID', value: this.app.oidc?.clientId },
                 { name: 'OIDC_DISCOVERY_URL', value: this.getDiscoveryUrl() },
-                ...(adminGroup
-                    ? [{ name: 'OIDC_ADMIN_GROUP', value: adminGroup }]
-                    : []),
+                { name: 'OIDC_ADMIN_GROUP', value: this.app.oidc?.adminGroup },
             ],
             args: [
                 [
                     'set -e',
                     '/bin/sh /mnt/init/init.sh',
-                    `yq -i '${this.getOidcYq(adminGroup)}' /config/configuration.yaml`,
+                    `yq -i '${this.getOidcYq()}' /config/configuration.yaml`,
                 ].join('\n'),
             ],
         };
     }
 
-    private getOidcYq(adminGroup: string) {
+    private getOidcYq() {
         return [
             '.auth_oidc.client_id = strenv(OIDC_CLIENT_ID)',
             '.auth_oidc.discovery_url = strenv(OIDC_DISCOVERY_URL)',
             '.auth_oidc.features.force_https = true',
             '.auth_oidc.features.automatic_user_linking = true',
-            ...(adminGroup ? ['.auth_oidc.roles.admin = strenv(OIDC_ADMIN_GROUP)'] : []),
+            '.auth_oidc.roles.admin = strenv(OIDC_ADMIN_GROUP)',
         ].join(' | ');
     }
 

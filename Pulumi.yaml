@@ -30,6 +30,10 @@ config:
     # Global Redis image - apps can override with <app>:redis/image
     orangelab:redis/image: docker.io/redis:8-alpine
 
+    # Pocket ID group that grants each app's admin role.
+    # Apps can override with <app>:auth/adminGroup.
+    orangelab:auth/adminGroup: admin
+
     ### Network ###
 
     tailscale:enabled: false
@@ -44,8 +48,8 @@ config:
     traefik:version: 41.6.0
     traefik:hostname: traefik
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml'
-    # Pocket ID group granted the Traefik dashboard admin role
-    traefik:auth/adminGroup: admin
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    traefik:auth/allowedGroups: admin,power-user
 
     cert-manager:enabled: false
     cert-manager:clusterIssuer: letsencrypt-issuer
@@ -58,23 +62,21 @@ config:
     technitium:DNS_SERVER_FORWARDERS: '1.1.1.1'
     technitium:DNS_SERVER_FORWARDER_PROTOCOL: 'Udp' # Udp, Tcp, Tls, Https, HttpsJson
     # technitium:requiredNodeLabel: kubernetes.io/hostname=<hostname>
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    technitium:auth/allowedGroups: admin,power-user
     # Pocket ID groups mapped to Technitium roles for SSO (Technitium role -> list of groups).
     technitium:auth/groupMap:
         value:
             Administrators:
                 - admin
-                - technitium-admin
-            # DNS Administrators:
-            #     - admin
-            #     - technitium-dns-admin
-            # DHCP Administrators:
-            #     - admin
-            #     - technitium-dhcp-admin
+                - power-user
 
     zot:enabled: false
     zot:image: ghcr.io/project-zot/zot:v2.1.21
     zot:hostname: registry
     zot:storageSize: 100Gi
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    zot:auth/allowedGroups: admin,power-user
     # Vulnerability scan interval for cached images (minimum 2h)
     zot:scanInterval: 24h
     # Upstream registries cached on-demand: host (K3s mirror key), upstream URL, and
@@ -117,8 +119,8 @@ config:
     longhorn:enabled: false
     longhorn:version: 1.12.1
     longhorn:hostname: longhorn
-    # Pocket ID group granted the Longhorn admin role
-    longhorn:auth/adminGroup: admin
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    longhorn:auth/allowedGroups: admin,power-user
     # Initial value for default storage. Adjust each volume in Longhorn UI
     longhorn:replicaCount: 2
     longhorn:snapshotEnabled: false
@@ -143,6 +145,8 @@ config:
     rustfs:enabled: false
     rustfs:hostname: rustfs
     rustfs:hostname-api: rustfs-api
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    rustfs:auth/allowedGroups: admin,power-user
     # rustfs:dataPath: /mnt/my-drive/rustfs-data
     # rustfs:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     rustfs:rootUser: admin
@@ -175,9 +179,9 @@ config:
     prometheus:enabled: false
     #prometheus:requiredNodeLabel: node-role.kubernetes.io/prometheus=true
     # prometheus:grafana/password: admin # auto-generated if not set
-    # Pocket ID group granted the Grafana Admin role (others get Viewer)
-    prometheus:auth/adminGroup: admin
     prometheus:hostname: prometheus
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    prometheus:auth/allowedGroups: admin,power-user
     prometheus:alertmanager/hostname: alertmanager
     prometheus:grafana/hostname: grafana
     prometheus:storageSize: 100Gi
@@ -191,6 +195,8 @@ config:
     beszel:enabled: false
     # beszel:hubKey: BESZEL_KEY
     beszel:hostname: beszel
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    beszel:auth/allowedGroups: admin,power-user
     beszel:image: henrygd/beszel:latest
     beszel:agent/image: henrygd/beszel-agent:latest
     # Deploy to all nodes by default, even if requiredNodeLabel used on beszel

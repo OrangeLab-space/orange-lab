@@ -37,7 +37,7 @@ pulumi config set orangelab:coreStackRef example-org/orangelab/lab
 pulumi config set home-assistant:auth pocket
 pulumi config set home-assistant:auth/clientId <client-id>
 
-# Optional: Pocket ID group that gets the Home Assistant admin role (default: admin)
+# Optional: override the Home Assistant admin group (default: orangelab:auth/adminGroup, i.e. admin)
 # pulumi config set home-assistant:auth/adminGroup admin
 
 pulumi up

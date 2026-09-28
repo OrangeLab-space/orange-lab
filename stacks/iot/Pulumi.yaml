@@ -32,8 +32,6 @@ config:
     # Release archive is fetched from <oidcRepo>/releases/download/<oidcVersion>/hass-oidc-auth.zip
     home-assistant:oidcRepo: https://github.com/christiaangoossens/hass-oidc-auth
     home-assistant:oidcVersion: v1.2.1
-    # Pocket ID group whose members get the Home Assistant admin role
-    home-assistant:auth/adminGroup: admin
     # Frigate custom integration, installed into /config/custom_components
     # when the Frigate component is enabled (repo + release tag, fetched from a tarball)
     home-assistant:frigateRepo: https://github.com/blakeblackshear/frigate-hass-integration
@@ -110,7 +108,6 @@ config:
         value:
             admin:
                 - admin
-                - frigate-admin
             # viewer:
             #     - viewers
     # Fallback role for authenticated users not matched above (admin | viewer).

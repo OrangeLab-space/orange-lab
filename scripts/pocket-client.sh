@@ -22,10 +22,9 @@ Optional parameters:
   --light-icon-url <url>     URL for the light-theme client icon
   --pkce-enabled <boolean>   Enable PKCE (default: true)
   --public-client <boolean>  Register a public (PKCE) client without a secret (default: false)
-  --create-groups <groups>   Comma-separated groups to create if missing (existing
-                             groups are reused, their members untouched)
   --restrict-access <groups> Comma-separated Pocket ID groups allowed to sign in;
-                             all must already exist (fails otherwise)
+                             all must already exist. Marks the client restricted
+                             (without it the client stays unrestricted).
   -h, --help                 Show this help
 
 Run this script from the application's Pulumi stack directory.
@@ -49,12 +48,11 @@ dark_icon_url=''
 light_icon_url=''
 pkce_enabled=true
 public_client=false
-create_group_names=()
 restrict_groups=()
 
 while (($# > 0)); do
     case "$1" in
-        --app-name|--client-name|--launch-url|--callback-url|--callback-urls|--logout-callback-url|--logout-callback-urls|--dark-icon-url|--light-icon-url|--pkce-enabled|--public-client|--create-groups|--restrict-access)
+        --app-name|--client-name|--launch-url|--callback-url|--callback-urls|--logout-callback-url|--logout-callback-urls|--dark-icon-url|--light-icon-url|--pkce-enabled|--public-client|--restrict-access)
             if [[ $# -lt 2 || "$2" == -* ]]; then
                 printf 'Missing value for %s\n\n' "$1" >&2
                 usage >&2
@@ -82,12 +80,6 @@ while (($# > 0)); do
                 --light-icon-url) light_icon_url="$2" ;;
                 --pkce-enabled) pkce_enabled="$2" ;;
                 --public-client) public_client="$2" ;;
-                --create-groups)
-                    if [[ -n "$2" ]]; then
-                        read -ra values <<<"${2//,/ }"
-                        create_group_names+=("${values[@]}")
-                    fi
-                    ;;
                 --restrict-access)
                     if [[ -n "$2" ]]; then
                         read -ra values <<<"${2//,/ }"
@@ -243,43 +235,34 @@ find_group() {
 }
 
 #
-# Create a group and echo its ID.
+# Mark the client as group-restricted. Pocket ID v2 only enforces allowed user
+# groups when isGroupRestricted is true; the allowed-user-groups endpoint alone
+# does not set it.
 #
-create_group() {
-    local group_name="$1" group_response
-    if ! group_response=$(pocket_api POST /api/user-groups \
+mark_client_restricted() {
+    local client_json update_body
+    client_json=$(pocket_api GET "/api/oidc/clients/${client_id}" -H "X-API-KEY: ${pocket_api_key}")
+    update_body=$(jq -c -n --argjson existing "${client_json}" '{
+        name: $existing.name,
+        description: ($existing.description // ""),
+        callbackURLs: ($existing.callbackURLs // []),
+        logoutCallbackURLs: ($existing.logoutCallbackURLs // []),
+        isPublic: ($existing.isPublic // false),
+        pkceEnabled: ($existing.pkceEnabled // false),
+        requiresReauthentication: ($existing.requiresReauthentication // false),
+        requiresPushedAuthorizationRequests: ($existing.requiresPushedAuthorizationRequests // false),
+        skipConsent: ($existing.skipConsent // false),
+        launchURL: $existing.launchURL,
+        hasLogo: ($existing.hasLogo // false),
+        hasDarkLogo: ($existing.hasDarkLogo // false),
+        isGroupRestricted: true,
+        accessTokenDurationMinutes: ($existing.accessTokenDurationMinutes // 60),
+        refreshTokenDurationMinutes: ($existing.refreshTokenDurationMinutes // 43200)
+    }')
+    pocket_api PUT "/api/oidc/clients/${client_id}" \
         -H "X-API-KEY: ${pocket_api_key}" \
         -H 'Content-Type: application/json' \
-        --data "$(jq -n --arg name "${group_name}" '{name: $name, friendlyName: $name}')"); then
-        printf 'Error: could not create group %s.\n' "${group_name}" >&2
-        exit 1
-    fi
-    printf 'Created group: %s\n' "${group_name}" >&2
-    jq -er '.id' <<<"${group_response}"
-}
-
-#
-# Echo a group's ID, reusing an existing group when present (members untouched)
-# and creating it only when missing.
-#
-ensure_group() {
-    local group_name="$1" group_id
-    if group_id=$(find_group "${group_name}"); then
-        printf '%s' "${group_id}"
-        return 0
-    fi
-    create_group "${group_name}"
-}
-
-#
-# Create the given groups, reusing any that already exist (members untouched).
-#
-create_groups() {
-    local group_name
-    for group_name in "${create_group_names[@]}"; do
-        ensure_group "${group_name}" > /dev/null
-        printf 'Group ready: %s\n' "${group_name}" >&2
-    done
+        --data "${update_body}" > /dev/null
 }
 
 #
@@ -299,6 +282,7 @@ apply_restriction() {
         -H "X-API-KEY: ${pocket_api_key}" \
         -H 'Content-Type: application/json' \
         --data "$(jq -n '{userGroupIds: $ARGS.positional}' --args "${group_ids[@]}")" > /dev/null
+    mark_client_restricted
     printf 'Client restricted to groups: %s\n' "${restrict_groups[*]}"
 }
 
@@ -365,9 +349,6 @@ if [[ -z "${client_id}" ]]; then
         upload_icon "${light_icon_url}" light false || true
     fi
 
-    if ((${#create_group_names[@]} > 0)); then
-        create_groups
-    fi
     if ((${#restrict_groups[@]} > 0)); then
         apply_restriction
     fi
@@ -436,9 +417,6 @@ if [[ -n "${light_icon_url}" ]]; then
     upload_icon "${light_icon_url}" light false || true
 fi
 
-if ((${#create_group_names[@]} > 0)); then
-    create_groups
-fi
 if ((${#restrict_groups[@]} > 0)); then
     apply_restriction
 fi

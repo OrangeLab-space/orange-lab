@@ -138,7 +138,7 @@ pulumi up
 
 2. A Pocket ID button then appears on the login page. The optional `zot:auth/providerName` labels the button.
 
-Any Pocket ID user can log in and, because authenticated users get the default policy, can push and edit through the UI. Create the same user in the `admin`/htpasswd config if you also need CLI push.
+The Pocket ID client is restricted to `admin` and `power-user`, so only those users can sign in and see Zot in **My Apps**. Authenticated users get the default policy and can push and edit through the UI. Create the same user in the `admin`/htpasswd config if you also need CLI push.
 
 ## Vulnerability scanning
 

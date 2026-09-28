@@ -27,6 +27,7 @@ exports.storage = storageModule.getExports();
 
 exports.config = {
     customDomain: config.get('orangelab', 'customDomain'),
+    adminGroup: config.get('orangelab', 'auth/adminGroup') ?? 'admin',
     longhorn: {
         backupAllVolumes: config.getBoolean('longhorn', 'backupAllVolumes') ?? false,
     },

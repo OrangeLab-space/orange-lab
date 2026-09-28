@@ -109,8 +109,12 @@ export class Prometheus extends pulumi.ComponentResource {
                                           email_attribute_name: 'email:primary',
                                           enabled: 'true',
                                           name: 'Pocket ID',
-                                          role_attribute_path:
-                                              `contains(groups[*], '${config.require(name, 'auth/adminGroup')}') && 'Admin' || 'Viewer'`,
+                                          role_attribute_path: pulumi
+                                              .output(this.app.oidc.adminGroup)
+                                              .apply(
+                                                  adminGroup =>
+                                                      `contains(groups[*], '${adminGroup}') && 'Admin' || 'Viewer'`,
+                                              ),
                                           scopes: 'openid email profile groups',
                                           skip_org_role_sync: 'false',
                                            token_url: pulumi.interpolate`${this.app.oidc.providerBaseUrl}/api/oidc/token`,

@@ -33,7 +33,7 @@ pulumi up
 
 The Traefik dashboard is read-only - it exposes no secrets and no destructive actions - so it is **not** protected by Pocket ID. The dashboard is reachable without authentication.
 
-It is still registered as a Pocket ID app so it appears in **My Apps** for `admin` and `traefik-admin` groups. From the repo root, create the launcher client:
+It is still registered as a Pocket ID app so it appears in **My Apps** for `admin` and `power-user` groups. From the repo root, create the launcher client:
 
 ```sh
 ./components/network/traefik/pocket-traefik.sh
