@@ -16,4 +16,4 @@ This package is used by OrangeLab stacks. See the [main repository](https://oran
 
 ## Configuration
 
-Application configuration options are documented in [docs/configuration.md](https://github.com/QC-Labs/orange-lab/blob/main/docs/configuration.md).
+Application configuration options are documented in [docs/configuration.md](https://github.com/OrangeLab-space/orange-lab/blob/main/docs/configuration.md).

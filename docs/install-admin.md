@@ -3,7 +3,7 @@
 **Admin/Management node** is where you run Pulumi to create and update your infrastructure, most likely your laptop.
 
 ```sh
-git clone https://github.com/QC-Labs/orange-lab
+git clone https://github.com/OrangeLab-space/orange-lab
 # build required after every change to packages/pulumi/
 npm run build
 ```

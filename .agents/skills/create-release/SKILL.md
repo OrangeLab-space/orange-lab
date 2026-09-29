@@ -20,7 +20,7 @@ Creates a GitHub draft release with categorized release notes for the orange-lab
 ### 2. Find the latest release tag
 
 ```
-gh release list --repo QC-Labs/orange-lab --limit 1 --json tagName
+gh release list --repo OrangeLab-space/orange-lab --limit 1 --json tagName
 ```
 
 ### 3. Collect commits since the last tag
@@ -34,7 +34,7 @@ git log <latest-tag>..HEAD --oneline
 Read the previous release notes to match the established structure and tone:
 
 ```
-gh release view <latest-tag> --repo QC-Labs/orange-lab
+gh release view <latest-tag> --repo OrangeLab-space/orange-lab
 ```
 
 ### 5. Categorize and draft release notes
@@ -87,7 +87,7 @@ Show the generated markdown release notes and ask for confirmation, edits, or ca
 Write the final notes to a temp file and pass it via `--notes-file` (avoids shell-escaping issues with multi-line markdown):
 
 ```
-gh release create <version> --draft --repo QC-Labs/orange-lab --title "<version>" --notes-file /tmp/opencode/release-notes-<version>.md
+gh release create <version> --draft --repo OrangeLab-space/orange-lab --title "<version>" --notes-file /tmp/opencode/release-notes-<version>.md
 ```
 
 - Publish **only as a draft** so the user can refine in the GitHub UI.

@@ -17,13 +17,13 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/QC-Labs/orange-lab.git",
+        "url": "git+https://github.com/OrangeLab-space/orange-lab.git",
         "directory": "packages/pulumi"
     },
     "bugs": {
-        "url": "https://github.com/QC-Labs/orange-lab/issues"
+        "url": "https://github.com/OrangeLab-space/orange-lab/issues"
     },
-    "homepage": "https://github.com/QC-Labs/orange-lab/tree/main/packages/pulumi#readme",
+    "homepage": "https://github.com/OrangeLab-space/orange-lab/tree/main/packages/pulumi#readme",
     "keywords": [
         "pulumi",
         "kubernetes",

@@ -172,7 +172,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 
 # Documentation
 
-- [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/QC-Labs/orange-lab) ↗ - AI generated documentation and good place to ask questions
+- [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/OrangeLab-space/orange-lab) ↗ - AI generated documentation and good place to ask questions
 - [Installation - Admin node](./docs/install-admin.md) - Initial Pulumi and Tailscale setup
 - [Installation - Linux node configuration](./docs/install-linux.md) - Configure nodes (firewall, suspend settings)
 - [Installation - Alpine Linux](./docs/install-linux-alpine.md) - Node configuration for Alpine Linux

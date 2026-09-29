@@ -40,8 +40,8 @@ When showing commands for the user to run, format them clearly:
 ## Context
 
 - **Current version**: Read from `package.json` (version field)
-- **GitHub releases**: https://github.com/QC-Labs/orange-lab/releases
-- **Repository**: QC-Labs/orange-lab
+- **GitHub releases**: https://github.com/OrangeLab-space/orange-lab/releases
+- **Repository**: OrangeLab-space/orange-lab
 - **Upgrade docs**: `docs/upgrade.md` - standard upgrade procedures
 - **Storage docs**: `docs/configuration.md` - volume management and `fromVolume` usage
 - **Multi-stack docs**: `docs/stacks.md` - module stacks and their dependencies on core
@@ -154,10 +154,10 @@ git log HEAD..origin/main
 
 ```bash
 # Try gh first (saves tokens)
-gh release list --repo QC-Labs/orange-lab --limit 5
+gh release list --repo OrangeLab-space/orange-lab --limit 5
 ```
 
-If `gh` is not configured, use WebFetch: `https://github.com/QC-Labs/orange-lab/releases`
+If `gh` is not configured, use WebFetch: `https://github.com/OrangeLab-space/orange-lab/releases`
 
 **Analyze the output for USER-FACING breaking changes**:
 
