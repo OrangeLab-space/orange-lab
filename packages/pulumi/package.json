@@ -1,7 +1,7 @@
 {
     "name": "@orangelab/pulumi",
     "description": "OrangeLab Pulumi Kubernetes DSL",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",

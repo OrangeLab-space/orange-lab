@@ -1,7 +1,7 @@
 {
     "name": "orange-lab",
     "description": "Private distributed self-hosting infrastructure",
-    "version": "0.5.0",
+    "version": "0.7.0",
     "private": true,
     "main": "index.ts",
     "license": "MIT",
