@@ -26,7 +26,12 @@ Most Linux systems with kernel 6.11.6+ and SELinux are supported. That includes 
 
 The main requirement is that K3S and Longhorn (including `open-iscsi` and `iscsiadm`) can be installed.
 
-Note: Installation instructions assume your machines are running Bluefin (Developer edition, https://projectbluefin.io/ ↗) based on Fedora Silverblue unless otherwise noted.
+Tested with:
+
+- Bluefin (Developer edition, https://projectbluefin.io/ ↗) based on Fedora Silverblue
+- Fedora
+- Alpine
+- ZimaOS
 
 ## Windows, MacOS
 
@@ -36,11 +41,14 @@ See [Disabling Longhorn Guide](./docs/longhorn-disable.md) with instructions on 
 
 ## Memory
 
-Minimum 2-4GB memory required for Longhorn. Recommended 8-16GB+ allows to run most components on a single host. More might be needed for AI workloads.
+Minimum 2-4GB memory required for Longhorn. 16-32GB+ allows to run most components on a single host. More might be needed for AI workloads.
+
+Recommended setup to run all applications is 3+ nodes with 64GB+ memory combined for storage replication and redundancy.
 
 ## GPU
 
-Both NVIDIA and AMD GPUs are supported. See [Hardware module](/components/hardware/HARDWARE.md) for more information.
+Both NVIDIA and AMD GPUs are supported. Some applications (Ollama, Frigate) supports Intel GPUs.
+See [Hardware module](/components/hardware/HARDWARE.md) for more information.
 
 # Principles and goals
 
@@ -156,6 +164,10 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 [IoT](./stacks/iot/README.md):
 
 - [`home-assistant`](./stacks/iot/components/home-assistant/home-assistant.md) - sensor and home automation platform
+- [`frigate`](./stacks/iot/components/frigate/frigate.md) - Local NVR with realtime AI object detection
+- [`matter`](./stacks/iot/components/matter/matter.md) - Matter controller for Home Assistant
+- [`mosquitto`](./stacks/iot/components/mosquitto/mosquitto.md) - MQTT broker for Home Assistant/Frigate
+- [`openthread`](./stacks/iot/components/openthread/openthread.md) - Thread border router
 
 [Media](./stacks/media/README.md):
 
