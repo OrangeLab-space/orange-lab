@@ -45,7 +45,7 @@ config:
     tailscale:hostname: k8s
 
     traefik:enabled: false
-    traefik:version: 41.6.0
+    traefik:version: 41.7.0
     traefik:hostname: traefik
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml'
     # Pocket ID groups allowed to sign in (unset = unrestricted)
@@ -55,7 +55,7 @@ config:
     cert-manager:clusterIssuer: letsencrypt-issuer
 
     technitium:enabled: false
-    technitium:image: technitium/dns-server:15.5.1
+    technitium:image: technitium/dns-server:15.6.0
     technitium:hostname: dns
     technitium:storageSize: 5Gi
     # set to empty to use root servers recursion
@@ -117,7 +117,7 @@ config:
     ### Storage ###
 
     longhorn:enabled: false
-    longhorn:version: 1.12.1
+    longhorn:version: 1.13.0
     longhorn:hostname: longhorn
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     longhorn:auth/allowedGroups: admin,power-user
