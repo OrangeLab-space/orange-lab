@@ -39,3 +39,64 @@ Make sure there is no leftover entry for a service at https://login.tailscale.co
 Longhorn troubleshooting guide - https://github.com/longhorn/longhorn/wiki/Troubleshooting
 
 Cheatsheet with useful commands - https://support.tools/training/longhorn/troubleshooting/
+
+### Checking volume and disk usage
+
+`kubectl get pv` only shows the volume's declared size, which is not its usage. A
+volume can be well within its declared size while the node disk behind it fills
+up, so check both:
+
+```sh
+# Node disk headroom (compare storageAvailable against storageMaximum)
+kubectl get nodes.longhorn.io -n longhorn-system -o custom-columns=NAME:.metadata.name,AVAIL:.status.diskStatus.*.storageAvailable
+
+# Volume state and declared size
+kubectl get volumes.longhorn.io -n longhorn-system
+```
+
+To see what is consuming space, mount the volume in a throwaway pod. The PVC name
+is usually the volume name rather than the Pulumi resource name:
+
+```sh
+kubectl get pvc -n <app-namespace>
+
+kubectl run volcheck --image=busybox:stable --restart=Never -n <app-namespace> \
+  --overrides='{"spec":{"nodeName":"<node>","containers":[{"name":"c","image":"busybox:stable","command":["sh","-c","df -h /data; du -sh /data/* | sort -rh | head"],"volumeMounts":[{"name":"d","mountPath":"/data"}]}],"volumes":[{"name":"d","persistentVolumeClaim":{"claimName":"<pvc-name>"}}]}}'
+kubectl logs volcheck -n <app-namespace>
+kubectl delete pod volcheck -n <app-namespace>
+```
+
+busybox runs as a non-root user while Longhorn volumes are owned by `uid=0`, so
+writes fail with `Permission denied` unless the pod sets
+`"securityContext":{"runAsUser":0}`. That is a permissions mismatch, not a
+read-only filesystem — check `id` before concluding the volume is read-only.
+
+On ZimaOS, `sd[b-d]` style devices are CasaOS NBD images rather than physical
+disks, so their presence in `lsblk` output does not indicate failing hardware.
+
+### Volume out of space
+
+Expanding a volume is covered in the
+[configuration guide](./configuration.md#storage). Note that Pulumi only updates
+the PVC size — it does not expand the Longhorn volume, so a volume attached with
+`fromVolume` keeps its original filesystem until the volume itself is expanded.
+
+A volume that reached 100% may have left application data damaged. Resizing does
+not repair it, so check the application logs after expanding. SQLite-based
+applications are the most common casualty, since a failed write allocation
+corrupts the database rather than raising a clean error.
+
+### Replicas not rebuilding
+
+A volume that stays `degraded` after a node returns usually means the replica
+cannot rebuild on the target node. Check the manager log for the failure reason:
+
+```sh
+kubectl logs -n longhorn-system -l app=longhorn-manager -c longhorn-manager --tail=400 | grep -i 'rebuild\|failed'
+```
+
+A high `rebuildRetryCount` on a replica is not necessarily a failure — the
+counter is not reset after a successful rebuild, so it reflects historical
+attempts rather than the current state. Check the volume's `robustness` field
+instead, and allow time for the rebuild: a degraded volume during a rebuild is
+expected until the new replica is usable.

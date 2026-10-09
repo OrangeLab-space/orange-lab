@@ -229,7 +229,9 @@ pulumi config set ollama:storageOnly true
 pulumi up
 
 # Expand storage size to 200GB
-# Live expansion not supported when using existing volumes, need to detach first
+# Pulumi only updates the PVC size, it does not expand the Longhorn volume itself.
+# Dynamic volumes expand on the next deploy; existing volumes (fromVolume) must be
+# detached and the volume expanded directly - see the resize-storage skill below.
 # For local volumes it's not enforced by Kubernetes (used for scheduling only)
 pulumi config set ollama:storageSize 200Gi
 
@@ -243,6 +245,8 @@ pulumi config set ollama:backupVolume true
 ```
 
 This approach allows you to safely disable applications without losing data, even during breaking changes.
+
+Expanding storage is the one operation where the Pulumi setting alone is not enough, and the procedure differs depending on whether the volume is dynamic or attached with `fromVolume`. Agents: see the [resize-storage skill](/.agents/skills/resize-storage/SKILL.md) for the full procedure.
 
 #### Using Static Volume Names
 
