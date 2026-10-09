@@ -94,9 +94,10 @@ For NVIDIA/AMD, object detection is configured in the Frigate UI (**Settings →
 
 ## Storage
 
-Frigate's data directory (`/config`) defaults to a 1Gi Longhorn volume
+Frigate's data directory (`/config`) defaults to a 5Gi Longhorn volume
 (`frigate:storageSize`). Recordings default to a 50Gi Longhorn volume
-(`frigate:media/storageSize`). For
+(`frigate:media/storageSize`). See
+[configuration.md](/docs/configuration.md#storage) for resizing volumes. For
 continuous recording, a local disk avoids replication overhead — set
 `frigate:media/hostPath` and pin the app to that node:
 
