@@ -271,23 +271,31 @@ export class Frigate extends pulumi.ComponentResource {
         };
     }
 
-    /** OpenVINO on an Intel iGPU, else Coral, else CPU. */
+    /**
+     * Every enabled accelerator gets a detector, so Coral and an Intel iGPU
+     * can run together. Falls back to CPU only when neither is configured.
+     */
     private getDetectors(args: { coral: boolean; gpu?: GpuType }) {
-        if (args.gpu === 'intel') return { ov: { type: 'openvino', device: 'GPU' } };
-        if (args.coral) return { coral: { type: 'edgetpu', device: 'usb' } };
-        return { cpu: { type: 'cpu' } };
+        const detectors: Record<string, Record<string, string>> = {};
+        if (args.coral) detectors.coral = { type: 'edgetpu', device: 'usb' };
+        if (args.gpu === 'intel') detectors.ov = { type: 'openvino', device: 'GPU' };
+        if (Object.keys(detectors).length === 0) return { cpu: { type: 'cpu' } };
+        return detectors;
     }
 
     /**
      * Workaround: Frigate sizes detector shared memory from the per-detector model
      * but runs DetectProcess with the root `model`, so OpenVINO's built-in 300x300
      * model must be mirrored in the root (else 320x320 shm and a shifted labelmap).
+     * Only safe as the sole detector: the root `model` applies to every detector,
+     * and Coral rejects an OpenVINO XML (`model identifier 'l ve', should be 'TFL3'`).
      */
     private getOpenVinoModel(
-        args: { gpu?: GpuType },
+        args: { coral: boolean; gpu?: GpuType },
         userConfig: Record<string, unknown>,
     ): { model: Record<string, unknown> } | undefined {
-        if (args.gpu !== 'intel' || userConfig.model || userConfig.detectors) {
+        const soleDetector = !args.coral && args.gpu === 'intel';
+        if (!soleDetector || userConfig.model || userConfig.detectors) {
             return undefined;
         }
         return {
