@@ -45,7 +45,6 @@ config:
     tailscale:hostname: k8s
 
     traefik:enabled: false
-    traefik:version: 41.7.0
     traefik:hostname: traefik
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml'
     # Pocket ID groups allowed to sign in (unset = unrestricted)
