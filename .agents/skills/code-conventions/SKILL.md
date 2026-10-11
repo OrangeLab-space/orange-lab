@@ -21,6 +21,7 @@ description: Use when creating or editing TypeScript code in the orange-lab repo
 ## Components
 
 - Follow the established pattern for new modules and components
+- Match how sibling components handle the same cross-cutting concern. A component that adds a requirement where every sibling treats the concern as optional is a flag. Headscale was the only one that failed the deploy when OIDC was unset, while Zot, Caddy, Traefik and Technitium all did `if (app.oidc)`; that outlier is the only reason the bug was findable
 - Use constructor parameter properties with access modifiers (e.g., `constructor(private readonly args: Args)`)
 - Prefer composition over inheritance for component relationships
 - Only export fields when needed for external use; keep sensitive values like auth keys internal when not required

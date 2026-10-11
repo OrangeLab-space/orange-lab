@@ -1,6 +1,6 @@
 ---
 name: document-app
-description: Use when the user asks to create, update, or revise documentation for an application component — typically a `<app>.md` file under `stacks/<module>/components/<app>/`. Trigger on phrases like "document `<app>`", "write `<app>`.md", "update `<app>` docs", "add docs for `<app>`", "backfill `<app>` links". The components folder is a Pulumi convention; users think of these as applications, so the skill is named accordingly.
+description: Use when the user asks to create, update, or revise documentation for an application component — typically an `<app>.md` file under `stacks/<module>/components/<app>/` or `components/<group>/<app>/`. Trigger on phrases like "document `<app>`", "write `<app>`.md", "update `<app>` docs", "add docs for `<app>`", "backfill `<app>` links". The components folder is a Pulumi convention; users think of these as applications, so the skill is named accordingly.
 ---
 
 # Document Application
@@ -92,6 +92,10 @@ Before declaring done:
 ## Writing principles
 
 - **Derive, don't guess.** Config keys, env vars, output paths, and image names come from `.ts` files, `index.ts`, and `Pulumi.yaml`. Upstream URLs come from `webfetch`.
+- **Verify every "requires" and "must" against upstream docs before writing it.** State a requirement only once checked, and say whether it is ours or the upstream project's. Headscale's docs describe local users as the default registration path with OIDC as a delegation option; we had documented OIDC as mandatory.
+- **Describe what exists, not what was considered.** No "not served yet", no "future", no notes about unimplemented possibilities or hypothetical endpoints — a reader cannot act on them and they age into lies. If a limitation affects someone using the component today, document it as behaviour.
+- **No environment-specific narrative.** Describe the requirement generically ("point the name at your WAN IP, disable your provider's proxying option") and name a vendor only when the vendor's behaviour is the point, such as a DNS-01 provider example. Migration stories from the author's own setup do not belong.
+- **Scope "must" to the section it lives in.** In a module doc comparing setups, "must" applies to that option, not to the component — "This option needs both enabled" beats "X and Y must both be enabled".
 - **Lead with the TL;DR.** Put the most likely working configuration in the first code block so users can scan the page and deploy without reading every section.
 - **Use scannable prose.** Prefer short paragraphs and flat bullet lists over long chains of semicolon-separated clauses.
 - **Keep the structure.** Retain useful sections such as Post-Installation, Backup and Restore, and Admin access when they apply.
