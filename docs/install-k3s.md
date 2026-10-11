@@ -77,6 +77,8 @@ Install K3S agent nodes on any additional physical hardware. Server already runs
 > **Alpine nodes**: Use `./scripts/k3s-agent-alpine.sh` instead. See [Alpine Linux node configuration](./install-linux-alpine.md) for preparation steps.
 >
 > **Zimaboard (ZimaOS) nodes**: Use `./scripts/k3s-agent-zima.sh` instead. See [Zimaboard node configuration](./install-linux-zima.md) for preparation steps.
+>
+> **Fedora nodes**: The standard script works as-is. See [Fedora node configuration](./install-linux-fedora.md) for package setup.
 
 ```sh
 # Run where Pulumi is installed

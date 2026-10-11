@@ -24,7 +24,7 @@ Deploy applications using included Pulumi stacks ([`stacks/`](./stacks/) folder)
 
 Most Linux systems with kernel 6.11.6+ and SELinux are supported. That includes your own hardware (e.g. laptops, mini PCs, Rasberry Pi and Zimaboard) as well as any cloud instances.
 
-The main requirement is that K3S and Longhorn (including `open-iscsi` and `iscsiadm`) can be installed.
+The main requirement is that K3S and Longhorn (including `iscsiadm` - provided by `iscsi-initiator-utils` on Fedora, `open-iscsi` on Alpine and Debian) can be installed.
 
 Tested with:
 
@@ -188,6 +188,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 - [Installation - Admin node](./docs/install-admin.md) - Initial Pulumi and Tailscale setup
 - [Installation - Linux node configuration](./docs/install-linux.md) - Configure nodes (firewall, suspend settings)
 - [Installation - Alpine Linux](./docs/install-linux-alpine.md) - Node configuration for Alpine Linux
+- [Installation - Fedora Linux](./docs/install-linux-fedora.md) - Node configuration for plain Fedora
 - [Installation - Zimaboard (ZimaOS)](./docs/install-linux-zima.md) - Node configuration for ZimaOS
 - [Installation - SSH configuration](./docs/install-ssh.md) - Configure SSH keys on nodes for easier access
 - [Installation - K3s cluster](./docs/install-k3s.md) - Install Kubernetes cluster and label nodes

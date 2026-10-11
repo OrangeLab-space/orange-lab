@@ -4,6 +4,7 @@ This document covers general node configuration that should be done before insta
 
 For Alpine-specific steps, see [Installation - Alpine Linux node configuration](./install-linux-alpine.md).
 For Zimaboard (ZimaOS) steps, see [Installation - Zimaboard node configuration](./install-linux-zima.md).
+For plain Fedora steps, see [Installation - Fedora node configuration](./install-linux-fedora.md).
 
 ## Tailscale
 
