@@ -27,6 +27,8 @@ export class Traefik extends pulumi.ComponentResource {
         const crds = this.createGatewayAPICRDs();
         this.chart = this.createChart(crds);
         this.createCertificate();
+        this.createAdditionalCertificates();
+        this.createPublicGateway();
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
         this.endpointUrl = httpEndpointInfo.url;
         this.createDashboard(httpEndpointInfo);
@@ -74,6 +76,7 @@ export class Traefik extends pulumi.ComponentResource {
                                         group: '',
                                         name: `${this.customDomain}-tls`,
                                     },
+                                    ...this.getAdditionalCertificateRefs(),
                                 ],
                             },
                             tls: {
@@ -121,6 +124,30 @@ export class Traefik extends pulumi.ComponentResource {
                         },
                         websecure: {
                             port: 8443,
+                            transport: {
+                                respondingTimeouts: {
+                                    readTimeout: '30s',
+                                },
+                            },
+                        },
+                        publicweb: {
+                            expose: { default: true },
+                            exposedPort: 10080,
+                            port: 10080,
+                            http: {
+                                redirections: {
+                                    entryPoint: {
+                                        permanent: true,
+                                        scheme: 'https',
+                                        to: 'publicwebsecure',
+                                    },
+                                },
+                            },
+                        },
+                        publicwebsecure: {
+                            expose: { default: true },
+                            exposedPort: 10443,
+                            port: 10443,
                             transport: {
                                 respondingTimeouts: {
                                     readTimeout: '30s',
@@ -181,6 +208,111 @@ export class Traefik extends pulumi.ComponentResource {
                     secretName: `${this.customDomain}-tls`,
                     dnsNames: [`*.${this.customDomain}`, this.customDomain],
                     issuerRef: { name: clusterIssuer, kind: 'ClusterIssuer' },
+                },
+            },
+            { parent: this, dependsOn: this.chart },
+        );
+    }
+
+    /**
+     * Extra wildcard domains to cover, beyond the custom domain itself.
+     *
+     * A wildcard matches a single label, so `*.example.com` cannot cover
+     * `node.vpn.example.com`. A mesh VPN's base domain therefore needs its own
+     * certificate, attached to the same listeners — Gateway API selects between
+     * them by SNI.
+     */
+    private getAdditionalDomains(): string[] {
+        return config.getCommaSeparated(this.name, 'additionalCertificateDomains') ?? [];
+    }
+
+    /**
+     * References to the additional wildcard certificates. Gateway API selects
+     * between certificates on a listener by SNI, so all of them serve on the
+     * same port.
+     */
+    private getAdditionalCertificateRefs() {
+        return this.getAdditionalDomains().map(domain => ({
+            kind: 'Secret',
+            group: '',
+            name: `${domain}-tls`,
+        }));
+    }
+
+    private createAdditionalCertificates() {
+        const clusterIssuer = config.get('cert-manager', 'clusterIssuer');
+        if (!clusterIssuer) {
+            throw new Error(
+                'cert-manager: clusterIssuer is required for wildcard certificate',
+            );
+        }
+
+        this.getAdditionalDomains().forEach(domain => {
+            new kubernetes.apiextensions.CustomResource(
+                `${this.name}-certificate-${domain}`,
+                {
+                    apiVersion: 'cert-manager.io/v1',
+                    kind: 'Certificate',
+                    metadata: {
+                        name: `${domain}-cert`,
+                        namespace: this.app.metadata.namespace,
+                    },
+                    spec: {
+                        secretName: `${domain}-tls`,
+                        dnsNames: [`*.${domain}`],
+                        issuerRef: { name: clusterIssuer, kind: 'ClusterIssuer' },
+                    },
+                },
+                { parent: this, dependsOn: this.chart },
+            );
+        });
+    }
+
+    /**
+     * Gateway for internet-facing routes, separate from the chart-managed
+     * gateway. Routes may only attach from namespaces labelled
+     * `orangelab.space/public`, so an application cannot become publicly
+     * reachable by accident.
+     */
+    private createPublicGateway() {
+        new kubernetes.apiextensions.CustomResource(
+            `${this.name}-gateway-public`,
+            {
+                apiVersion: 'gateway.networking.k8s.io/v1',
+                kind: 'Gateway',
+                metadata: {
+                    name: `${this.name}-gateway-public`,
+                    namespace: this.app.metadata.namespace,
+                },
+                spec: {
+                    gatewayClassName: 'traefik',
+                    listeners: [
+                        {
+                            name: 'publicwebsecure',
+                            port: 10443,
+                            protocol: 'HTTPS',
+                            tls: {
+                                mode: 'Terminate',
+                                certificateRefs: [
+                                    {
+                                        kind: 'Secret',
+                                        group: '',
+                                        name: `${this.customDomain}-tls`,
+                                    },
+                                ],
+                            },
+                            allowedRoutes: {
+                                namespaces: {
+                                    from: 'Selector',
+                                    selector: {
+                                        matchLabels: {
+                                            'orangelab.space/public': 'true',
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    ],
                 },
             },
             { parent: this, dependsOn: this.chart },

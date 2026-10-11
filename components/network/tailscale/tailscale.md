@@ -16,6 +16,42 @@ The operator manages cluster ingress endpoints on Tailnet as well as adds Tailsc
 
 When custom domain is configured, Traefik replaces Tailscale for application endpoints.
 
+## Public exposure with Funnel
+
+When Tailscale is the routing provider, `<app>:network/public: true` enables
+[Tailscale Funnel](https://tailscale.com/kb/1223/tailscale-funnel) on that app's
+ingress by adding the `tailscale.com/funnel: "true"` annotation.
+
+Funnel does **not** replace the `ts.net` name. The app is still served at
+`<app>.<tailnet>.ts.net` inside the tailnet; Funnel additionally publishes that
+same name to the public internet through Tailscale's relay servers. One hostname,
+reachable both ways, and your home IP stays hidden.
+
+### Requirements
+
+Funnel needs a node attribute in the tailnet policy file granting it to the
+operator's tag — the `tag:orangelab` this component applies by default:
+
+```json
+"nodeAttrs": [
+  { "target": ["tag:orangelab"], "attr": ["funnel"] },
+]
+```
+
+`autogroup:member` does not cover tagged devices, so granting it to members
+alone is not enough.
+
+### Limitations
+
+- Only ports **443**, **8443** and **10000**, HTTPS only.
+- Traffic is relayed through Tailscale, which cannot read it but does see
+  connection metadata.
+- Serve and Funnel cannot share a port: whichever ran last wins, so a port
+  configured for Serve becomes fully private again.
+
+With Traefik as the routing provider, `network/public` is handled by Traefik's
+public gateway instead and Funnel is not used.
+
 ## Installation
 
 ### DNS/HTTPS

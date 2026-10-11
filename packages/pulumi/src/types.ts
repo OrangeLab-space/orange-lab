@@ -94,7 +94,21 @@ export interface ContainerSpec {
     volumeMounts?: VolumeMount[];
     healthCheck?: HealthCheck;
     resources?: ContainerResources;
+    /**
+     * Subdomain label to serve this deployment's HTTP ports at, resolved
+     * against the custom domain (`nextcloud` becomes `nextcloud.example.com`).
+     * Defaults to `<app>:hostname`.
+     *
+     * This is a *label*, not a domain. The only other name an app gets is the
+     * bare custom domain, via `apexDomain`.
+     */
     hostname?: string;
+    /**
+     * Also serve the bare custom domain (`example.com`), for applications that
+     * own the apex rather than a subdomain of it — typically alongside a `www`
+     * hostname. Requires Traefik, and HTTP only.
+     */
+    apexDomain?: boolean;
     runAsUser?: number;
     volumeOwnerUserId?: number;
     restartPolicy?: string;
@@ -271,6 +285,8 @@ export interface CoreStackExports {
     config?: {
         customDomain?: string;
         adminGroup?: string;
+        meshDomain?: string;
+        tailnet?: string;
         longhorn?: {
             backupAllVolumes?: boolean;
         };
@@ -328,6 +344,16 @@ export interface RoutingProvider {
         component?: string;
         hostname: string;
         middlewareName?: string;
+        /** Also create a route on the public gateway. */
+        public?: boolean;
+        /** Also serve the bare custom domain alongside `hostname`. */
+        apexDomain?: boolean;
+        /**
+         * Base domain of the mesh VPN. Every endpoint also answers at
+         * `<hostname>.<meshDomain>` on the tailnet-only gateway, so the name is
+         * never exposed on the public gateway.
+         */
+        meshDomain?: pulumi.Input<string>;
     }) => void;
     createTcpEndpoints: (params: {
         serviceName: pulumi.Input<string>;

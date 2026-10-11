@@ -45,6 +45,37 @@ pulumi config set traefik:auth/clientSecret <client-secret> --secret
 pulumi up
 ```
 
+## Public exposure
+
+By default everything Traefik serves is private — reachable only over the
+tailnet, because the wildcard DNS record points at a tailnet IP. An application
+opts into internet-facing traffic with a single setting:
+
+```sh
+pulumi config set <app>:network/public true
+pulumi up
+```
+
+That does three things: labels the application's namespace
+`orangelab.space/public=true`, adds an HTTPRoute on the public gateway, and keeps
+the private route untouched. Removing the setting reverses all three.
+
+Three layers keep public and private apart:
+
+1. **Ports.** Public terminates on `10443`, private on `443`. Forward your
+   router's WAN `443` to the node running ServiceLB at port `10443`, so a fault
+   on the public listener is not reachable through the private one.
+2. **Gateway listener.** `traefik-gateway-public` only accepts routes from
+   namespaces labelled `orangelab.space/public`, so an app cannot become public
+   by accident.
+3. **Separate route objects.** Each public route is a distinct HTTPRoute
+   (`<app>-http-public`) from its private counterpart, so dropping public
+   exposure cannot disturb internal routing.
+
+The public path needs NAT loopback to be useful internally. With it, a single
+public A record serves both sides: internal clients resolve the WAN IP, hairpin
+through the router, and land on the same public listener.
+
 ## Uninstall
 
 To uninstall Traefik and clean up its custom resource definitions:

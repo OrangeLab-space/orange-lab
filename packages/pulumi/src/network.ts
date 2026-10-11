@@ -2,6 +2,7 @@ import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { OidcAuthConfig } from './auth';
 import { config } from './config';
+import { coreStack } from './core-stack';
 import { Metadata } from './metadata';
 import { createTraefikOidcMiddleware, traefikOidcMiddlewareName } from './oidc-auth';
 import { TailscaleNetwork } from './network-tailscale';
@@ -15,10 +16,26 @@ import {
     ServicePort,
 } from './types';
 
+/**
+ * Namespace label opting an application into public routing. The public Gateway
+ * only accepts routes from namespaces carrying this label, so exposure is
+ * explicit rather than incidental.
+ */
+export const publicNamespaceLabel = 'orangelab.space/public';
+
+/** Namespace labels for an application, given its public exposure setting. */
+export function getNamespaceLabels(appName: string): Record<string, string> | undefined {
+    return config.getBoolean(appName, 'network/public')
+        ? { [publicNamespaceLabel]: 'true' }
+        : undefined;
+}
+
 export class Network {
     endpoints: Record<string, pulumi.Input<string>> = {};
     clusterEndpoints: Record<string, pulumi.Input<string>> = {};
     private provider: RoutingProvider;
+    /** Whether the application is reachable from the internet. */
+    readonly publiclyExposed: boolean;
 
     constructor(
         private appName: string,
@@ -29,6 +46,7 @@ export class Network {
         },
         private opts?: pulumi.ComponentResourceOptions,
     ) {
+        this.publiclyExposed = config.getBoolean(this.appName, 'network/public') ?? false;
         const routingProvider =
             config.get(this.appName, 'routingProvider') ??
             config.get('orangelab', 'routingProvider');
@@ -109,12 +127,20 @@ export class Network {
                     component: spec.name,
                     hostname,
                     middlewareName: this.oidcMiddlewareName,
+                    public: this.publiclyExposed,
+                    apexDomain: spec.apexDomain,
+                    meshDomain: this.getMeshDomain(),
                 });
             }
             const tcpPorts = publicPorts.filter(
                 p => p.protocol === 'tcp' || p.protocol === 'tls' || p.protocol === 'udp',
             );
             if (tcpPorts.length > 0 && !spec.hostNetwork) {
+                if (spec.apexDomain) {
+                    throw new Error(
+                        `${this.appName}: apexDomain serves the bare custom domain, which supports HTTP only.`,
+                    );
+                }
                 this.provider.createTcpEndpoints({
                     serviceName: service.metadata.name,
                     tcpPorts,
@@ -132,6 +158,23 @@ export class Network {
         return component
             ? config.require(this.appName, `${component}/hostname`)
             : config.require(this.appName, 'hostname');
+    }
+
+    /**
+     * Base domain of the mesh VPN, if this stack runs one. Every app then also
+     * answers at `<hostname>.<meshDomain>` inside the tailnet.
+     *
+     * Keyed on the base domain rather than `headscale:enabled`, so the names
+     * appear only where a mesh actually exists — and so this stays a naming
+     * concern, not a dependency of the routing provider on the VPN software.
+     * Resolved through the core stack like `customDomain`, so module stacks
+     * serve the mesh names too without repeating the config key.
+     */
+    private getMeshDomain(): pulumi.Input<string> | undefined {
+        const localDomain = config.get('headscale', 'baseDomain');
+        if (localDomain !== undefined) return localDomain;
+
+        return coreStack.outputs.config?.apply(coreConfig => coreConfig?.meshDomain ?? '');
     }
 
     private createClusterService(args: {

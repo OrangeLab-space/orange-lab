@@ -7,6 +7,45 @@ Routing options:
 - Tailscale - uses `<tsnet>.ts.net` domains managed by Tailscale
 - Traefik - use for custom domain support
 
+## Routing provider
+
+```yaml
+orangelab:
+  routingProvider: tailscale # tailscale | traefik
+```
+
+- `tailscale` — serves `<app>.<tailnet>.ts.net`. Needs `tailscale:tailnet`, no
+  domain of your own.
+- `traefik` — serves `<app>.example.com`. Needs `orangelab:customDomain`,
+  `cert-manager` and a DNS record per service.
+
+Only Traefik can serve your own domain names, so it is required for options 2–4.
+Both providers also expose TCP endpoints as a LoadBalancer on the cluster network.
+
+Per-application override:
+
+```sh
+pulumi config set <app>:routingProvider tailscale
+```
+
+## Public exposure
+
+```yaml
+<app>:network/public: true
+```
+
+Private by default — without this, nothing is reachable from outside the
+tailnet. What it does depends on the routing provider:
+
+- **Traefik** — a second route on the public gateway, which only admits routes
+  from namespaces labelled `orangelab.space/public`. The router needs one port
+  forward (WAN 443 → node 10443). The service is reachable at its regular
+  `<app>.example.com` name.
+- **Tailscale** — [Funnel](./tailscale/tailscale.md#public-exposure-with-funnel),
+  which publishes the same `ts.net` name to the internet. Requires a `funnel`
+  node attribute in the tailnet policy, and is limited to ports 443, 8443 and
+  10000.
+
 ## Quick Start
 
 ```sh
@@ -32,15 +71,6 @@ kubectl label node <node> svccontroller.k3s.cattle.io/enablelb=true
 ```
 
 Adding the first label switches ServiceLB to whitelist-only mode. Without this label, all nodes in the cluster act as load balancer.
-
-## Routing Provider Override
-
-You can override the global routing provider on a per-application basis:
-
-```sh
-# Use Tailscale for a specific app even if Traefik is the global default
-pulumi config set <app>:routingProvider tailscale
-```
 
 ## Components
 

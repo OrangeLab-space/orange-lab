@@ -6,7 +6,12 @@ export class Metadata {
 
     constructor(
         private appName: string,
-        args: { namespace?: string; existingNamespace?: string },
+        args: {
+            namespace?: string;
+            existingNamespace?: string;
+            /** Labels applied to the application namespace. */
+            labels?: Record<string, string>;
+        },
         opts: pulumi.ComponentResourceOptions,
     ) {
         const namespaceName = args.existingNamespace ?? args.namespace ?? appName;
@@ -14,7 +19,7 @@ export class Metadata {
             ? kubernetes.core.v1.Namespace.get(`${this.appName}-ns`, namespaceName, opts)
             : new kubernetes.core.v1.Namespace(
                   `${this.appName}-ns`,
-                  { metadata: { name: namespaceName } },
+                  { metadata: { name: namespaceName, labels: args.labels } },
                   opts,
               );
         this.namespace = namespaceResource.metadata.name;

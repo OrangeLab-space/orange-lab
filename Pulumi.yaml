@@ -49,6 +49,12 @@ config:
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml'
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     traefik:auth/allowedGroups: admin,power-user
+    # Extra wildcard domains to cover, beyond the custom domain itself. A
+    # wildcard matches a single label, so `*.example.com` cannot cover
+    # `node.vpn.example.com` - names under a mesh VPN's base domain need their
+    # own certificate. Traefik issues one per entry and selects by SNI.
+    # Unset by default, so a stack without a mesh VPN requests no extra cert.
+    # traefik:additionalCertificateDomains: vpn.example.com
 
     cert-manager:enabled: false
     cert-manager:clusterIssuer: letsencrypt-issuer

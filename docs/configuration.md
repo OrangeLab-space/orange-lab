@@ -94,6 +94,7 @@ The following settings are supported by most applications in OrangeLab:
 | `enabled`             | Enable or disable the application                                                            |
 | `hostname`            | Hostname for the HTTPS endpoint, used with Tailscale for access                              |
 | `routingProvider`     | Override global routing provider (`tailscale` or `traefik`) for this application             |
+| `network/public`      | Expose this application to the public internet (see [Public exposure](#public-exposure))     |
 | `version`             | Lock Helm chart version to a specific release (uses latest if not specified)                 |
 | `storageOnly`         | Disable application but retain storage (useful for temporarily disabling while keeping data) |
 | `storageSize`         | Expand default storage size if needed (e.g., for large models)                               |
@@ -136,6 +137,32 @@ pulumi config set nextcloud:routingProvider traefik
 When using `traefik`, ensure `orangelab:customDomain` is set in the current
 stack or inherited from a deployed core stack via `orangelab:coreStackRef`.
 When using `tailscale`, ensure `tailscale:tailnet` is set.
+
+### Public exposure
+
+Applications are private by default. To reach one from the public internet:
+
+```sh
+pulumi config set <app>:network/public true
+pulumi up
+```
+
+What this does depends on the routing provider:
+
+- **`traefik`** — the application gets a second route on Traefik's public gateway,
+  and its namespace is labelled `orangelab.space/public` so the gateway admits
+  the route. It stays reachable at its normal `<app>.<domain>` name. You also
+  need one router port forward (WAN 443 to a node on 10443).
+- **`tailscale`** — enables [Tailscale Funnel](../components/network/tailscale/tailscale.md#public-exposure-with-funnel)
+  on the ingress. This does **not** give the app a new name; it publishes the
+  existing `<app>.<tailnet>.ts.net` name to the internet, so the app is reachable
+  both inside and outside the tailnet. Requires a `funnel` node attribute in the
+  tailnet policy, and only works on ports 443, 8443 and 10000 over HTTPS.
+
+Turning it back off removes the public route; the private name is unaffected.
+
+See [Network module](../components/network/NETWORK.md) for choosing between
+routing providers and mesh VPN control planes.
 
 ### Version Pinning
 

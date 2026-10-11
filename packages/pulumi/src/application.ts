@@ -5,7 +5,7 @@ import { Auth, OidcAuthConfig, OidcProviderSettings } from './auth';
 import { config } from './config';
 import { Databases } from './databases';
 import { Metadata } from './metadata';
-import { Network } from './network';
+import { getNamespaceLabels, Network } from './network';
 import { Nodes } from './nodes';
 import { createPassword } from './secrets';
 import { Services } from './services';
@@ -64,6 +64,7 @@ export class Application {
             {
                 namespace: args?.namespace,
                 existingNamespace: args?.existingNamespace,
+                labels: getNamespaceLabels(appName),
             },
             { parent: this.scope },
         );

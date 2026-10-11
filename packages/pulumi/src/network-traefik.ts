@@ -11,6 +11,20 @@ import {
     ServicePort,
 } from './types';
 
+/** Gateway serving routes within the tailnet. */
+const privateGatewayRef = {
+    name: 'traefik-gateway',
+    namespace: 'traefik',
+    sectionName: 'websecure',
+};
+
+/** Gateway serving internet-facing routes, restricted to opted-in namespaces. */
+const publicGatewayRef = {
+    name: 'traefik-gateway-public',
+    namespace: 'traefik',
+    sectionName: 'publicwebsecure',
+};
+
 export class TraefikNetwork implements RoutingProvider {
     endpoints: Record<string, pulumi.Input<string>> = {};
     customDomain: pulumi.Input<string>;
@@ -32,11 +46,7 @@ export class TraefikNetwork implements RoutingProvider {
             tls: true,
             tlsSecretName: `${hostname}-tls-secret`,
             domain: this.customDomain,
-            gatewayRef: {
-                name: 'traefik-gateway',
-                namespace: 'traefik',
-                sectionName: 'websecure',
-            },
+            gatewayRef: privateGatewayRef,
         };
     }
 
@@ -133,6 +143,9 @@ export class TraefikNetwork implements RoutingProvider {
         component?: string;
         hostname: string;
         middlewareName?: string;
+        public?: boolean;
+        apexDomain?: boolean;
+        meshDomain?: pulumi.Input<string>;
     }): void {
         params.httpPorts.forEach(portSpec => {
             const portHostname = portSpec.hostname ?? params.hostname;
@@ -140,24 +153,57 @@ export class TraefikNetwork implements RoutingProvider {
             const portComponentName = [params.component, portSpec.name]
                 .filter(Boolean)
                 .join('-');
+            const hostnames: (string | pulumi.Input<string>)[] = [
+                httpEndpointInfo.hostname,
+                // The apex owner also answers on the bare custom domain.
+                ...(params.apexDomain ? [this.customDomain] : []),
+            ];
+            // The mesh name is deliberately kept off the public route: it is a
+            // tailnet name and stays tailnet-only even when the app is public.
+            // The mesh apex is never added as a name in its own right. Decided
+            // inside `apply` because the mesh domain can be an Output inherited
+            // from the core stack, whose value is not known at plan time.
+            const privateHostnames = params.meshDomain
+                ? pulumi
+                      .all([portHostname, params.meshDomain, ...hostnames])
+                      .apply(([host, mesh, ...names]) =>
+                          host && mesh ? [...names, `${host}.${mesh}`] : names,
+                      )
+                : hostnames;
 
             this.createHttpBackendRoute({
-                hostname: httpEndpointInfo.hostname,
+                hostnames: privateHostnames,
                 componentName: portComponentName,
                 serviceName: params.serviceName,
                 servicePort: portSpec.port,
                 middlewareName: params.middlewareName,
             });
+            if (params.public) {
+                this.createHttpBackendRoute({
+                    hostnames,
+                    componentName: `${portComponentName}-public`,
+                    serviceName: params.serviceName,
+                    servicePort: portSpec.port,
+                    middlewareName: params.middlewareName,
+                    parentRef: publicGatewayRef,
+                });
+            }
         });
         this.exportHttpEndpoints(params);
     }
 
+    /**
+     * Creates an HTTPRoute for one set of hostnames. `hostnames` already contains
+     * the resolved name, so the same route can serve an app's own name alongside
+     * any additional ones.
+     */
     private createHttpBackendRoute(params: {
-        hostname: pulumi.Input<string>;
+        hostnames: pulumi.Input<pulumi.Input<string>[]>;
         componentName: string;
         serviceName: pulumi.Input<string>;
         servicePort: number;
         middlewareName?: string;
+        parentRef?: { name: string; namespace: string; sectionName: string };
     }): void {
         const metadata = this.args.metadata.get({ component: params.componentName });
         new kubernetes.apiextensions.CustomResource(
@@ -167,14 +213,8 @@ export class TraefikNetwork implements RoutingProvider {
                 kind: 'HTTPRoute',
                 metadata,
                 spec: {
-                    parentRefs: [
-                        {
-                            name: 'traefik-gateway',
-                            namespace: 'traefik',
-                            sectionName: 'websecure',
-                        },
-                    ],
-                    hostnames: [params.hostname],
+                    parentRefs: [params.parentRef ?? privateGatewayRef],
+                    hostnames: params.hostnames,
                     rules: [
                         {
                             ...(params.middlewareName
