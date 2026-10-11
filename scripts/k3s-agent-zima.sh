@@ -23,7 +23,7 @@ echo
 echo "curl -sfL https://get.k3s.io | sudo -E INSTALL_K3S_BIN_DIR=/opt/bin sh -s - \
 --server \$K3S_URL \
 --token \$K3S_TOKEN \
---bind-address=\$NODE_IP \
+--bind-address=0.0.0.0 \
 --flannel-iface=tailscale0 \
 --node-ip=\$NODE_IP \
 --selinux"
