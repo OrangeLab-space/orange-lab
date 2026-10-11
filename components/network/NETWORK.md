@@ -76,6 +76,7 @@ Adding the first label switches ServiceLB to whitelist-only mode. Without this l
 
 - **[Tailscale Operator](./tailscale/tailscale.md)** - Ingress with Tailscale authentication and `.ts.net` domains
 - **[Traefik](./traefik/traefik.md)** - Ingress controller for custom domains with automatic TLS
+- **[Caddy](./caddy/caddy.md)** - Serves the bare custom domain (WebFinger, redirects)
 - **[Cert-manager](./cert-manager/cert-manager.md)** - Automated certificate management (required for Traefik)
 - **[Technitium](./technitium/technitium.md)** - DNS server and ad-blocker
 - **[Zot](./zot/zot.md)** - OCI registry and pull-through image cache

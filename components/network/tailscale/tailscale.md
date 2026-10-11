@@ -14,6 +14,58 @@ The operator manages cluster ingress endpoints on Tailnet as well as adds Tailsc
 - **Use Tailscale** when you don't have a custom domain or public IP, and want secure access via Tailscale mesh VPN
 - **Optional** when using [Traefik](../traefik/traefik.md) with a custom domain - TCP services will use k3s ServiceLB instead
 
+## Signing in without Google, Microsoft or GitHub
+
+The tailnet itself is created through Tailscale's signup, which defaults to
+Google/Microsoft/GitHub. You can instead sign up with your own
+[Pocket ID](../../security/pocket/pocket.md) instance, so nodes and
+devices only need an OrangeLab account. The account that signs up first becomes
+the tailnet owner.
+
+Prerequisites: Pocket ID deployed, publicly reachable over HTTPS, and a
+[WebFinger](../caddy/caddy.md) endpoint at the apex of your custom domain. The
+WebFinger step is what proves domain ownership to Tailscale; without it, signup
+cannot proceed.
+
+Create the OIDC client:
+
+```sh
+./components/network/tailscale/pocket-tailscale.sh
+```
+
+The script prints a client ID and secret. **The secret is shown only once** -
+store it somewhere safe.
+
+Then sign up at <https://login.tailscale.com/start/oidc>:
+
+| Field | Value |
+| ----- | ----- |
+| Email address | your admin address, e.g. `admin@example.com` |
+| Client ID | printed by the script |
+| Client secret | printed by the script |
+
+Tailscale reads the issuer URL from your WebFinger endpoint - click **Get OIDC
+Issuer** and it should populate with your Pocket ID URL.
+
+> [!IMPORTANT]
+> The email address must match the WebFinger subject exactly. If Pocket ID
+> authenticates you as a different user than the address you typed, signup fails
+> with an account-mismatch error. Sign out of Pocket ID first, or use a private
+> window.
+
+The client is unrestricted by default, so **anyone with a Pocket ID account can
+sign in** and join the tailnet. Tailscale does no user or group provisioning with
+custom OIDC, so tailnet membership is exactly Pocket ID membership. To limit it
+to specific groups, set `tailscale:auth/allowedGroups` **before** running the
+script:
+
+```sh
+pulumi config set tailscale:auth/allowedGroups admin,power-user
+```
+
+Everyone else - including Pocket ID users in no group at all - will be refused
+at signup.
+
 When custom domain is configured, Traefik replaces Tailscale for application endpoints.
 
 ## Public exposure with Funnel

@@ -1,5 +1,6 @@
 import { config, OidcProviderSettings } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
+import { Caddy } from './caddy/caddy';
 import { CertManager } from './cert-manager/cert-manager';
 import { TailscaleOperator } from './tailscale/tailscale';
 import { Technitium } from './technitium/technitium';
@@ -14,10 +15,12 @@ export class NetworkModule extends pulumi.ComponentResource {
     technitium?: Technitium;
     zot?: Zot;
     traefik?: Traefik;
+    caddy?: Caddy;
 
     getExports() {
         return {
             endpoints: {
+                caddy: this.caddy?.endpointUrl,
                 technitium: this.technitium?.endpointUrl,
                 zot: this.zot?.endpointUrl,
                 traefik: this.traefik?.endpointUrl,
@@ -74,6 +77,13 @@ export class NetworkModule extends pulumi.ComponentResource {
             );
         }
 
+        if (config.isEnabled('caddy')) {
+            this.caddy = new Caddy(
+                'caddy',
+                { oidc: args.oidc },
+                { parent: this, dependsOn: this.traefik },
+            );
+        }
         if (config.isEnabled('technitium')) {
             this.technitium = new Technitium(
                 'technitium',
