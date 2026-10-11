@@ -8,7 +8,7 @@
 
 Cert-manager is a Kubernetes certificate management controller that automates the management and issuance of TLS certificates.
 
-It is installed automatically when AMD GPU operator is enabled.
+It is required by [Traefik](../traefik/traefik.md) and by the AMD GPU operator.
 
 ```sh
 pulumi config set cert-manager:enabled true
@@ -105,7 +105,7 @@ It's recommended to start with `acme-staging-v02` server to make sure everything
 
 More information at https://cert-manager.io/docs/configuration/acme/dns01/cloudflare/
 
-Note the examples use `Issuer` which is namespace scoped but we'll use `ClusterIssuer` to create certificates in all related namespaces.
+Use `ClusterIssuer` rather than `Issuer`, which is namespace scoped, so one issuer serves certificates in every namespace.
 
 ## Uninstall
 

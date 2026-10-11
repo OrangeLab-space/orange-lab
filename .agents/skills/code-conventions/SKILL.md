@@ -43,9 +43,20 @@ When a value from `Application` (like `this.app.debug`) is needed during chained
 - Use `config.require()` instead of `config.get()` when a default value exists in `Pulumi.yaml`; don't use optional accessors (`?.`, `??`) for such settings. This prevents typos and simplifies processing logic
 - **Feature-gated validation**: When a feature is conditionally enabled (e.g., `smtp/enabled`), validate its required settings only when enabled. `Pulumi.yaml` can then carry defaults for optional features without forcing users to set them
 - **Conditional requirements**: When a feature is enabled, all its related settings should typically be required — the `enabled` flag acts as the conditional gate
+- **No installation-specific values as defaults**: `Pulumi.yaml` is published to every user, so a default must be meaningful for anyone. Never put a real domain, hostname, node name, IP, account or group name in it — the developer's own values are not the generic case. Comment the key out with a `#` example value and say whether it is required; it then belongs in the user's `Pulumi.<stack>.yaml`. Required settings use `config.require()` so the deploy fails with a clear message rather than silently substituting the author's environment. Optional ones use `config.get()` and leave the feature genuinely absent when unset — do not invent a fallback URL or redirect that only makes sense for the author (e.g. `caddy:rootRedirect`). Note `pulumi config get` resolves `Pulumi.yaml` defaults, so a default left in place is active, not inert.
 - **Minimal config generation**: Only generate config files (ConfigMaps/Secrets) when a feature requiring them is enabled
 - **Derive don't duplicate**: Values that can be derived from existing resources (like URLs from `HttpEndpointInfo`) should be derived, not manually configured
 - **Naming**: Settings that map to container environment variables use the exact env var name (e.g. `DNS_SERVER_FORWARDERS` instead of `forwarders`). Exception: settings that are standardized across apps (shared semantics regardless of the app's env var name) use a generic namespace and the component maps them to the app-specific env var — e.g. `auth/clientId`, `auth/clientSecret`, `auth/providerUrl`, `auth/providerName` map to `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OPENID_PROVIDER_URL`, `OAUTH_PROVIDER_NAME` in Open WebUI (and the equivalent vars in other apps). Use this only for genuinely cross-app settings, not for one-off app-specific knobs.
+
+### Pulumi.yaml Layout
+
+These apply to `Pulumi.yaml` in the core stack and to every module's `Pulumi.yaml`:
+
+- **One blank line between apps.** Each app's settings form a contiguous block; the next app starts after a blank line. Core also groups them under `### SECTION ###` headers (Network, Storage, Hardware, ...), with a blank line after each header.
+- **A commented-out key is a disabled setting, not a comment.** Treat it as part of the settings list — it needs no separator around it, and it never counts toward the comment length limit.
+- **Separate prose from the next setting with a bare `#` line.** Only when a *prose* comment (text explaining why, not a commented-out key) would otherwise run into an unrelated setting, insert a lone `#` so a reader can tell where the note ends. Do not add one after commented-out keys — they read as settings already.
+- **Comments are 1–2 lines, 3 maximum.** A comment says what the setting is and when it is required — nothing else. Anything longer belongs in the component's `<app>.md`, referenced by path. If the reason does not fit, the setting probably needs a better name or a code-level check instead of a prose explanation.
+- **A commented-out key is a placeholder, not a disabled default.** Show the shape (`# caddy:rootRedirect: https://example.com`) so users know what to type, and use generic example values.
 
 ## Secrets
 
