@@ -6,6 +6,7 @@ import { coreStack, resolveInherited } from './core-stack';
 import { Metadata } from './metadata';
 import {
     HttpEndpointInfo,
+    HttpRedirectSpec,
     HttpRouteSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
@@ -71,6 +72,16 @@ export class TailscaleNetwork implements RoutingProvider {
         assert(
             false,
             `${this.appName}: OIDC-protected routes require the Traefik routing provider.`,
+        );
+    }
+
+    createHttpRedirect(
+        _spec: HttpRedirectSpec,
+        _opts?: pulumi.CustomResourceOptions,
+    ): void {
+        assert(
+            false,
+            `${this.appName}: redirects require the Traefik routing provider.`,
         );
     }
 

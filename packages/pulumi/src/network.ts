@@ -9,6 +9,7 @@ import { TraefikNetwork } from './network-traefik';
 import {
     ContainerSpec,
     HttpEndpointInfo,
+    HttpRedirectSpec,
     HttpRouteSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
@@ -99,7 +100,33 @@ export class Network {
         spec: HttpRouteSpec,
         opts?: pulumi.CustomResourceOptions,
     ) {
-        this.provider.createHttpRoute(spec, opts);
+        this.provider.createHttpRoute(this.withRouteDefaults(spec), opts);
+    }
+
+    createHttpRedirect(
+        spec: HttpRedirectSpec,
+        opts?: pulumi.CustomResourceOptions,
+    ) {
+        this.provider.createHttpRedirect(
+            {
+                hostname: this.getHttpEndpointInfo().hostname,
+                ...spec,
+            },
+            opts,
+        );
+    }
+
+    /**
+     * A route on the application's own hostname, pointing at the application's
+     * own Service, is the common case and needs no arguments. Each omission
+     * resolves to the value the application would have supplied anyway.
+     */
+    private withRouteDefaults(spec: HttpRouteSpec): HttpRouteSpec {
+        return {
+            hostname: this.getHttpEndpointInfo().hostname,
+            serviceName: this.args.metadata.get().name,
+            ...spec,
+        };
     }
 
     createEndpoints(spec: ContainerSpec) {

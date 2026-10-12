@@ -5,6 +5,7 @@ import { coreStack, resolveInherited } from './core-stack';
 import { Metadata } from './metadata';
 import {
     HttpEndpointInfo,
+    HttpRedirectSpec,
     HttpRouteSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
@@ -70,7 +71,10 @@ export class TraefikNetwork implements RoutingProvider {
                         entryPoints: ['websecure'],
                         routes: [
                             {
-                                match: pulumi.interpolate`Host(\`${spec.hostname}\`)`,
+                                match:
+                                    spec.pathPrefix === undefined
+                                        ? pulumi.interpolate`Host(\`${spec.hostname}\`)`
+                                        : pulumi.interpolate`Host(\`${spec.hostname}\`) && PathPrefix(\`${spec.pathPrefix}\`)`,
                                 kind: 'Rule',
                                 ...(spec.middlewareName
                                     ? { middlewares: [{ name: spec.middlewareName }] }
@@ -104,6 +108,18 @@ export class TraefikNetwork implements RoutingProvider {
                     hostnames: [spec.hostname],
                     rules: [
                         {
+                            ...(spec.pathPrefix === undefined
+                                ? {}
+                                : {
+                                      matches: [
+                                          {
+                                              path: {
+                                                  type: 'PathPrefix',
+                                                  value: spec.pathPrefix,
+                                              },
+                                          },
+                                      ],
+                                  }),
                             ...(spec.middlewareName
                                 ? {
                                       filters: [
@@ -127,6 +143,64 @@ export class TraefikNetwork implements RoutingProvider {
                                     ...(spec.serviceKind === undefined
                                         ? {}
                                         : { kind: spec.serviceKind }),
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+            { ...this.opts, ...opts },
+        );
+    }
+
+    createHttpRedirect(
+        spec: HttpRedirectSpec,
+        opts?: pulumi.CustomResourceOptions,
+    ): void {
+        const metadata = this.args.metadata.get({ component: spec.componentName });
+        // Gateway API expresses the target as separate fields, so the caller's
+        // single URL has to be taken apart. Done inside `apply` because the
+        // target may be an Output resolved from config.
+        const target = pulumi.output(spec.to).apply(url => {
+            const parsed = new URL(url);
+            return {
+                scheme: parsed.protocol.replace(':', ''),
+                hostname: parsed.hostname,
+                path: parsed.pathname,
+            };
+        });
+        new kubernetes.apiextensions.CustomResource(
+            `${metadata.name}-redirect`,
+            {
+                apiVersion: 'gateway.networking.k8s.io/v1',
+                kind: 'HTTPRoute',
+                metadata: { ...metadata, name: `${metadata.name}-redirect` },
+                spec: {
+                    parentRefs: [
+                        { ...privateGatewayRef },
+                        ...(spec.public ? [{ ...publicGatewayRef }] : []),
+                    ],
+                    hostnames: [spec.hostname],
+                    rules: [
+                        {
+                            matches: [
+                                {
+                                    path: { type: 'Exact', value: spec.path },
+                                },
+                            ],
+                            filters: [
+                                {
+                                    type: 'RequestRedirect',
+                                    requestRedirect: {
+                                        scheme: target.scheme,
+                                        hostname: target.hostname,
+                                        path: {
+                                            type: 'ReplaceFullPath',
+                                            replaceFullPath: target.path,
+                                        },
+                                        statusCode:
+                                            spec.permanent === false ? 302 : 301,
+                                    },
                                 },
                             ],
                         },

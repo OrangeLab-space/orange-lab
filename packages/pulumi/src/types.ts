@@ -267,13 +267,62 @@ export interface HttpEndpointInfo {
     };
 }
 
+/**
+ * Redirects a request instead of proxying it.
+ *
+ * Separate from `HttpRouteSpec` because there is no backend: a redirect has no
+ * Service to point at. For an application that serves only under a fixed path,
+ * this is what keeps the bare hostname from being a dead end.
+ */
+export interface HttpRedirectSpec {
+    /**
+     * Names the Kubernetes objects this redirect creates. Defaults to the
+     * application's own name.
+     */
+    componentName?: string;
+    /** Defaults to the application's own hostname. */
+    hostname?: pulumi.Input<string>;
+    /** Exact request path to match. Use `/` for the bare hostname. */
+    path: pulumi.Input<string>;
+    /** Absolute target URL, e.g. `https://headplane.example.com/admin`. */
+    to: pulumi.Input<string>;
+    /**
+     * `301` by default. Pass `false` when the target can change underneath a
+     * cached response, such as a redirect that exists only while another
+     * component is enabled.
+     */
+    permanent?: boolean;
+    /**
+     * Attach to the public gateway as well. Needed when the source hostname
+     * resolves to a WAN address, in which case a private-only route is
+     * unreachable even from inside the mesh.
+     */
+    public?: boolean;
+}
+
 export interface HttpRouteSpec {
-    componentName: string;
-    hostname: pulumi.Input<string>;
-    serviceName: pulumi.Input<string>;
+    /**
+     * Names the Kubernetes objects this route creates. Defaults to the
+     * application's own name, so a route on the app's own hostname needs no
+     * argument. Set it only for a secondary route belonging to another
+     * component.
+     */
+    componentName?: string;
+    /** Defaults to the application's own hostname. */
+    hostname?: pulumi.Input<string>;
+    /** Defaults to the application's ClusterIP Service. */
+    serviceName?: pulumi.Input<string>;
     servicePort?: number;
     serviceKind?: string;
     middlewareName?: string;
+    /**
+     * Serve only requests whose path starts with this prefix.
+     *
+     * The prefix is *not* stripped — the backend receives the path as sent. Use
+     * for applications that serve themselves under a sub-path (Headplane under
+     * `/admin`, which is the only prefix it supports).
+     */
+    pathPrefix?: string;
 }
 
 /**
@@ -335,6 +384,10 @@ export interface RoutingProvider {
     getHttpEndpointInfo: (hostname: string) => HttpEndpointInfo;
     createHttpRoute: (
         spec: HttpRouteSpec,
+        opts?: pulumi.CustomResourceOptions,
+    ) => void;
+    createHttpRedirect: (
+        spec: HttpRedirectSpec,
         opts?: pulumi.CustomResourceOptions,
     ) => void;
     createHttpEndpoints: (params: {
