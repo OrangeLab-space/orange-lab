@@ -7,6 +7,21 @@ description: Use when the user asks to create, update, or revise documentation f
 
 Creates or updates the `README.md` for a stack module. The README is the stack's entry point: a short description, a linked list of components, and enablement steps for recommended groupings. Keep it a navigational index — details live in each component's `<app>.md`. Deploy/stack-init steps live in `docs/stacks.md`, not here.
 
+## Length and information order
+
+**Aim for 100–150 lines.** A module README is an index and an orientation, not a
+manual. If it runs long, the detail belongs in a component's `<app>.md` — link to
+it instead of inlining it.
+
+**User-facing information goes at the top.** Someone who reads only the top
+should know what the stack is for, what it needs, and how to deploy an app.
+Rationale, comparisons, and history come after.
+
+**Be concise, and describe what exists.** A table beats prose, a sentence beats a
+paragraph. No design history, no rejected alternatives, no "an earlier version
+did X" — a reader cannot act on those and they age into lies. See the
+`document-app` skill for the fuller version of these rules.
+
 ## General structure
 
 1. `# <Stack> Stack` H1 — module name capitalized (e.g. `Media`, `AI`, `Bitcoin`)

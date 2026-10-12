@@ -7,6 +7,36 @@ description: Use when the user asks to create, update, or revise documentation f
 
 Creates or updates the `<app>.md` documentation file for an application component. The skill describes basic rules — a starting point, not a final document. App-specific sections are encouraged when warranted.
 
+## Length and information order
+
+**Aim for 100–150 lines.** Most component docs are read once, by someone trying
+to get the thing working — not studied. Treat anything past ~150 lines as a sign
+that a section belongs elsewhere (see *Where content belongs*), not as licence to
+write more.
+
+**User-facing information goes at the top.** A reader who runs only the first
+code block should end up with a working deployment. In practice that means:
+
+- The quick-start / installation block near the top, complete enough to run
+- Prerequisites, DNS, and "what else must exist" *before* or immediately after it
+- Background, rationale, history, and edge cases *after*
+
+Readers stop at the first answer. Detail that arrives before the thing they need
+is detail they have to skim past.
+
+**Be concise.** Prefer a sentence over a paragraph and a table over prose.
+Delete explanation of code that is right there to be read. Do not restate the
+config table in prose; do not narrate what a linked document already says.
+
+**Describe what exists, not what was considered.** Design history, rejected
+alternatives, and "an earlier version did X" belong in a spec or in commit
+messages, not in a document someone reads to use the component. If a decision has
+been made and superseded, write the current state and stop.
+
+**Docs describing a current config value go stale the moment that value
+changes.** Prefer phrasing that stays true ("add it to X and redeploy") over
+asserting that something "is still in place".
+
 ## General structure
 
 1. `# <App>` H1 — add `(experimental)` or `(deprecated)` suffix when applicable, matching the module's `README.md` component list
