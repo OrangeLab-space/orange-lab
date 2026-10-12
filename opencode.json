@@ -62,7 +62,6 @@
             "sort *": "allow",
             "sleep *": "allow",
             "tail *": "allow",
-            "timeout *": "allow",
             "tr *": "allow",
             "uniq *": "allow",
             "wc *": "allow"
