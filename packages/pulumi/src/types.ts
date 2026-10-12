@@ -285,7 +285,6 @@ export interface CoreStackExports {
     config?: {
         customDomain?: string;
         adminGroup?: string;
-        meshDomain?: string;
         tailnet?: string;
         longhorn?: {
             backupAllVolumes?: boolean;
@@ -348,12 +347,6 @@ export interface RoutingProvider {
         public?: boolean;
         /** Also serve the bare custom domain alongside `hostname`. */
         apexDomain?: boolean;
-        /**
-         * Base domain of the mesh VPN. Every endpoint also answers at
-         * `<hostname>.<meshDomain>` on the tailnet-only gateway, so the name is
-         * never exposed on the public gateway.
-         */
-        meshDomain?: pulumi.Input<string>;
     }) => void;
     createTcpEndpoints: (params: {
         serviceName: pulumi.Input<string>;

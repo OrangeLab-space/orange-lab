@@ -83,7 +83,6 @@ export class TailscaleNetwork implements RoutingProvider {
         /** Also expose this endpoint to the public internet via Funnel. */
         public?: boolean;
         apexDomain?: boolean;
-        meshDomain?: pulumi.Input<string>;
     }): void {
         assert(
             !params.middlewareName,
@@ -93,10 +92,6 @@ export class TailscaleNetwork implements RoutingProvider {
             !params.apexDomain,
             `${this.appName}: apexDomain requires the Traefik routing provider — the tailnet apex is not the same concept.`,
         );
-        // `meshDomain` is intentionally ignored rather than rejected. This
-        // provider already gives every app its mesh name from the tailnet
-        // domain, so there is nothing to add — and both control planes may be
-        // installed at once during a migration.
         params.httpPorts.forEach(httpPort => {
             const httpEndpointInfo = this.getHttpEndpointInfo(
                 httpPort.hostname ?? params.hostname,

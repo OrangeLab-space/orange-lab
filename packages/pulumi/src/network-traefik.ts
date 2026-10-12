@@ -145,7 +145,6 @@ export class TraefikNetwork implements RoutingProvider {
         middlewareName?: string;
         public?: boolean;
         apexDomain?: boolean;
-        meshDomain?: pulumi.Input<string>;
     }): void {
         params.httpPorts.forEach(portSpec => {
             const portHostname = portSpec.hostname ?? params.hostname;
@@ -158,21 +157,9 @@ export class TraefikNetwork implements RoutingProvider {
                 // The apex owner also answers on the bare custom domain.
                 ...(params.apexDomain ? [this.customDomain] : []),
             ];
-            // The mesh name is deliberately kept off the public route: it is a
-            // tailnet name and stays tailnet-only even when the app is public.
-            // The mesh apex is never added as a name in its own right. Decided
-            // inside `apply` because the mesh domain can be an Output inherited
-            // from the core stack, whose value is not known at plan time.
-            const privateHostnames = params.meshDomain
-                ? pulumi
-                      .all([portHostname, params.meshDomain, ...hostnames])
-                      .apply(([host, mesh, ...names]) =>
-                          host && mesh ? [...names, `${host}.${mesh}`] : names,
-                      )
-                : hostnames;
 
             this.createHttpBackendRoute({
-                hostnames: privateHostnames,
+                hostnames,
                 componentName: portComponentName,
                 serviceName: params.serviceName,
                 servicePort: portSpec.port,
