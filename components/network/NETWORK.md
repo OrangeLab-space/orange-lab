@@ -184,5 +184,6 @@ Adding the first label switches ServiceLB to whitelist-only mode. Without this l
 - **[Caddy](./caddy/caddy.md)** - Serves the bare custom domain (WebFinger, redirects)
 - **[Cert-manager](./cert-manager/cert-manager.md)** - Automated certificate management (required for Traefik)
 - **[Headscale](./headscale/headscale.md)** - Self-hosted Tailscale control plane
+- **[Headplane](./headplane/headplane.md)** - Web UI for Headscale, mesh-only
 - **[Technitium](./technitium/technitium.md)** - DNS server and ad-blocker
 - **[Zot](./zot/zot.md)** - OCI registry and pull-through image cache

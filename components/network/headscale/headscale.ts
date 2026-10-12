@@ -68,6 +68,40 @@ export class Headscale extends pulumi.ComponentResource {
         });
 
         this.endpointUrl = httpEndpointInfo.url;
+
+        // Headplane is served at `/admin` on a hostname of its own. Headscale's
+        // hostname is where it used to live, and that name resolves to a WAN
+        // address, so anyone following an old link lands here — on a host with
+        // nothing at that path. Send them to the admin UI's real address.
+        //
+        // This lives in the Headscale component rather than the Headplane one
+        // because the route has to sit in this namespace: the public Gateway
+        // only accepts routes from namespaces opted into public routing, and
+        // Headplane's is deliberately not.
+        //
+        // Temporary, not permanent — it disappears with Headplane.
+        if (config.isEnabled('headplane')) {
+            const headplaneUrl = pulumi
+                .all([
+                    config.require('orangelab', 'customDomain'),
+                    config.get('headplane', 'hostname') ?? 'headplane',
+                ])
+                .apply(
+                    ([domain, label]) => `https://${label}.${domain}/admin`,
+                );
+
+            this.app.network.createHttpRedirect({
+                path: '/admin',
+                to: headplaneUrl,
+                permanent: false,
+                // Headscale's hostname carries an explicit WAN-IP record, so a
+                // private-only route here would never be reached — not even
+                // from the mesh. Visitors from outside are sent to a hostname
+                // they cannot resolve, which is the intended outcome: the admin
+                // UI is not for them.
+                public: true,
+            });
+        }
     }
 
     private createConfig(serverUrl: pulumi.Input<string>): pulumi.Output<string> {

@@ -96,6 +96,7 @@ Applications with native OIDC support:
 
 - [Open WebUI](../../../stacks/ai/components/open-webui/open-webui.md)
 - [Headscale](../../network/headscale/headscale.md)
+- [Headplane](../../network/headplane/headplane.md)
 - [Immich](../../../stacks/media/components/immich/immich.md)
 - [DroppedNeedle](../../../stacks/media/components/droppedneedle/droppedneedle.md)
 - [Jellyfin](../../../stacks/media/components/jellyfin/jellyfin.md)
@@ -276,3 +277,18 @@ All other applications leave the key unset and stay unrestricted. Re-running an
 advanced wrapper resets the client to its configured `allowedGroups`; wrappers
 without an `allowedGroups` value never restrict, so any restriction you add in
 the Pocket UI is preserved.
+
+### Applications with their own role system
+
+An application that maps users to roles by something other than group names
+takes that mapping from a claim or a forwarded header, configured on the
+application's side rather than through `<app>:auth/groupMap`. Each has its own
+claim key or header convention — see the application's documentation:
+
+- [Headplane](../../network/headplane/headplane.md) — `headplane_role` custom claim
+- [RustFS](../../storage/rustfs/rustfs.md) — `rustfs_policies` custom claim
+- [Frigate](../../../stacks/iot/components/frigate/frigate.md) — `X-Forwarded-Groups` header
+
+Custom claims are released with the `profile` scope, so an application reading
+one must request it. When several of a user's groups set the same claim, which
+one wins is undefined — give each group its own value.

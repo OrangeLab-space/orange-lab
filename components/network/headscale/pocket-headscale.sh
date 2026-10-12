@@ -18,6 +18,15 @@ custom_domain=$(pulumi config get orangelab:customDomain)
 launch_url="https://$(pulumi config get "${app_name}:hostname").${custom_domain%/}"
 callback_urls=("${launch_url}/oidc/callback")
 
+# Headplane has its own hostname but deliberately reuses this client, so the `sub`
+# claim matches for both and Headplane can link a signed-in user to their Headscale
+# identity without falling back to email. Upstream recommends one shared client
+# over two. Its redirect URI is under the headplane host, not this one.
+if [[ "$(pulumi config get headplane:enabled 2>/dev/null || echo false)" == "true" ]]; then
+    headplane_hostname=$(pulumi config get headplane:hostname)
+    callback_urls+=("https://${headplane_hostname}.${custom_domain%/}/admin/oidc/callback")
+fi
+
 # Headscale needs the client secret to complete the code exchange.
 pkce_enabled=true
 public_client=false

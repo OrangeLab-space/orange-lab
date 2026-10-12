@@ -73,6 +73,19 @@ config:
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     # headscale:auth/allowedGroups: admin,power-user
 
+    # Web UI for Headscale, served under /admin on the headscale hostname.
+    # Requires headscale:enabled. Create the API key first with
+    # components/network/headplane/headscale-apikey.sh
+    headplane:enabled: false
+    headplane:image: ghcr.io/tale/headplane:0.7.1
+    headplane:hostname: headplane
+    headplane:storageSize: 1Gi
+    # Sign in with Pocket ID. Roles come from a group custom claim
+    # (headplane_role), not from group names.
+    # headplane:auth: pocket
+    # Headscale API key. Set by headscale-apikey.sh, never by hand.
+    # headplane:apiKey:
+
     technitium:enabled: false
     technitium:image: technitium/dns-server:15.6.1
     technitium:hostname: dns

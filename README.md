@@ -106,6 +106,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 - [`traefik`](./components/network/traefik/traefik.md) - reverse proxy for custom domain support
 - [`caddy`](./components/network/caddy/caddy.md) - serves the bare domain (WebFinger, redirects)
 - [`headscale`](./components/network/headscale/headscale.md) - self-hosted Tailscale control plane
+- [`headplane`](./components/network/headplane/headplane.md) - web UI for Headscale
 - [`technitium`](./components/network/technitium/technitium.md) - DNS server and ad-blocker
 - [`zot`](./components/network/zot/zot.md) - OCI registry and pull-through image cache
 

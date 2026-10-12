@@ -6,6 +6,7 @@
 | Documentation    | https://headscale.net/stable/                                  |
 | Source           | https://github.com/juanfont/headscale                          |
 | Migration guide  | [Migrating nodes to Headscale](../../../docs/headscale-migration.md) |
+| Web UI           | [Headplane](../headplane/headplane.md) — mesh-only admin UI |
 
 Self-hosted Tailscale control plane. Nodes and clients get their addresses, keys
 and policy from your own infrastructure, with no third-party coordination server
@@ -113,6 +114,9 @@ the pod:
 ./components/network/headscale/exec-headscale.sh users list
 ./components/network/headscale/exec-headscale.sh nodes expire --all
 ```
+
+[Headplane](../headplane/headplane.md) is a web UI for the same API. It is
+mesh-only, on its own hostname.
 
 ## Naming
 
