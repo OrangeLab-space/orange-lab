@@ -95,6 +95,7 @@ pulumi config set pocket:apiKey <api-key> --secret
 Applications with native OIDC support:
 
 - [Open WebUI](../../../stacks/ai/components/open-webui/open-webui.md)
+- [Headscale](../../network/headscale/headscale.md)
 - [Immich](../../../stacks/media/components/immich/immich.md)
 - [DroppedNeedle](../../../stacks/media/components/droppedneedle/droppedneedle.md)
 - [Jellyfin](../../../stacks/media/components/jellyfin/jellyfin.md)

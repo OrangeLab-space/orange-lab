@@ -65,14 +65,60 @@ pulumi stack init <stack-name>
 pulumi stack select <stack-name>
 ```
 
-## Tailscale
+## VPN
 
 Used for remote access to your cluster as well as communication channel between distributed Kubernetes nodes.
 
-Start Tailscale service:
+Pick one control plane. The trade-offs of each combination are in
+[Choosing a setup](../components/network/NETWORK.md#choosing-a-setup). A node
+belongs to one control plane, so this is decided once, before any node joins.
+
+### Tailscale
+
+The default. Start Tailscale service:
 
 ```sh
 sudo tailscale up --reset --operator=$USER --accept-routes
 ```
 
 This will also need to be run on each cluster node. Check [Installation - Linux node configuration](./install-linux.md#tailscale) for more information.
+
+Signing up defaults to a Google, Microsoft or GitHub account. To use your own
+[Pocket ID](../components/security/pocket/pocket.md) instead, see
+[Signing in without Google, Microsoft or GitHub](../components/network/tailscale/tailscale.md#signing-in-without-google-microsoft-or-github).
+
+Join your client devices, then follow [Installation - K3s cluster](./install-k3s.md)
+to add cluster nodes to this tailnet.
+
+### Headscale
+
+Self-hosted control plane, so no third-party coordination server or identity
+provider is in the path. Sign in with
+[Pocket ID](../components/security/pocket/pocket.md) or with its own local users.
+
+Deploy it and make it reachable from outside the LAN, since clients off-LAN
+complete sign-in through it:
+
+```sh
+pulumi config set headscale:enabled true
+pulumi config set headscale:network/public true
+pulumi config set headscale:baseDomain vpn.example.com
+
+pulumi up
+```
+
+It also needs an explicit `headscale.<customDomain>` DNS record pointing at the
+public IP. See [Headscale](../components/network/headscale/headscale.md) for
+prerequisites and signing in.
+
+Nodes register with a reusable preauth key rather than an interactive login,
+since a headless server has no browser:
+
+```sh
+tailscale up --login-server https://headscale.<customDomain> --authkey <key>
+```
+
+Then follow [Installation - K3s cluster](./install-k3s.md) to add cluster nodes.
+
+Already running Tailscale and moving over? That is a destructive cutover, not a
+toggle — read [Migrating nodes to Headscale](./headscale-migration.md) first.

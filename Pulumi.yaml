@@ -58,8 +58,23 @@ config:
     # caddy:rootRedirect: https://example.com
     # Required. The acct: URI OIDC providers query to prove domain control.
     # caddy:webfingerSubject: acct:admin@example.com
+
+    headscale:enabled: false
+    headscale:image: headscale/headscale:v0.29.4
+    headscale:hostname: headscale
+    headscale:storageSize: 1Gi
+    headscale:network/public: true
+    # Required. Domain Headscale hands out host names under (MagicDNS suffix).
+    # Apps are not served under it.
+    # Must not contain the Headscale URL - headscale refuses to start otherwise.
+    # headscale:baseDomain: vpn.example.com
+    # Optional OIDC sign-in through Pocket ID
+    # headscale:auth: pocket
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    # headscale:auth/allowedGroups: admin,power-user
+
     technitium:enabled: false
-    technitium:image: technitium/dns-server:15.6.0
+    technitium:image: technitium/dns-server:15.6.1
     technitium:hostname: dns
     technitium:storageSize: 5Gi
     # set to empty to use root servers recursion

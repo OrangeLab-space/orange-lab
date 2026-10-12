@@ -2,6 +2,7 @@ import { config, OidcProviderSettings } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { Caddy } from './caddy/caddy';
 import { CertManager } from './cert-manager/cert-manager';
+import { Headscale } from './headscale/headscale';
 import { TailscaleOperator } from './tailscale/tailscale';
 import { Technitium } from './technitium/technitium';
 import { Traefik } from './traefik/traefik';
@@ -16,11 +17,13 @@ export class NetworkModule extends pulumi.ComponentResource {
     zot?: Zot;
     traefik?: Traefik;
     caddy?: Caddy;
+    headscale?: Headscale;
 
     getExports() {
         return {
             endpoints: {
                 caddy: this.caddy?.endpointUrl,
+                headscale: this.headscale?.endpointUrl,
                 technitium: this.technitium?.endpointUrl,
                 zot: this.zot?.endpointUrl,
                 traefik: this.traefik?.endpointUrl,
@@ -84,6 +87,15 @@ export class NetworkModule extends pulumi.ComponentResource {
                 { parent: this, dependsOn: this.traefik },
             );
         }
+
+        if (config.isEnabled('headscale')) {
+            this.headscale = new Headscale(
+                'headscale',
+                { oidc: args.oidc },
+                { parent: this, dependsOn: this.traefik },
+            );
+        }
+
         if (config.isEnabled('technitium')) {
             this.technitium = new Technitium(
                 'technitium',
