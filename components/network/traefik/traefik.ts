@@ -27,7 +27,6 @@ export class Traefik extends pulumi.ComponentResource {
         const crds = this.createGatewayAPICRDs();
         this.chart = this.createChart(crds);
         this.createCertificate();
-        this.createAdditionalCertificates();
         this.createPublicGateway();
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
         this.endpointUrl = httpEndpointInfo.url;
@@ -76,7 +75,6 @@ export class Traefik extends pulumi.ComponentResource {
                                         group: '',
                                         name: `${this.customDomain}-tls`,
                                     },
-                                    ...this.getAdditionalCertificateRefs(),
                                 ],
                             },
                             tls: {
@@ -212,60 +210,6 @@ export class Traefik extends pulumi.ComponentResource {
             },
             { parent: this, dependsOn: this.chart },
         );
-    }
-
-    /**
-     * Extra wildcard domains to cover, beyond the custom domain itself.
-     *
-     * A wildcard matches a single label, so `*.example.com` cannot cover
-     * `node.vpn.example.com`. A mesh VPN's base domain therefore needs its own
-     * certificate, attached to the same listeners — Gateway API selects between
-     * them by SNI.
-     */
-    private getAdditionalDomains(): string[] {
-        return config.getCommaSeparated(this.name, 'additionalCertificateDomains') ?? [];
-    }
-
-    /**
-     * References to the additional wildcard certificates. Gateway API selects
-     * between certificates on a listener by SNI, so all of them serve on the
-     * same port.
-     */
-    private getAdditionalCertificateRefs() {
-        return this.getAdditionalDomains().map(domain => ({
-            kind: 'Secret',
-            group: '',
-            name: `${domain}-tls`,
-        }));
-    }
-
-    private createAdditionalCertificates() {
-        const clusterIssuer = config.get('cert-manager', 'clusterIssuer');
-        if (!clusterIssuer) {
-            throw new Error(
-                'cert-manager: clusterIssuer is required for wildcard certificate',
-            );
-        }
-
-        this.getAdditionalDomains().forEach(domain => {
-            new kubernetes.apiextensions.CustomResource(
-                `${this.name}-certificate-${domain}`,
-                {
-                    apiVersion: 'cert-manager.io/v1',
-                    kind: 'Certificate',
-                    metadata: {
-                        name: `${domain}-cert`,
-                        namespace: this.app.metadata.namespace,
-                    },
-                    spec: {
-                        secretName: `${domain}-tls`,
-                        dnsNames: [`*.${domain}`],
-                        issuerRef: { name: clusterIssuer, kind: 'ClusterIssuer' },
-                    },
-                },
-                { parent: this, dependsOn: this.chart },
-            );
-        });
     }
 
     /**
