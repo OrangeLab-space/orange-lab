@@ -4,10 +4,12 @@
 
 - Confirm with the user before running any command that changes the state of the cluster (e.g. `pulumi up`, `kubectl apply/delete`, `helm install/upgrade`, `kubectl rollout restart`). Read-only analysis commands (`kubectl get`, `pulumi preview`, `logs`, `describe`) do not need explicit approval.
 - Deployment: `pulumi up --yes` (only with user approval)
+- **Recovery from state/cluster divergence**: refresh and re-sync, do not debug individual resources. Run `pulumi refresh --yes` then `pulumi up --yes -r` (replace). Use `-r` freely — the stack should always be reconciled with the manifests, and infra is disposable. Do NOT hand-delete individual resources or try to adopt orphans one at a time; that leaves pending operations in state and costs more attempts than a single replace resolves. Note `pulumi refresh` needs to run interactively to clear a pending CREATE.
 - Preview changes: `pulumi preview --diff` (useful for checking for any unintended changes after major code updates or refactoring)
 - Build/Test/TypeCheck (TypeScript only): `npm test`
     - ⚠️ SKIP for markdown/documentation changes - no need to run
 - Build `@orangelab/pulumi` after editing `packages/pulumi/src/`: `npm run build` (must be run before `pulumi up` or `pulumi preview`)
+- Never kill a running `pulumi up` to "unstick" it — it leaves pending operations and orphaned resources. Let it finish or fail on its own.
 
 ## Architectural Principles
 
