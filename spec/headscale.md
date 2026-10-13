@@ -77,7 +77,7 @@ available.
 headscale:enabled: false
 headscale:image: headscale/headscale:<version>
 headscale:hostname: headscale
-headscale:baseDomain: vpn.example.com   # required, no default
+headscale:baseDomain: vpn.internal      # default, see below
 headscale:storageSize: 1Gi
 headscale:network/public: true
 headscale:requiredNodeLabel: kubernetes.io/hostname=<node>
@@ -90,9 +90,15 @@ default on `auth/allowedGroups` silently restricts sign-in even though it looks
 like documentation. Leave access-restricting keys absent rather than defaulted,
 unless the component guards an admin surface that genuinely warrants one.
 
-**No default for `baseDomain`.** A default would name every app at
-`<app>.<baseDomain>` in stacks that do not want a mesh at all, including stacks
-whose routing provider cannot serve those names.
+**`baseDomain` defaults to `vpn.internal`, and must stay outside
+`customDomain`.** The mesh namespace and the app namespace have to be disjoint.
+When `baseDomain` sits *inside* the app domain — `vpn.orangelab.space` under a
+`*.orangelab.space` wildcard — that one wildcard answers for every node name and
+every pod DNS lookup, because kubelet resolves short names against the search
+domain first (`options ndots:5`). Symptoms are silent: `ssh` lands on the
+address the wildcard returns, and pods resolve public names to an internal
+load balancer. `vpn.internal` is reserved for private use by RFC 8375, is never
+delegated in public DNS, and so cannot collide with any wildcard.
 
 ## Operating
 

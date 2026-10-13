@@ -31,7 +31,7 @@ pulumi up
 # Headscale must be public too - clients off-LAN have to reach it.
 pulumi config set headscale:enabled true
 pulumi config set headscale:network/public true
-pulumi config set headscale:baseDomain vpn.example.com
+# headscale:baseDomain defaults to vpn.internal - override only to move it
 pulumi up
 
 # Then create the Pocket ID client and sign in with it.
@@ -51,7 +51,7 @@ public path. No extra port forward is needed.
 | Key                            | Description                                                       |
 | ------------------------------ | ----------------------------------------------------------------- |
 | `headscale:hostname`           | Subdomain for the control plane, default `headscale`              |
-| `headscale:baseDomain`         | Domain Headscale hands out host names under. Required             |
+| `headscale:baseDomain`         | MagicDNS suffix for node names. Default `vpn.internal`         |
 | `headscale:storageSize`        | Volume for the SQLite database and noise key                      |
 | `headscale:image`              | Headscale version                                                 |
 | `headscale:network/public`     | Must be `true` — clients off-LAN need to reach the control plane  |
@@ -65,13 +65,15 @@ public path. No extra port forward is needed.
 | `headscale:derp/externalIp`    | Relay's public IPv4. Required when `derp/enabled`                |
 | `headscale:derp/fallback`      | Also load Tailscale's public DERP map. Default `true`            |
 
-`baseDomain` is required — Headscale refuses to start without it — and it hands
-out the **host** names clients resolve (`<node>.vpn.example.com`). Apps are not
-served under it; they live at `<app>.<customDomain>`.
+`baseDomain` is the **host** name suffix clients resolve (`<node>.vpn.internal`).
+Headscale refuses to start without it, so a default is supplied in `Pulumi.yaml`.
+Apps are not served under it; they live at `<app>.<customDomain>`.
 
 It must not contain Headscale's own URL — `server_url cannot be part of
-base_domain` — or Headscale refuses to start. So `vpn.example.com` works where a
-bare `example.com` would not. Verify with `headscale configtest` before deploying.
+base_domain` — or Headscale refuses to start. It must also stay **outside**
+`customDomain`: nesting the mesh namespace inside the app domain lets a single
+wildcard answer for node names and hijack pod DNS. Verify with
+`headscale configtest` before deploying.
 
 The control plane should run on a node that stays put — it holds the SQLite
 database and the noise key — so pin it with `headscale:requiredNodeLabel` before
