@@ -58,6 +58,12 @@ public path. No extra port forward is needed.
 | `headscale:requiredNodeLabel`  | Node selector for the control plane, e.g. `kubernetes.io/hostname=<node>` |
 | `headscale:auth/*`             | Optional Pocket ID client — see [Signing in](#signing-in)          |
 | `headscale:auth/allowedGroups` | Restricts who may sign in. Unset = unrestricted                   |
+| `headscale:derp/enabled`       | Runs the built-in DERP relay. Default `false`                    |
+| `headscale:derp/stunPort`      | STUN port. Default `3478`, must match your forward               |
+| `headscale:derp/regionId`      | Relay region ID. Default `900` — **must not be `0`**             |
+| `headscale:derp/regionCode`    | Region name shown in `tailscale status`. Default `headscale`     |
+| `headscale:derp/externalIp`    | Relay's public IPv4. Required when `derp/enabled`                |
+| `headscale:derp/fallback`      | Also load Tailscale's public DERP map. Default `true`            |
 
 `baseDomain` is required — Headscale refuses to start without it — and it hands
 out the **host** names clients resolve (`<node>.vpn.example.com`). Apps are not
@@ -139,17 +145,63 @@ same way from anywhere the address is reachable.
 
 ## DERP relay
 
-Headscale can relay node traffic when a direct path fails, but **this component
-leaves it disabled** — it needs an extra forwarded port pair (`443/tcp` and
-`3478/udp`) that does not exist here, so clients fall back to the public DERP
-map, which is Tailscale's.
+Headscale can relay node traffic when a direct path fails. It is **off by
+default**; clients fall back to the public DERP map, which is Tailscale's.
+
+The relay needs **no port of its own**. It is mounted at `/derp` on the same
+listener as the control plane and advertises this instance's own hostname, so
+clients reach it through the routing provider like any other app. Only STUN is
+separate, and only because it is raw UDP that no reverse proxy carries.
+
+So enabling it needs one thing done outside Pulumi — forward the STUN port to
+the node:
+
+```
+WAN 3478/udp → <node>:3478     # must match headscale:derp/stunPort
+```
+
+```sh
+pulumi config set headscale:derp/enabled true
+```
+
+Headscale refuses to start without `stun_listen_addr` when the relay is on, so
+the component always emits it alongside `enabled: true` — an enabled relay with
+no forward fails at startup rather than silently serving nothing.
+
+Two settings are what make a relay actually get *used*, and both fail silently
+when wrong:
+
+- **`derp/regionId` must not be `0`.** Headscale leaves it unset by default, and
+  clients read `0` as "no region" — they will measure the relay, see it is fast,
+  and then never select it. `tailscale netcheck` reports
+  `Nearest DERP: [none]` while still listing a latency for it. Use `900`–`999`,
+  which Tailscale reserves for self-hosted regions.
+- **`derp/externalIp` is required.** Given only a hostname, clients cannot
+  confirm the region over UDP and decline it.
+
+The STUN port is served by the cluster's own load balancer, which only opens
+`hostPort` on nodes labelled `svccontroller.k3s.cattle.io/enablelb=true`. So the
+forward above must point at a node carrying that label, and if Headscale is pinned
+with `headscale:requiredNodeLabel`, that node needs the label too — otherwise STUN
+answers nowhere and the relay degrades to the silent failure above.
 
 Only the _relay_ touches it: encrypted WireGuard packets between two of your own
 nodes. Authentication, node keys and policy never leave the cluster — but node
 addresses and topology are visible as DERP connection metadata. Turning it on
 removes the third-party dependency at the cost of a single point of failure with
-no redundancy; worth doing while Tailscale's relays are still loaded as a
-fallback. Verify with `tailscale debug derp headscale`.
+no redundancy; the public map stays loaded as a fallback for that reason.
+
+### Verifying
+
+```sh
+tailscale netcheck      # "Nearest DERP" must name your region, not [none]
+tailscale status        # relays through your regionCode when direct paths fail
+```
+
+If STUN itself is in doubt, note that Headscale's embedded STUN server only answers
+requests carrying Tailscale's `SOFTWARE` and `FINGERPRINT` attributes. A generic
+STUN probe is silently dropped, so a timeout from one proves nothing — use
+`tailscale netcheck` instead.
 
 ## Backup and restore
 

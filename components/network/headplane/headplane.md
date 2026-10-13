@@ -1,9 +1,9 @@
 # Headplane (web UI for Headscale)
 
-|               |                            |
-| ------------- | -------------------------- |
+|               |                                   |
+| ------------- | --------------------------------- |
 | Homepage      | https://github.com/tale/headplane |
-| Documentation | https://headplane.tale.dev  |
+| Documentation | https://headplane.tale.dev        |
 | Source        | https://github.com/tale/headplane |
 
 Web UI for the [Headscale](headscale.md) control plane. Headplane is a separate
@@ -69,10 +69,10 @@ route placement.
 
 Two credentials are involved, and neither replaces the other:
 
-| Credential    | What it does                                                  |
-| ------------- | ------------------------------------------------------------- |
-| `headplane:auth` | Decides **who may sign in** to this UI                       |
-| `headplane:apiKey` | Lets Headplane **act on Headscale** on a user's behalf    |
+| Credential         | What it does                                           |
+| ------------------ | ------------------------------------------------------ |
+| `headplane:auth`   | Decides **who may sign in** to this UI                 |
+| `headplane:apiKey` | Lets Headplane **act on Headscale** on a user's behalf |
 
 Without `headplane:auth` the UI is reachable by anyone on the mesh who has a
 Headscale API key to paste into the login form.
@@ -118,14 +118,14 @@ else their role from the Users page.
 
 ## Configuration
 
-| Key                   | Description                                                              |
-| --------------------- | ------------------------------------------------------------------------ |
-| `headplane:image`     | Headplane version, default `ghcr.io/tale/headplane:0.7.1`               |
-| `headplane:hostname`  | Subdomain for this UI, default `headplane`. Resolves via the wildcard to a mesh address — do not point it at a WAN-IP record |
-| `headplane:storageSize` | Volume for Headplane's own SQLite (users, sessions, linked identities) |
-| `headplane:auth`      | Sign in with Pocket ID. Unset = API-key login only                       |
-| `headplane:apiKey`    | Headscale API key. Required — set by `headscale-apikey.sh`              |
-| `headplane:cookieSecret` | Optional override; generated and stored when unset                    |
+| Key                      | Description                                                            |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `headplane:image`        | Headplane version, default `ghcr.io/tale/headplane:0.7.1`              |
+| `headplane:hostname`     | Subdomain for this UI, default `headplane`                             |
+| `headplane:storageSize`  | Volume for Headplane's own SQLite (users, sessions, linked identities) |
+| `headplane:auth`         | Sign in with Pocket ID. Unset = API-key login only                     |
+| `headplane:apiKey`       | Headscale API key. Required — set by `headscale-apikey.sh`             |
+| `headplane:cookieSecret` | Optional override; generated and stored when unset                     |
 
 There is deliberately no `headplane:network/public`. This UI can re-issue node
 credentials and read the tailnet's keys, so it belongs behind the mesh exactly

@@ -72,6 +72,22 @@ config:
     # headscale:auth: pocket
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     # headscale:auth/allowedGroups: admin,power-user
+    # Run the built-in DERP relay for clients that cannot connect directly.
+    # Disabled = clients relay through Tailscale's public DERP servers.
+    # Enabling it needs a UDP port forward for STUN; see headscale.md.
+    headscale:derp/enabled: false
+    headscale:derp/stunPort: 3478
+    # Region ID. Tailscale reads 0 as "unset" and will never select such a relay,
+    # so it must be non-zero. 900-999 are reserved for self-hosted regions.
+    headscale:derp/regionId: 900
+    headscale:derp/regionCode: headscale
+    # Also offer Tailscale's public DERP servers, so a failure of ours does not
+    # take the tailnet offline. Needs outbound HTTPS on startup, or Headscale
+    # refuses to start.
+    headscale:derp/fallback: true
+    # Relay's public IPv4. Required when derp/enabled is true; clients probe a
+    # region by address and will not select one they can only resolve by name.
+    # headscale:derp/externalIp: 203.0.113.1
 
     # Web UI for Headscale, served under /admin on the headscale hostname.
     # Requires headscale:enabled. Create the API key first with

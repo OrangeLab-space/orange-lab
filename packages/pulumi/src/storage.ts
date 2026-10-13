@@ -263,7 +263,9 @@ export class Storage extends pulumi.ComponentResource {
                 metadata: this.createMetadata(name),
                 data: files,
             },
-            { parent: this },
+            // Replacing a ConfigMap fails if the replacement is created before
+            // the original is deleted, since the name is already taken.
+            { parent: this, deleteBeforeReplace: true },
         );
     }
 

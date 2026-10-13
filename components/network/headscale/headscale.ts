@@ -26,6 +26,14 @@ export class Headscale extends pulumi.ComponentResource {
 
     private readonly app: Application;
     private readonly oidc?: OidcAuthConfig;
+    private readonly derp: {
+        enabled: boolean;
+        stunPort: number;
+        regionId: number;
+        regionCode: string;
+        fallback: boolean;
+        externalIp: string | undefined;
+    };
 
     constructor(
         private name: string,
@@ -51,8 +59,41 @@ export class Headscale extends pulumi.ComponentResource {
                 : undefined,
         });
 
+        const derpEnabled = config.requireBoolean(this.name, 'derp/enabled');
+
+        this.derp = {
+            enabled: derpEnabled,
+            stunPort: config.requireNumber(this.name, 'derp/stunPort'),
+            regionId: config.requireNumber(this.name, 'derp/regionId'),
+            regionCode: config.require(this.name, 'derp/regionCode'),
+            fallback: config.requireBoolean(this.name, 'derp/fallback'),
+            // The relay's public address. Clients probe a DERP region over
+            // UDP before selecting it, and given only a hostname they measure
+            // the relay and then decline to use it. Required rather than
+            // defaulted: an installation-specific address is not a sensible
+            // library default, and a missing one fails silently as a relay
+            // that is measured but never selected.
+            externalIp: derpEnabled
+                ? config.require(this.name, 'derp/externalIp')
+                : undefined,
+        };
+
         this.app.addDeployment({
-            ports: [{ name: 'http', port: 8080 }],
+            ports: this.derp.enabled
+                ? [
+                      { name: 'http', port: 8080 },
+                      // STUN is raw UDP and no reverse proxy carries it, so it
+                      // goes straight out through a LoadBalancer port.
+                      { name: 'stun', port: this.derp.stunPort, protocol: 'udp' },
+                  ]
+                : [{ name: 'http', port: 8080 }],
+            // The STUN hostPort is opened by the cluster's own load balancer,
+            // which only runs on nodes carrying this label. Staying on such a
+            // node keeps the relay reachable; without it the pod would come up
+            // healthy and silently answer no STUN requests at all.
+            nodeSelector: this.derp.enabled
+                ? { 'svccontroller.k3s.cattle.io/enablelb': 'true' }
+                : undefined,
             // The image entrypoint is the headscale binary itself; `serve` is its
             // subcommand, so it belongs in args rather than in command.
             commandArgs: ['serve'],
@@ -102,6 +143,45 @@ export class Headscale extends pulumi.ComponentResource {
                 public: true,
             });
         }
+    }
+
+    /**
+     * The embedded relay is mounted at `/derp` on this instance's own listener
+     * and advertises its hostname and port, so clients reach it through the
+     * routing provider rather than dialling a public address of their own.
+     * STUN is the only part that needs a listener of its own, and Headscale
+     * refuses to start without one whenever the relay is enabled.
+     */
+    private createDerpSection(): string {
+        if (!this.derp.enabled) {
+            return `derp:
+  server:
+    enabled: false
+  urls:
+    - https://controlplane.tailscale.com/derpmap/default
+  auto_update_enabled: true`;
+        }
+
+        // Headscale fetches `urls` while starting and treats a failure as
+        // fatal, so this setting decides whether reaching Tailscale is a
+        // prerequisite for the control plane coming up at all.
+        const urls = this.derp.fallback
+            ? `  urls:
+    - https://controlplane.tailscale.com/derpmap/default`
+            : '  urls: []';
+
+        return `derp:
+  server:
+    enabled: true
+    region_id: ${String(this.derp.regionId)}
+    region_code: ${this.derp.regionCode}
+    region_name: ${this.derp.regionCode}
+    stun_listen_addr: 0.0.0.0:${String(this.derp.stunPort)}
+${this.derp.externalIp === undefined ? '' : `    ipv4: ${this.derp.externalIp}\n`}    # On the volume, so a restart does not present a new key and make every
+    # client treat the relay as a different one.
+    private_key_path: /var/lib/headscale/derp_server_private.key
+    automatically_add_embedded_derp_region: true
+${urls}`;
     }
 
     private createConfig(serverUrl: pulumi.Input<string>): pulumi.Output<string> {
@@ -163,14 +243,10 @@ prefixes:
   v6: fd7a:115c:a1e0::/48
   allocation: sequential
 
-# The embedded DERP relay stays off: it needs a UDP port forward that does not
-# exist. Clients fall back to the public DERP map when a direct connection fails.
-derp:
-  server:
-    enabled: false
-  urls:
-    - https://controlplane.tailscale.com/derpmap/default
-  auto_update_enabled: true
+# The embedded relay is served at /derp on this same listener, so clients reach
+# it through the routing provider like everything else — it needs no port of its
+# own. Only STUN is separate, and it is absent unless derp/enabled is set.
+${this.createDerpSection()}
 
 database:
   type: sqlite

@@ -93,6 +93,12 @@ export interface ContainerSpec {
     initContainers?: InitContainerSpec[];
     volumeMounts?: VolumeMount[];
     healthCheck?: HealthCheck;
+    /**
+     * Node labels the pod must have. Unlike `nodeAffinity`, these are ANDed
+     * with it rather than ORed, so use this to narrow placement to nodes
+     * capable of serving something the pod depends on.
+     */
+    nodeSelector?: Record<string, pulumi.Input<string>>;
     resources?: ContainerResources;
     /**
      * Subdomain label to serve this deployment's HTTP ports at, resolved

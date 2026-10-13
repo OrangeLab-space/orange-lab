@@ -88,6 +88,7 @@ export class Containers {
                 hostNetwork: spec.hostNetwork,
                 hostname: spec.hostname,
                 initContainers: this.initContainers.create(spec),
+                nodeSelector: spec.nodeSelector,
                 restartPolicy: spec.restartPolicy,
                 securityContext: this.args.storage?.hasLocal()
                     ? { seLinuxOptions: { type: 'spc_t' } }

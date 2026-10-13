@@ -169,21 +169,63 @@ mismatch appears only at sign-in.
 
 ## Relaying
 
-The embedded DERP relay needs public addresses and an extra forwarded port pair
-(`443/tcp` for the relay, `3478/udp` for STUN). It is **off by default** in this
-component because those forwards do not exist in a typical deployment.
+The embedded DERP relay is **off by default** (`derp/enabled`). It needs no port
+of its own: the relay is mounted at `/derp` on the same listener as the control
+plane, and it advertises this instance's own hostname and port, so clients reach
+it through the routing provider like any other app. `derp.server.ipv4`/`ipv6` are
+*additive* addresses for when DNS is broken, not the primary target — so a busy
+`443/tcp` does not block it.
 
-Leaving it off means relayed traffic uses the public DERP map, which is the
-Tailscale-operated one. Two things worth being precise about when documenting
-this: the relay carries only opaque, end-to-end-encrypted WireGuard packets
-between two of your own nodes, so authentication and policy never leave the
-cluster — what is exposed is node addresses and topology, as connection metadata.
-And the embedded relay has no redundancy, so enabling it trades a third-party
-dependency for a single point of failure. Do it while the public map is still
-loaded as a fallback, not after.
+The one thing it does need is `3478/udp`, forwarded to the node, because STUN is
+raw UDP that no reverse proxy carries. Headscale refuses to start without it
+whenever the relay is enabled, so the component always emits `stun_listen_addr`
+alongside `enabled: true`.
+
+Two things worth being precise about: the relay carries only opaque,
+end-to-end-encrypted WireGuard packets between two of your own nodes, so
+authentication and policy never leave the cluster — what is exposed is node
+addresses and topology, as connection metadata. And it has no redundancy, so
+enabling it trades a third-party dependency for a single point of failure. The
+public map stays loaded as a fallback for exactly that reason; do not clear
+`derp.urls` at the same time.
 
 The embedded server cannot serve the captive-portal check; it has no
 `/generate_204` on port 80.
+
+### Diagnosing a relay that is measured but never used
+
+Work outside-in; each step rules out a layer. Clients report the symptom
+precisely — the relay appears in `netcheck` with a good latency and is still
+never selected.
+
+1. **`tailscale debug derp-map`** — is `RegionID` non-zero? `0` means "no region"
+   and is the single most common cause. Clients then report
+   `Nearest DERP: [none]` while still listing the region's latency, which reads
+   like a network fault but is not one.
+2. **`tailscale netcheck`** — is `UDP: true`? If false, no UDP reaches the client
+   at all and region choice is irrelevant.
+3. **`kubectl get pod -n kube-system -o wide | grep svclb-headscale`** — the
+   ServiceLB pod holds the STUN `hostPort` and only runs on nodes labelled
+   `svccontroller.k3s.cattle.io/enablelb=true`. If the router forward targets a
+   different node, the forward lands on nothing. Check the label on the node the
+   forward points at, not just that the label exists somewhere.
+4. Only then look at the router.
+
+Two traps, both of which cost real time here:
+
+- **A generic STUN probe proves nothing.** Headscale's embedded STUN server only
+  answers requests carrying Tailscale's `SOFTWARE` and `FINGERPRINT` attributes;
+  everything else is dropped without a reply. A hand-rolled probe times out
+  against a perfectly healthy relay. Use `tailscale netcheck`, or a probe that
+  signs itself as Tailscale.
+- **`stun server started` is not evidence the listener works.** It logs at bind
+  time, before any request is served. Never conclude the listener is dead from
+  log absence, and never conclude it is alive from that line alone.
+
+`3478/tcp` returning *refused* while `3478/udp` times out is the expected
+signature of a correct forward with no UDP listener behind it — the TCP RST is
+active rejection, so the packet is arriving. It is not evidence the forward is
+missing.
 
 ## Migration constraints
 
