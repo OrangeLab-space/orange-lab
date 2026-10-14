@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=forgejo
 client_name="Forgejo"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.forgejo')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.forgejo')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/user/oauth2/SSO/callback")
 logout_callback_urls=()

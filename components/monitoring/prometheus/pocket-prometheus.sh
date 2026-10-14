@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=prometheus
 client_name="Grafana"
-launch_url=$(pulumi stack output --json | jq -er '.monitoring.endpoints.grafana')
+launch_url=$(pulumi stack output --json | jq -er '.monitoring.endpoints.private.grafana')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/login/generic_oauth")
 logout_callback_urls=()

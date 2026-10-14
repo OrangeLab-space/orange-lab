@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=jellyfin
 client_name="Jellyfin"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.jellyfin')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.jellyfin')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/sso/OID/redirect/pocketid")
 logout_callback_urls=()

@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=beszel
 client_name="Beszel"
-launch_url=$(pulumi stack output --json | jq -er '.monitoring.endpoints.beszel')
+launch_url=$(pulumi stack output --json | jq -er '.monitoring.endpoints.private.beszel')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/api/oauth2-redirect")
 logout_callback_urls=()

@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=nextcloud
 client_name="Nextcloud"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.nextcloud')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.nextcloud')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/apps/user_oidc/code")
 logout_callback_urls=("$launch_url/apps/user_oidc/backchannel-logout/PocketID")

@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=zot
 client_name="Zot Registry"
-launch_url=$(pulumi stack output --json | jq -er '.network.endpoints.zot')
+launch_url=$(pulumi stack output --json | jq -er '.network.endpoints.private.zot')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/zot/auth/callback/oidc")
 logout_callback_urls=()

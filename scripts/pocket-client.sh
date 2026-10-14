@@ -151,7 +151,7 @@ if ! pocket_api_key=$(pulumi --cwd "$root_stack" config get pocket:apiKey 2>/dev
     exit 1
 fi
 
-POCKET_ID_URL=$(stack_output "$root_stack" | jq -er '.security.endpoints.pocket')
+POCKET_ID_URL=$(stack_output "$root_stack" | jq -er '.security.endpoints.public.pocket')
 POCKET_ID_URL="${POCKET_ID_URL%/}"
 launch_url="${launch_url%/}"
 callback_urls_json=$(printf '%s\n' "${callback_urls[@]}" | jq -R -s 'split("\n") | map(select(length > 0))')

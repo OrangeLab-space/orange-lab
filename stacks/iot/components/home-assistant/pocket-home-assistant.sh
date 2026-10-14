@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=home-assistant
 client_name="Home Assistant"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.homeAssistant')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.home-assistant')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/auth/oidc/callback")
 logout_callback_urls=()

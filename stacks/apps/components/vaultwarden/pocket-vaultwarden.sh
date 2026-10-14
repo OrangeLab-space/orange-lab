@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=vaultwarden
 client_name="Vaultwarden"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.vaultwarden')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.vaultwarden')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/identity/connect/oidc-signin")
 logout_callback_urls=()

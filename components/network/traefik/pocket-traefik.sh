@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=traefik
 client_name="Traefik Dashboard"
-launch_url=$(pulumi stack output --json | jq -er '.network.endpoints.traefik')
+launch_url=$(pulumi stack output --json | jq -er '.network.endpoints.private.traefik')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/oidc/callback")
 logout_callback_urls=("$launch_url/oidc/callback")

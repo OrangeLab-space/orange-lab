@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=frigate
 client_name="Frigate"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.frigate')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.frigate')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/oidc/callback")
 logout_callback_urls=("$launch_url/oidc/callback")

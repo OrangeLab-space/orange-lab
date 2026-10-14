@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=technitium
 client_name="Technitium DNS"
-launch_url=$(pulumi stack output --json | jq -er '.network.endpoints.technitium')
+launch_url=$(pulumi stack output --json | jq -er '.network.endpoints.private.technitium')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/sso/callback")
 logout_callback_urls=()

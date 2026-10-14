@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=seerr
 client_name="Seerr"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.seerr')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.seerr')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/sso/OID/redirect/pocketid")
 logout_callback_urls=()

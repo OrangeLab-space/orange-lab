@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=droppedneedle
 client_name="DroppedNeedle"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.droppedneedle')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.droppedneedle')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/api/v1/auth/oidc/callback")
 logout_callback_urls=()

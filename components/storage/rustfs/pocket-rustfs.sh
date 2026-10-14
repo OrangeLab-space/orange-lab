@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=rustfs
 client_name="RustFS"
-launch_url=$(pulumi stack output --json | jq -er '.storage.endpoints["rustfs-console"]')
+launch_url=$(pulumi stack output --json | jq -er '.storage.endpoints.cluster["rustfs-console"]')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/rustfs/admin/v3/oidc/callback/default")
 logout_callback_urls=()

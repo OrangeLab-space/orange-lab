@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=invokeai
 client_name="InvokeAI"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.invokeai')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.public.invokeai')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/")
 logout_callback_urls=()

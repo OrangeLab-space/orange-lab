@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=open-webui
 client_name="Open WebUI"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints["open-webui"]')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private["open-webui"]')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/oauth/oidc/callback")
 logout_callback_urls=()
