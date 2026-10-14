@@ -32,6 +32,7 @@ export class NetworkModule extends pulumi.ComponentResource {
                 traefik: this.traefik?.endpointUrl,
             },
             technitiumUsers: this.technitium?.users,
+            technitiumResolverIp: this.technitium?.resolverIp,
             zotUsers: this.zot?.users,
         };
     }

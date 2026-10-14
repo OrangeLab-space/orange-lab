@@ -21,6 +21,8 @@ export interface TechnitiumArgs {
 export class Technitium extends pulumi.ComponentResource {
     public readonly endpointUrl: pulumi.Input<string>;
     public readonly users: Record<string, pulumi.Output<string>> = {};
+    /** External IP of the DNS load balancer, for tailnet clients. */
+    public readonly resolverIp: pulumi.Output<string | undefined> | undefined;
 
     /** Resolver pods use for everything outside the cluster. */
     static readonly clusterIP = '10.43.0.53';
@@ -75,6 +77,7 @@ export class Technitium extends pulumi.ComponentResource {
         });
 
         this.endpointUrl = httpEndpointInfo.url;
+        this.resolverIp = this.app.network.getTcpLoadBalancerIp();
         this.forwardPodDns(config.getCommaSeparated(name, 'podNameservers'));
     }
 

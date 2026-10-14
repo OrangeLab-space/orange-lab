@@ -188,10 +188,10 @@ export class TailscaleNetwork implements RoutingProvider {
         component?: string;
         hostname: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
-    }): void {
-        if (params.tcpPorts.length === 0) return;
+    }): kubernetes.core.v1.Service | undefined {
+        if (params.tcpPorts.length === 0) return undefined;
 
-        this.createTcpLoadBalancer({
+        const loadBalancer = this.createTcpLoadBalancer({
             component: params.component,
             tcpPorts: params.tcpPorts,
             hostname: params.hostname,
@@ -203,6 +203,8 @@ export class TailscaleNetwork implements RoutingProvider {
             tcpPorts: params.tcpPorts,
             hostname: params.hostname,
         });
+
+        return loadBalancer;
     }
 
     private createTcpLoadBalancer(params: {

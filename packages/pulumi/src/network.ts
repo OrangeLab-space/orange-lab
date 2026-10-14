@@ -34,6 +34,7 @@ export class Network {
     endpoints: Record<string, pulumi.Input<string>> = {};
     clusterEndpoints: Record<string, pulumi.Input<string>> = {};
     private provider: RoutingProvider;
+    private tcpLoadBalancer?: kubernetes.core.v1.Service;
     /** Whether the application is reachable from the internet. */
     readonly publiclyExposed: boolean;
 
@@ -166,17 +167,35 @@ export class Network {
                         `${this.appName}: apexDomain serves the bare custom domain, which supports HTTP only.`,
                     );
                 }
-                this.provider.createTcpEndpoints({
+                const loadBalancer = this.provider.createTcpEndpoints({
                     serviceName: service.metadata.name,
                     tcpPorts,
                     component: spec.name,
                     hostname,
                     externalTrafficPolicy: spec.externalTrafficPolicy,
                 });
+                if (loadBalancer) this.tcpLoadBalancer = loadBalancer;
             }
         }
 
         Object.assign(this.endpoints, this.provider.endpoints);
+    }
+
+    /**
+     * External IP of the TCP load balancer, once the platform assigns one.
+     * Undefined when the app exposes no TCP/UDP ports or runs hostNetwork.
+     * (The SDK types these status fields as always present; the cast reflects
+     * their actual absence before assignment.)
+     */
+    getTcpLoadBalancerIp(): pulumi.Output<string | undefined> | undefined {
+        return this.tcpLoadBalancer?.status.apply(
+            status =>
+                (
+                    status as unknown as {
+                        loadBalancer?: { ingress?: { ip?: string }[] };
+                    }
+                ).loadBalancer?.ingress?.[0]?.ip,
+        );
     }
 
     private getHostname(component?: string) {

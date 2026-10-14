@@ -312,15 +312,15 @@ export class TraefikNetwork implements RoutingProvider {
         component?: string;
         hostname: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
-    }): void {
-        if (params.tcpPorts.length === 0) return;
+    }): kubernetes.core.v1.Service | undefined {
+        if (params.tcpPorts.length === 0) return undefined;
         this.createTlsRoutes({
             component: params.component,
             tlsPorts: params.tcpPorts.filter(p => p.protocol === 'tls'),
             serviceName: params.serviceName,
             hostname: pulumi.interpolate`${params.hostname}.${this.customDomain}`,
         });
-        this.createInternalLoadBalancer({
+        const loadBalancer = this.createInternalLoadBalancer({
             component: params.component,
             tcpPorts: params.tcpPorts.filter(
                 p => p.protocol === 'tcp' || p.protocol === 'udp',
@@ -333,6 +333,8 @@ export class TraefikNetwork implements RoutingProvider {
             tcpPorts: params.tcpPorts,
             hostname: pulumi.interpolate`${params.hostname}.${this.customDomain}`,
         });
+
+        return loadBalancer;
     }
 
     private createTlsRoutes(params: {
@@ -383,11 +385,11 @@ export class TraefikNetwork implements RoutingProvider {
         component?: string;
         tcpPorts: ServicePort[];
         externalTrafficPolicy?: 'Local' | 'Cluster';
-    }): void {
+    }): kubernetes.core.v1.Service | undefined {
         const metadata = this.args.metadata.get({ component: params.component });
-        if (params.tcpPorts.length === 0) return;
+        if (params.tcpPorts.length === 0) return undefined;
 
-        new kubernetes.core.v1.Service(
+        return new kubernetes.core.v1.Service(
             `${metadata.name}-lb`,
             {
                 metadata: {

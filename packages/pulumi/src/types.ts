@@ -1,3 +1,4 @@
+import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 
 export type GpuType = 'amd' | 'nvidia' | 'intel';
@@ -413,5 +414,5 @@ export interface RoutingProvider {
         component?: string;
         hostname: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
-    }) => void;
+    }) => kubernetes.core.v1.Service | undefined;
 }

@@ -79,8 +79,8 @@ wildcard answer for node names and hijack pod DNS. Verify with
 
 To force clients onto your own resolver (e.g. Technitium for ad-blocking), set
 `headscale:overrideLocalDns: true` and list it first in `headscale:nameservers`
-with a public fallback second. Find your Technitium address with
-`kubectl get svc -n technitium technitium-lb -o jsonpath='{.status.loadBalancer.ingress[0].ip}'`.
+with a public fallback second. Find your Technitium resolver IP with
+`pulumi stack output network --json | jq -r .technitiumResolverIp`.
 The list only applies while the tailnet is up — a client with tailscaled down
 cannot use either entry, so keep the fallback public.
 

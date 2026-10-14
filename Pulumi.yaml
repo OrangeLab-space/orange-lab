@@ -74,7 +74,7 @@ config:
     # resolver. false = clients keep whatever resolver they already use.
     headscale:overrideLocalDns: false
     # Comma-separated resolvers, raced with the first given a head start. Only used
-    # when overrideLocalDns is true. First is your Technitium address (see
+    # when overrideLocalDns is true. First is your Technitium resolver IP (see
     # headscale.md), second a public fallback; the list only works while the
     # tailnet is up.
     # headscale:nameservers: <technitium-ip>,1.1.1.1
