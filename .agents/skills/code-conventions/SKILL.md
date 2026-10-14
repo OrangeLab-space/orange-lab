@@ -60,6 +60,25 @@ These apply to `Pulumi.yaml` in the core stack and to every module's `Pulumi.yam
 - **Comments are 1–2 lines, 3 maximum.** A comment says what the setting is and when it is required — nothing else. Anything longer belongs in the component's `<app>.md`, referenced by path. If the reason does not fit, the setting probably needs a better name or a code-level check instead of a prose explanation.
 - **A commented-out key is a placeholder, not a disabled default.** Show the shape (`# caddy:rootRedirect: https://example.com`) so users know what to type, and use generic example values.
 
+## Stack Outputs
+
+Every module and stack exports the same two keys, so a caller learns one shape:
+
+- **`endpoints`** — addresses grouped by reach, via `mergeEndpointExports(...appNetworks)`:
+  - `public` — the app sets `network/public: true`, so it answers on the Traefik public gateway and the internet
+  - `private` — the tailnet gateway only; every app not explicitly opted in
+  - `cluster` — in-cluster Service DNS, for app-to-app wiring
+- **`apps`** — app-specific values that are not addresses: `users`, passwords, tokens, `db`, and resolver addresses like Technitium's `resolverIp`
+
+Rules:
+
+- **Classify by `network/public`, not by how a route was actually built.** An opted-in app gets a second route on the public gateway but serves one URL; where that URL goes in the export is the flag's answer, full stop.
+- **Never hand-list an endpoint in `getExports()`.** The library registers them; a hand-written list is what this shape replaced. If a URL is missing, the component never registered it — call `app.network.addEndpoint(name, url)` (or `addClusterEndpoint` for a Service address) where the component derives it.
+- **Helm-served apps must register their own endpoint.** Automatic port handling only sees `addDeployment`; an app brought up by `addHelmChart` or by a chart's own Ingress registers nothing and would silently vanish from the outputs.
+- **Store `app` as `public readonly`** on any component whose endpoints a module merges, so the module can read `component.app.network`.
+- **Drop single-URL fields like `endpointUrl` and `serviceUrl` from components** once the URL is in `endpoints`. A duplicate in two places drifts.
+- **The old flat `clusterEndpoints`, `clusterUrls` and `<app>Users` keys are gone.** Scripts and docs read `.endpoints.private.<app>`, `.endpoints.cluster.<app>` and `.apps.<app>.users.<user>`.
+
 ## Secrets
 
 - Use `envSecret` field in `ContainerSpec` for sensitive data instead of command args — the Application class automatically creates Kubernetes Secrets and configures envFrom
