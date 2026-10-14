@@ -17,6 +17,7 @@ description: Use when creating or editing TypeScript code in the orange-lab repo
 - Prefer `variable?: Type` over `variable: Type | undefined`
 - Keep methods around 20 lines or less; inline simple operations (single `.map()`, `.filter()`) rather than extracting private methods; orchestration methods coordinating multiple steps may be longer
 - Prefer standard Kubernetes conventions unless there's a specific reason to deviate (e.g. node-role labels use `true` value to match k3s `control-plane` and `master` roles)
+- Assign the `Application` straight to `this.app` and use `this.app` for the rest of the constructor. `addStorage()`, `addDeployment()` and the other chained calls return the app, so `const app = new Application(...); this.app = app;` buys nothing and splits one reference across two names. Helper functions outside the class keep `app` as a parameter — that's a different thing
 
 ## Components
 
@@ -64,7 +65,7 @@ These apply to `Pulumi.yaml` in the core stack and to every module's `Pulumi.yam
 
 Every module and stack exports the same two keys, so a caller learns one shape:
 
-- **`endpoints`** — addresses grouped by reach, via `mergeEndpointExports(...appNetworks)`:
+- **`endpoints`** — addresses grouped by reach, via `mergeEndpointExports(...apps)`:
   - `public` — the app sets `network/public: true`, so it answers on the Traefik public gateway and the internet
   - `private` — the tailnet gateway only; every app not explicitly opted in
   - `cluster` — in-cluster Service DNS, for app-to-app wiring
