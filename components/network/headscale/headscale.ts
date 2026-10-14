@@ -34,6 +34,10 @@ export class Headscale extends pulumi.ComponentResource {
         fallback: boolean;
         externalIp: string | undefined;
     };
+    private readonly dns: {
+        overrideLocalDns: boolean;
+        nameserversSection?: string;
+    };
 
     constructor(
         private name: string,
@@ -75,6 +79,22 @@ export class Headscale extends pulumi.ComponentResource {
             // that is measured but never selected.
             externalIp: derpEnabled
                 ? config.require(this.name, 'derp/externalIp')
+                : undefined,
+        };
+
+        // Headscale keeps the node's own resolver unless overrideLocalDns is
+        // set, in which case it forces the nameservers below onto every client.
+        // There is no separate fallback list: the nameservers either become the
+        // primary resolvers (override on) or the fallback resolvers (off), and
+        // the latter is only consulted by a node using an exit node.
+        const nameservers = config.getCommaSeparated(this.name, 'nameservers');
+
+        this.dns = {
+            overrideLocalDns: config.requireBoolean(this.name, 'overrideLocalDns'),
+            nameserversSection: nameservers
+                ? `\n  nameservers:\n    global:\n${nameservers
+                      .map((ns) => `      - ${ns}`)
+                      .join('\n')}\n`
                 : undefined,
         };
 
@@ -260,9 +280,7 @@ log:
 dns:
   magic_dns: true
   base_domain: ${config.require(this.name, 'baseDomain')}
-  # Leave each node's resolver alone. Overriding it would point cluster nodes at
-  # public resolvers and break internal name resolution.
-  override_local_dns: false
-${oidcSection ?? ''}`;
+  override_local_dns: ${String(this.dns.overrideLocalDns)}
+${this.dns.nameserversSection ?? ''}${oidcSection ?? ''}`;
     }
 }

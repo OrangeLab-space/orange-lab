@@ -64,6 +64,8 @@ public path. No extra port forward is needed.
 | `headscale:derp/regionCode`    | Region name shown in `tailscale status`. Default `headscale`     |
 | `headscale:derp/externalIp`    | Relay's public IPv4. Required when `derp/enabled`                |
 | `headscale:derp/fallback`      | Also load Tailscale's public DERP map. Default `true`            |
+| `headscale:overrideLocalDns`   | Push `nameservers` onto every client. Default `false`            |
+| `headscale:nameservers`        | Comma-separated resolvers, preferred first. Unset = none         |
 
 `baseDomain` is the **host** name suffix clients resolve (`<node>.vpn.internal`).
 Headscale refuses to start without it, so a default is supplied in `Pulumi.yaml`.
@@ -74,6 +76,13 @@ base_domain` — or Headscale refuses to start. It must also stay **outside**
 `customDomain`: nesting the mesh namespace inside the app domain lets a single
 wildcard answer for node names and hijack pod DNS. Verify with
 `headscale configtest` before deploying.
+
+To force clients onto your own resolver (e.g. Technitium for ad-blocking), set
+`headscale:overrideLocalDns: true` and list it first in `headscale:nameservers`
+with a public fallback second. Find your Technitium address with
+`kubectl get svc -n technitium technitium-lb -o jsonpath='{.status.loadBalancer.ingress[0].ip}'`.
+The list only applies while the tailnet is up — a client with tailscaled down
+cannot use either entry, so keep the fallback public.
 
 The control plane should run on a node that stays put — it holds the SQLite
 database and the noise key — so pin it with `headscale:requiredNodeLabel` before

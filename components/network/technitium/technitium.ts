@@ -5,6 +5,7 @@ import {
     OidcAuthConfig,
     OidcProviderSettings,
 } from '@orangelab/pulumi';
+import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 
 function serializeGroupMap(groupMap: Record<string, string[]>): string {
@@ -20,6 +21,9 @@ export interface TechnitiumArgs {
 export class Technitium extends pulumi.ComponentResource {
     public readonly endpointUrl: pulumi.Input<string>;
     public readonly users: Record<string, pulumi.Output<string>> = {};
+
+    /** Resolver pods use for everything outside the cluster. */
+    static readonly clusterIP = '10.43.0.53';
 
     private readonly app: Application;
 
@@ -51,7 +55,7 @@ export class Technitium extends pulumi.ComponentResource {
         if (this.app.oidc) this.addSsoEnvironment(env, this.app.oidc);
 
         this.app.addDeployment({
-            clusterIP: '10.43.0.53',
+            clusterIP: Technitium.clusterIP,
             externalTrafficPolicy: 'Local',
             ports: [
                 { name: 'http', port: 5380 },
@@ -71,6 +75,40 @@ export class Technitium extends pulumi.ComponentResource {
         });
 
         this.endpointUrl = httpEndpointInfo.url;
+        this.forwardPodDns(config.getCommaSeparated(name, 'podNameservers'));
+    }
+
+    /**
+     * Point pod DNS at Technitium through the `coredns-custom` ConfigMap that
+     * k3s mounts into CoreDNS.
+     *
+     * The Corefile imports `*.override` before its own `forward . /etc/resolv.conf`
+     * line, and CoreDNS chains multiple `forward` directives rather than rejecting
+     * them, so the override's upstream is tried first and the node's own resolver
+     * remains as the fallback. The ClusterIP is used rather than the load balancer
+     * address because pod DNS must not depend on the tailnet.
+     *
+     * `policy sequential` matters: the default is `random`, which would split
+     * queries across Technitium and the fallback and silently bypass ad-blocking.
+     * Blocked names return NXDOMAIN, which is a successful answer and does not
+     * trigger failover, so only an unreachable or erroring Technitium falls
+     * through to the next upstream.
+     */
+    private forwardPodDns(nameservers: string[] | undefined) {
+        if (!nameservers?.length) return;
+
+        const upstreams = [Technitium.clusterIP, ...nameservers].join(' ');
+
+        new kubernetes.core.v1.ConfigMap(
+            `${this.name}-coredns-custom`,
+            {
+                metadata: { name: 'coredns-custom', namespace: 'kube-system' },
+                data: {
+                    'technitium.override': `forward . ${upstreams} {\n  policy sequential\n  failover SERVFAIL REFUSED\n}\n`,
+                },
+            },
+            { parent: this },
+        );
     }
 
     private addSsoEnvironment(

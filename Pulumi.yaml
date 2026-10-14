@@ -70,10 +70,20 @@ config:
     # app domain - keep it outside customDomain, see spec/headscale.md.
     # Must not contain the Headscale URL - headscale refuses to start otherwise.
     headscale:baseDomain: vpn.internal
+    # Push Headscale's DNS resolvers onto every client, overriding the node's own
+    # resolver. false = clients keep whatever resolver they already use.
+    headscale:overrideLocalDns: false
+    # Comma-separated resolvers, raced with the first given a head start. Only used
+    # when overrideLocalDns is true. First is your Technitium address (see
+    # headscale.md), second a public fallback; the list only works while the
+    # tailnet is up.
+    # headscale:nameservers: <technitium-ip>,1.1.1.1
+    #
     # Optional OIDC sign-in through Pocket ID
     # headscale:auth: pocket
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     # headscale:auth/allowedGroups: admin,power-user
+    #
     # Run the built-in DERP relay for clients that cannot connect directly.
     # Disabled = clients relay through Tailscale's public DERP servers.
     # Enabling it needs a UDP port forward for STUN; see headscale.md.
@@ -120,6 +130,10 @@ config:
             Administrators:
                 - admin
                 - power-user
+    # Send pod DNS through Technitium, so ad-blocking applies inside the cluster.
+    # Comma-separated fallback resolvers, tried after Technitium. Unset = pods keep
+    # resolving through the node's own resolver.
+    # technitium:podNameservers: 1.1.1.1
 
     zot:enabled: false
     zot:image: ghcr.io/project-zot/zot:v2.1.21
