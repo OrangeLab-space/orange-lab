@@ -37,7 +37,7 @@ Get external URLs:
 
 ```sh
 # Show URLs
-pulumi stack output --show-secrets --json | jq -r '.endpoints.jellyfin'
+pulumi stack output --show-secrets --json | jq -r '.endpoints.private.jellyfin'
 pulumi stack output --show-secrets --json | jq -r '.endpoints.radarr'
 pulumi stack output --show-secrets --json | jq -r '.endpoints.sonarr'
 ```

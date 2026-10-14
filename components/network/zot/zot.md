@@ -27,7 +27,7 @@ pulumi config set zot:enabled true
 pulumi up
 
 # Read the password if it was auto-generated
-pulumi stack output --json --show-secrets | jq -r '.network.zotUsers.admin'
+pulumi stack output --json --show-secrets | jq -r '.network.apps.zot.users.admin'
 ```
 
 ## Usage
@@ -65,7 +65,7 @@ The list is defined by `zot:registries` in `Pulumi.yaml` (each entry has an upst
 
 By default images are cached only when referenced explicitly (see [Usage](#usage)). To transparently cache images on a node, configure K3s containerd to use Zot as a mirror. Because Zot runs on the cluster, do this **after** Zot is deployed (and repeat it for nodes added later, or if the Zot endpoint changes).
 
-Generate `/etc/rancher/k3s/registries.yaml` from the `network.endpoints.zot` output and write it on the node:
+Generate `/etc/rancher/k3s/registries.yaml` from the `network.endpoints.private.zot` output and write it on the node:
 
 ```sh
 # Run where Pulumi is installed
@@ -96,7 +96,7 @@ Mirroring is per node and covers only the upstreams listed above. Pulls from `re
 
 ## Authentication
 
-Anonymous users can read any cached image. The `admin` user (password from `zot:adminPassword` or the `network.zotUsers.admin` output) can push images and use the web UI:
+Anonymous users can read any cached image. The `admin` user (password from `zot:adminPassword` or the `network.apps.zot.users.admin` output) can push images and use the web UI:
 
 ```sh
 docker login registry.<domain>

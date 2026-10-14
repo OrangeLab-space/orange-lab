@@ -61,7 +61,7 @@ pulumi config set technitium:storageSize 5Gi
 pulumi up
 
 # (Recommended) Set admin password for web console (auto-generated if not set)
-export ADMIN_PASSWORD=$(pulumi stack output --json --show-secrets | jq -r '.technitiumUsers.admin')
+export ADMIN_PASSWORD=$(pulumi stack output --json --show-secrets | jq -r '.network.apps.technitium.users.admin')
 pulumi config set technitium:adminPassword $ADMIN_PASSWORD --secret
 ```
 

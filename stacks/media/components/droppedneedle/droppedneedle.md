@@ -43,8 +43,8 @@ cd stacks/media
 ```sh
 # Values for DroppedNeedle Settings -> Security:
 # Issuer URL (Pocket ID base URL) and Redirect URL:
- pulumi --cwd ../.. stack output --json | jq -er '.security.endpoints.pocket' # -> Issuer URL
- pulumi stack output --json | jq -er '.endpoints.droppedneedle'              # -> Redirect URL + /api/v1/auth/oidc/callback
+ pulumi --cwd ../.. stack output --json | jq -er '.security.endpoints.public.pocket' # -> Issuer URL
+ pulumi stack output --json | jq -er '.endpoints.private.droppedneedle'              # -> Redirect URL + /api/v1/auth/oidc/callback
 ```
 
 2. In DroppedNeedle **Settings -> Security**, enter:

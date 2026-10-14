@@ -58,8 +58,10 @@ pulumi up
 # or
 pulumi up -r # --refresh Pulumi state if out of sync
 
-# Show the app's external endpoint URL
-pulumi stack output --show-secrets --json | jq -r '.endpoints.<app>'
+# Show the app's external endpoint URL. Apps with `network/public: true` answer
+# on the internet and live under `endpoints.public`; everything else is
+# tailnet-only and lives under `endpoints.private`.
+pulumi stack output --show-secrets --json | jq -r '.endpoints.private.<app>'
 # Make request to provision HTTP certificate and activate endpoint
 curl https://<app>.<domain>/
 ```

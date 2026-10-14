@@ -139,7 +139,7 @@ Integration → MQTT**). The broker cannot be configured from `configuration.yam
 ```sh
 # Password
 cd stacks/iot
-pulumi stack output mqtt --show-secrets --json | jq -r '.password'
+pulumi stack output apps --show-secrets --json | jq -r '.mosquitto.password'
 ```
 
 Frigate publishes its events to the same broker and its entities show up through

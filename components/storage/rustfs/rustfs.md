@@ -55,7 +55,7 @@ RustFS provides the `rc` CLI tool for S3 operations:
 ```sh
 # Create "rustfs" alias pointing to Rustfs server
 export ACCESS_KEY=$(pulumi config get rustfs:rootUser)
-export SECRET_KEY=$(pulumi stack output system --show-secrets | jq .rustfsUsers.admin -r)
+export SECRET_KEY=$(pulumi stack output system --show-secrets | jq .storage.apps.rustfs.users.admin -r)
 
 rc alias set rustfs https://rustfs.<domain> $ACCESS_KEY $SECRET_KEY
 

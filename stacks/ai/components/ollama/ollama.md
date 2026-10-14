@@ -83,7 +83,7 @@ export OLLAMA_HOST=<endpoint>
 Get the new endpoint with:
 
 ```sh
-pulumi stack output --json | jq -r '.endpoints.ollama'
+pulumi stack output --json | jq -r '.endpoints.private.ollama'
 ```
 
 You can also setup your tools to use OpenAPI-compatible endpoint by adding `/v1/` to the URL.

@@ -95,8 +95,8 @@ Alternative to the plugin's config page (roles left blank = every provisioned us
 ```sh
 # Create an API key in Dashboard -> API Keys, then:
 export API_KEY=<api-key>
-export JELLYFIN_URL=$(pulumi stack output --json | jq -er '.endpoints.jellyfin')
-export POCKET_URL=$(pulumi --cwd ../.. stack output --json | jq -er '.security.endpoints.pocket')
+export JELLYFIN_URL=$(pulumi stack output --json | jq -er '.endpoints.private.jellyfin')
+export POCKET_URL=$(pulumi --cwd ../.. stack output --json | jq -er '.security.endpoints.public.pocket')
 export OIDC_CLIENT_ID=$(pulumi config get jellyfin:auth/clientId)
 export OIDC_CLIENT_SECRET=$(pulumi config get jellyfin:auth/clientSecret)
 

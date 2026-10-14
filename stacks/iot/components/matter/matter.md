@@ -33,7 +33,7 @@ Configure Home Assistant's Matter integration with the WebSocket URL:
 
 ```sh
 # From stacks/iot
-pulumi stack output endpoints --json | jq -r '.matterWebsocket'
+pulumi stack output endpoints --json | jq -r '.cluster."matter-websocket"'
 # ws://matter.matter:5580/ws
 ```
 

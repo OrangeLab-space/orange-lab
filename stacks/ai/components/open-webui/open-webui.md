@@ -32,7 +32,7 @@ pulumi up
 OIDC is optional. The discovery URL is resolved automatically from the core stack.
 
 - The core stack must have Pocket ID enabled and deployed first.
-- The discovery URL comes from `security.oidcProviderUrl` through `orangelab:coreStackRef`.
+- The discovery URL comes from `security.apps.pocket.oidcProviderUrl` through `orangelab:coreStackRef`.
 - Omit `open-webui:auth` to leave OAuth disabled.
 
 ### Automated setup (Recommended)
