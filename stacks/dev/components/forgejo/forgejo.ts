@@ -21,8 +21,6 @@ const smtpProtocol: Record<SmtpSecurity, string> = {
 
 export class Forgejo extends pulumi.ComponentResource {
     public readonly app: Application;
-    public readonly serviceUrl?: pulumi.Input<string>;
-    public readonly sshUrl?: pulumi.Input<string>;
 
     private readonly adminSecret?: kubernetes.core.v1.Secret;
     private readonly oidcSecret?: kubernetes.core.v1.Secret;
@@ -63,8 +61,11 @@ export class Forgejo extends pulumi.ComponentResource {
 
         this.createHelmChart({ httpEndpointInfo, redisConfig, dbConfig, auth, smtp });
 
-        this.serviceUrl = httpEndpointInfo.url;
-        this.sshUrl = pulumi.interpolate`ssh://git@${httpEndpointInfo.hostname}:${SSH_PORT}`;
+        this.app.network.addEndpoint(this.appName, httpEndpointInfo.url);
+        this.app.network.addEndpoint(
+            `${this.appName}-ssh`,
+            pulumi.interpolate`ssh://git@${httpEndpointInfo.hostname}:${SSH_PORT}`,
+        );
     }
 
     private createHelmChart(args: {

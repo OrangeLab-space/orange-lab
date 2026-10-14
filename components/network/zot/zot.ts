@@ -16,8 +16,8 @@ export interface ZotArgs {
 }
 
 export class Zot extends pulumi.ComponentResource {
-    public readonly endpointUrl: pulumi.Input<string>;
     public readonly users: Record<string, pulumi.Output<string>>;
+    public readonly app: Application;
 
     constructor(
         private name: string,
@@ -26,21 +26,21 @@ export class Zot extends pulumi.ComponentResource {
     ) {
         super('orangelab:network:Zot', name, args, opts);
 
-        const app = new Application(this, name, { oidc: args.oidc }).addStorage();
+        this.app = new Application(this, name, { oidc: args.oidc }).addStorage();
         const hostname = config.require(name, 'hostname');
-        const externalUrl = app.network.getHttpEndpointInfo(hostname).url;
+        const externalUrl = this.app.network.getHttpEndpointInfo(hostname).url;
 
         const adminPassword =
             config.getSecret(name, 'adminPassword') ??
             createPassword(this, `${name}-admin-password`);
         this.users = { admin: adminPassword };
 
-        app.addConfigVolume({
-            files: { 'config.json': createConfigJson(app, name, externalUrl) },
-            secretFiles: createSecretFiles(app, name, this, adminPassword),
+        this.app.addConfigVolume({
+            files: { 'config.json': createConfigJson(this.app, name, externalUrl) },
+            secretFiles: createSecretFiles(this.app, name, this, adminPassword),
         });
 
-        app.addDeployment({
+        this.app.addDeployment({
             ports: [{ name: 'http', port: 5000, hostname }],
             healthCheck: { httpGet: { path: '/v2/' } },
             volumeMounts: [
@@ -52,8 +52,6 @@ export class Zot extends pulumi.ComponentResource {
                 limits: { memory: '2Gi' },
             },
         });
-
-        this.endpointUrl = externalUrl;
     }
 }
 

@@ -3,10 +3,9 @@ import * as pulumi from '@pulumi/pulumi';
 import dashboardJson from './kubeai-dashboard-vllm.json';
 
 export class KubeAi extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
     public readonly serviceUrl: string | undefined;
 
-    private readonly app: Application;
+    public readonly app: Application;
 
     constructor(
         private name: string,
@@ -90,8 +89,9 @@ export class KubeAi extends pulumi.ComponentResource {
             new GrafanaDashboard(name, { configJson: dashboardJson }, { parent: this });
         }
 
-        this.endpointUrl = httpEndpointInfo.url;
         this.serviceUrl = `http://${hostname}.kubeai/openai/v1`;
+        this.app.network.addEndpoint(name, httpEndpointInfo.url);
+        this.app.network.addClusterEndpoint(name, this.serviceUrl);
     }
 
     private createModelCatalog(models: string[]): Record<string, object> {

@@ -16,9 +16,7 @@ export interface LonghornArgs {
 }
 
 export class Longhorn extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
-
-    private readonly app: Application;
+    public readonly app: Application;
     private readonly chart: kubernetes.helm.v3.Release;
 
     constructor(
@@ -66,7 +64,7 @@ export class Longhorn extends pulumi.ComponentResource {
             new GrafanaDashboard(name, { configJson: dashboardJson }, { parent: this });
         }
 
-        this.endpointUrl = httpEndpointInfo.url;
+        this.app.network.addEndpoint(name, httpEndpointInfo.url);
     }
 
     private createHelmRelease({

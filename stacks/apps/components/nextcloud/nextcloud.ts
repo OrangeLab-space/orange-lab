@@ -12,7 +12,6 @@ import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 
 export class Nextcloud extends pulumi.ComponentResource {
-    public readonly serviceUrl?: pulumi.Input<string>;
     public readonly app: Application;
     public readonly users: Record<string, pulumi.Output<string>> = {};
     public readonly dbConfig?: DatabaseConfig;
@@ -44,7 +43,7 @@ export class Nextcloud extends pulumi.ComponentResource {
             auth,
             smtp,
         });
-        this.serviceUrl = httpEndpointInfo.url;
+        this.app.network.addEndpoint(appName, httpEndpointInfo.url);
     }
 
     private createHelmChart(args: {

@@ -23,9 +23,7 @@ export interface HeadplaneArgs {
  * Headplane supports, and not configurable.
  */
 export class Headplane extends pulumi.ComponentResource {
-    public readonly endpointUrl: pulumi.Input<string>;
-
-    private readonly app: Application;
+    public readonly app: Application;
     private readonly oidc?: OidcAuthConfig;
 
     constructor(
@@ -99,7 +97,7 @@ export class Headplane extends pulumi.ComponentResource {
             to: pulumi.interpolate`${baseUrl}/admin`,
         });
 
-        this.endpointUrl = pulumi.interpolate`${baseUrl}/admin`;
+        this.app.network.addEndpoint(this.name, pulumi.interpolate`${baseUrl}/admin`);
     }
 
     /**

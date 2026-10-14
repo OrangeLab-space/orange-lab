@@ -1,4 +1,4 @@
-import { config } from '@orangelab/pulumi';
+import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { Frigate } from './components/frigate/frigate';
 import {
@@ -44,26 +44,24 @@ const matterServer = config.isEnabled('matter')
     ? new MatterServer('matter')
     : undefined;
 
-export const endpoints = {
-    homeAssistant: homeAssistant?.endpointUrl,
-    openThreadRestApi: openThreadBorderRouter?.restApiUrl,
-    matterDashboard: matterServer?.endpointUrl,
-    matterWebsocket: matterServer?.websocketUrl,
-    frigate: frigate?.endpointUrl,
-    mosquitto: mosquitto?.endpoint,
-};
-
-export const mqtt = mosquitto
-    ? {
-          username: mosquitto.username,
-          password: pulumi.secret(mosquitto.password),
-      }
-    : undefined;
+export const endpoints = mergeEndpointExports(
+    homeAssistant,
+    openThreadBorderRouter,
+    matterServer,
+    frigate,
+    mosquitto,
+);
 
 export const apps = {
     frigate: frigate
         ? {
               proxySecret: frigate.proxySecret,
+          }
+        : undefined,
+    mosquitto: mosquitto
+        ? {
+              username: mosquitto.username,
+              password: pulumi.secret(mosquitto.password),
           }
         : undefined,
 };

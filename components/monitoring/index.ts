@@ -1,4 +1,4 @@
-import { config, OidcProviderSettings } from '@orangelab/pulumi';
+import { config, mergeEndpointExports, OidcProviderSettings } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { Beszel } from './beszel/beszel';
 import { Prometheus } from './prometheus/prometheus';
@@ -13,13 +13,12 @@ export class MonitoringModule extends pulumi.ComponentResource {
 
     getExports() {
         return {
-            endpoints: {
-                alertmanager: this.prometheus?.alertmanagerEndpointUrl,
-                ...this.beszel?.app.network.endpoints,
-                grafana: this.prometheus?.grafanaEndpointUrl,
-                prometheus: this.prometheus?.prometheusEndpointUrl,
+            endpoints: mergeEndpointExports(this.prometheus, this.beszel),
+            apps: {
+                prometheus: this.prometheus
+                    ? { grafanaPassword: this.prometheus.grafanaPassword }
+                    : undefined,
             },
-            grafanaPassword: this.prometheus?.grafanaPassword,
         };
     }
 

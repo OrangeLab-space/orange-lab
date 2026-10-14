@@ -1,5 +1,6 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
+import type { EndpointExports } from './network';
 
 export type GpuType = 'amd' | 'nvidia' | 'intel';
 
@@ -347,8 +348,13 @@ export interface CoreStackExports {
         };
     };
     security?: {
-        oidcProviderBaseUrl?: string;
-        oidcProviderUrl?: string;
+        endpoints?: EndpointExports;
+        apps?: {
+            pocket?: {
+                oidcProviderBaseUrl?: string;
+                oidcProviderUrl?: string;
+            };
+        };
     };
 }
 

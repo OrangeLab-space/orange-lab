@@ -22,9 +22,7 @@ export interface HeadscaleArgs {
  * speaks plain HTTP on its ClusterIP Service.
  */
 export class Headscale extends pulumi.ComponentResource {
-    public readonly endpointUrl: pulumi.Input<string>;
-
-    private readonly app: Application;
+    public readonly app: Application;
     private readonly oidc?: OidcAuthConfig;
     private readonly derp: {
         enabled: boolean;
@@ -127,8 +125,6 @@ export class Headscale extends pulumi.ComponentResource {
                 limits: { memory: '512Mi' },
             },
         });
-
-        this.endpointUrl = httpEndpointInfo.url;
 
         // Headplane is served at `/admin` on a hostname of its own. Headscale's
         // hostname is where it used to live, and that name resolves to a WAN

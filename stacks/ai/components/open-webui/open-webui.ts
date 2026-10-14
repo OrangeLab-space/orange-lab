@@ -8,9 +8,8 @@ export interface OpenWebUIArgs {
 }
 
 export class OpenWebUI extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
     public readonly secretKey: pulumi.Output<string>;
-    private readonly app: Application;
+    public readonly app: Application;
 
     constructor(
         private readonly name: string,
@@ -26,7 +25,6 @@ export class OpenWebUI extends pulumi.ComponentResource {
 
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
         const isTailscale = httpEndpointInfo.className === 'tailscale';
-        this.endpointUrl = httpEndpointInfo.url;
 
         const auth = this.app.auth.getOidc();
         const env = this.getEnvironment(httpEndpointInfo.url, isTailscale, auth);

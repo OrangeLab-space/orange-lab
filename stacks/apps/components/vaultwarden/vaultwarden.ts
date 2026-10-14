@@ -19,7 +19,6 @@ const smtpSecurity: Record<SmtpSecurity, string> = {
 export class Vaultwarden extends pulumi.ComponentResource {
     public readonly app: Application;
     public readonly adminToken?: pulumi.Output<string>;
-    public readonly serviceUrl?: pulumi.Input<string>;
 
     constructor(
         private appName: string,
@@ -39,7 +38,7 @@ export class Vaultwarden extends pulumi.ComponentResource {
         this.createHelmChart({ httpEndpointInfo, adminTokenSecret: secretResource });
 
         this.adminToken = plainToken;
-        this.serviceUrl = httpEndpointInfo.url;
+        this.app.network.addEndpoint(this.appName, httpEndpointInfo.url);
     }
 
     private createHelmChart({

@@ -2,7 +2,7 @@ import { Application, config } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export class Mosquitto extends pulumi.ComponentResource {
-    public readonly endpoint?: pulumi.Input<string>;
+    public readonly app: Application;
     public readonly host: pulumi.Input<string>;
     public readonly port = 1883;
     public readonly username: string;
@@ -14,13 +14,13 @@ export class Mosquitto extends pulumi.ComponentResource {
         this.username = config.require(name, 'user');
         this.password = config.requireSecret(name, 'password');
 
-        const app = new Application(this, name).addStorage();
-        this.host = app.metadata.namespace.apply(
+        this.app = new Application(this, name).addStorage();
+        this.host = this.app.metadata.namespace.apply(
             namespace => `${name}.${namespace}`,
         );
-        if (app.storageOnly) return;
+        if (this.app.storageOnly) return;
 
-        app.addConfigVolume({
+        this.app.addConfigVolume({
             name: 'config',
             files: { 'mosquitto.conf': this.createConfigFile() },
             secretFiles: {
@@ -28,7 +28,7 @@ export class Mosquitto extends pulumi.ComponentResource {
                 password: this.password,
             },
         });
-        app.addDeployment({
+        this.app.addDeployment({
             image: config.require(name, 'image'),
             initContainers: [
                 {
@@ -58,7 +58,8 @@ export class Mosquitto extends pulumi.ComponentResource {
             ],
         });
 
-        this.endpoint = app.network.clusterEndpoints[`${name}-mqtt`];
+        const brokerUrl = this.app.network.clusterEndpoints[`${name}-mqtt`];
+        if (brokerUrl) this.app.network.addClusterEndpoint(name, brokerUrl);
     }
 
     private createConfigFile() {

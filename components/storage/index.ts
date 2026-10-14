@@ -1,4 +1,4 @@
-import { config, OidcProviderSettings } from '@orangelab/pulumi';
+import { config, mergeEndpointExports, OidcProviderSettings } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { Longhorn } from './longhorn/longhorn';
 import { Rustfs } from './rustfs/rustfs';
@@ -13,14 +13,10 @@ export class StorageModule extends pulumi.ComponentResource {
 
     getExports() {
         return {
-            endpoints: {
-                ...this.rustfs?.app.network.endpoints,
-                longhorn: this.longhorn?.endpointUrl,
+            endpoints: mergeEndpointExports(this.rustfs, this.longhorn),
+            apps: {
+                rustfs: this.rustfs ? { users: this.rustfs.users } : undefined,
             },
-            clusterEndpoints: {
-                ...this.rustfs?.app.network.clusterEndpoints,
-            },
-            rustfsUsers: this.rustfs?.users,
         };
     }
 

@@ -1,4 +1,4 @@
-import { config } from '@orangelab/pulumi';
+import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import { DroppedNeedle } from './components/droppedneedle/droppedneedle';
 import { Immich } from './components/immich/immich';
 import { Jellyfin } from './components/jellyfin/jellyfin';
@@ -36,28 +36,18 @@ const seerr = config.isEnabled('seerr')
       })
     : undefined;
 
-export const endpoints = {
-    ...droppedneedle?.app.network.endpoints,
-    ...immich?.app.network.endpoints,
-    ...jellyfin?.app.network.endpoints,
-    ...lidarr?.app.network.endpoints,
-    ...prowlarr?.app.network.endpoints,
-    ...radarr?.app.network.endpoints,
-    ...seerr?.app.network.endpoints,
-    ...slskd?.app.network.endpoints,
-    ...sonarr?.app.network.endpoints,
-    ...transmission?.app.network.endpoints,
-};
-
-export const clusterUrls = {
-    jellyfin: jellyfin?.app.network.clusterEndpoints.jellyfin,
-    lidarr: lidarr?.app.network.clusterEndpoints.lidarr,
-    prowlarr: prowlarr?.app.network.clusterEndpoints.prowlarr,
-    radarr: radarr?.app.network.clusterEndpoints.radarr,
-    slskd: slskd?.app.network.clusterEndpoints.slskd,
-    sonarr: sonarr?.app.network.clusterEndpoints.sonarr,
-    transmission: transmission?.app.network.clusterEndpoints.transmission,
-};
+export const endpoints = mergeEndpointExports(
+    droppedneedle,
+    immich,
+    jellyfin,
+    lidarr,
+    prowlarr,
+    radarr,
+    seerr,
+    slskd,
+    sonarr,
+    transmission,
+);
 
 export const apps = {
     immich: immich

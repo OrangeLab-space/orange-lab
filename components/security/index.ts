@@ -1,4 +1,4 @@
-import { config } from '@orangelab/pulumi';
+import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { Pocket } from './pocket/pocket';
 
@@ -7,11 +7,15 @@ export class SecurityModule extends pulumi.ComponentResource {
 
     getExports() {
         return {
-            endpoints: {
-                ...this.pocket?.app.network.endpoints,
+            endpoints: mergeEndpointExports(this.pocket),
+            apps: {
+                pocket: this.pocket
+                    ? {
+                          oidcProviderBaseUrl: this.pocket.oidcProviderBaseUrl,
+                          oidcProviderUrl: this.pocket.oidcProviderUrl,
+                      }
+                    : undefined,
             },
-            oidcProviderBaseUrl: this.pocket?.oidcProviderBaseUrl,
-            oidcProviderUrl: this.pocket?.oidcProviderUrl,
         };
     }
 

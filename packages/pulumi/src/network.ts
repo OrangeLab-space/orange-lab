@@ -23,6 +23,35 @@ import {
  */
 export const publicNamespaceLabel = 'orangelab.space/public';
 
+/**
+ * Endpoints of one or more applications, grouped by reach. A stack export puts
+ * these under `endpoints`, so a caller asks for `.public` or `.private` rather
+ * than guessing which one an application landed in. A group with nothing in it
+ * is omitted rather than exported empty.
+ */
+export type EndpointExports = Partial<
+    Record<'public' | 'private' | 'cluster', Record<string, pulumi.Input<string>>>
+>;
+
+/**
+ * Combine the endpoints of several applications into a single export. Endpoint
+ * keys already carry the application name, so the groups do not collide.
+ */
+export function mergeEndpointExports(
+    ...apps: ({ app: { network: Pick<Network, 'getEndpointExports'> } } | undefined)[]
+): EndpointExports {
+    const merged: EndpointExports = {};
+    for (const group of ['public', 'private', 'cluster'] as const) {
+        for (const app of apps) {
+            const endpoints = app?.app.network.getEndpointExports()[group];
+            if (endpoints) {
+                merged[group] = { ...merged[group], ...endpoints };
+            }
+        }
+    }
+    return merged;
+}
+
 /** Namespace labels for an application, given its public exposure setting. */
 export function getNamespaceLabels(appName: string): Record<string, string> | undefined {
     return config.getBoolean(appName, 'network/public')
@@ -179,6 +208,40 @@ export class Network {
         }
 
         Object.assign(this.endpoints, this.provider.endpoints);
+    }
+
+    /**
+     * Record an endpoint the automatic port handling cannot see — an
+     * application served by a Helm chart, or one that suppresses its own route
+     * and serves a path prefix. Reaches the same records the automatic
+     * handling fills, so it is classified the same way on export.
+     */
+    addEndpoint(name: string, url: pulumi.Input<string>): void {
+        this.endpoints[name] = url;
+    }
+
+    /**
+     * Record an in-cluster endpoint derived from one already registered — a
+     * websocket URL built from a Service address, say.
+     */
+    addClusterEndpoint(name: string, url: pulumi.Input<string>): void {
+        this.clusterEndpoints[name] = url;
+    }
+
+    /**
+     * Endpoints grouped by where they are reachable. `public` holds the
+     * applications that opted into internet exposure, `private` the ones only
+     * the tailnet reaches, `cluster` the in-cluster Service addresses.
+     */
+    getEndpointExports(): EndpointExports {
+        const exports: EndpointExports = {};
+        if (Object.keys(this.endpoints).length > 0) {
+            exports[this.publiclyExposed ? 'public' : 'private'] = this.endpoints;
+        }
+        if (Object.keys(this.clusterEndpoints).length > 0) {
+            exports.cluster = this.clusterEndpoints;
+        }
+        return exports;
     }
 
     /**

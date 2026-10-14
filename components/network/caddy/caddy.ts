@@ -17,9 +17,7 @@ export interface CaddyArgs {
  * search indexes, and a redirect that preserves the previous apex behaviour.
  */
 export class Caddy extends pulumi.ComponentResource {
-    public readonly endpointUrl: pulumi.Input<string>;
-
-    private readonly app: Application;
+    public readonly app: Application;
 
     constructor(
         private name: string,
@@ -63,8 +61,6 @@ export class Caddy extends pulumi.ComponentResource {
                 limits: { memory: '128Mi' },
             },
         });
-
-        this.endpointUrl = this.app.network.endpoints[name];
     }
 
     private createCaddyfile(issuer: pulumi.Output<string>): pulumi.Output<string> {

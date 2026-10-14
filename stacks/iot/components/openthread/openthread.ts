@@ -2,20 +2,20 @@ import { Application, config } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export class OpenThreadBorderRouter extends pulumi.ComponentResource {
-    public readonly restApiUrl?: pulumi.Input<string>;
+    public readonly app: Application;
 
     constructor(name: string, opts?: pulumi.ResourceOptions) {
         super('orangelab:iot:OpenThreadBorderRouter', name, {}, opts);
 
         const device = config.require(name, 'device');
         const image = config.require(name, 'image');
-        const app = new Application(this, name).addStorage();
+        this.app = new Application(this, name).addStorage();
 
-        if (app.storageOnly) return;
+        if (this.app.storageOnly) return;
 
-        app.storage?.addDeviceMount({ name: 'rcp', hostPath: device });
-        app.storage?.addDeviceMount({ name: 'tun', hostPath: '/dev/net/tun' });
-        app.addDeployment({
+        this.app.storage?.addDeviceMount({ name: 'rcp', hostPath: device });
+        this.app.storage?.addDeviceMount({ name: 'tun', hostPath: '/dev/net/tun' });
+        this.app.addDeployment({
             env: {
                 OT_REST_LISTEN_ADDR: '0.0.0.0',
                 // The host network interface OTBR uses to reach the IP network.
@@ -33,6 +33,5 @@ export class OpenThreadBorderRouter extends pulumi.ComponentResource {
             ],
         });
 
-        this.restApiUrl = app.network.clusterEndpoints[`${name}-rest`];
     }
 }

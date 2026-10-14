@@ -8,10 +8,9 @@ import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 
 export class Traefik extends pulumi.ComponentResource {
-    private readonly app: Application;
+    public readonly app: Application;
     private chart: kubernetes.helm.v3.Release;
     private readonly customDomain: string;
-    public readonly endpointUrl: pulumi.Input<string>;
 
     constructor(
         private name: string,
@@ -29,7 +28,7 @@ export class Traefik extends pulumi.ComponentResource {
         this.createCertificate();
         this.createPublicGateway();
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
-        this.endpointUrl = httpEndpointInfo.url;
+        this.app.network.addEndpoint(name, httpEndpointInfo.url);
         this.createDashboard(httpEndpointInfo);
     }
 

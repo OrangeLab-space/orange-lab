@@ -7,13 +7,10 @@ export interface PrometheusArgs {
 }
 
 export class Prometheus extends pulumi.ComponentResource {
-    public readonly alertmanagerEndpointUrl?: pulumi.Input<string>;
-    public readonly prometheusEndpointUrl?: pulumi.Input<string>;
-    public readonly grafanaEndpointUrl?: pulumi.Input<string>;
     public readonly grafanaPassword: pulumi.Output<string>;
 
     private readonly nodes: Nodes;
-    private readonly app: Application;
+    public readonly app: Application;
 
     constructor(name: string, args: PrometheusArgs = {}, opts?: pulumi.ResourceOptions) {
         super('orangelab:monitoring:Prometheus', name, args, opts);
@@ -172,9 +169,11 @@ export class Prometheus extends pulumi.ComponentResource {
             { dependsOn: this.app.storage },
         );
 
-        this.alertmanagerEndpointUrl = alertManagerHttpEndpoint.url;
-        this.grafanaEndpointUrl = grafanaHttpEndpoint.url;
-        this.prometheusEndpointUrl = prometheusHttpEndpoint.url;
+        // The chart brings its own Ingress objects, so the automatic port
+        // handling never sees these three hostnames.
+        this.app.network.addEndpoint('alertmanager', alertManagerHttpEndpoint.url);
+        this.app.network.addEndpoint('grafana', grafanaHttpEndpoint.url);
+        this.app.network.addEndpoint('prometheus', prometheusHttpEndpoint.url);
     }
 
     // https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/platform/storage.md

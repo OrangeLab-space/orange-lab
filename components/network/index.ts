@@ -1,4 +1,4 @@
-import { config, OidcProviderSettings } from '@orangelab/pulumi';
+import { config, mergeEndpointExports, OidcProviderSettings } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { Caddy } from './caddy/caddy';
 import { CertManager } from './cert-manager/cert-manager';
@@ -23,17 +23,23 @@ export class NetworkModule extends pulumi.ComponentResource {
 
     getExports() {
         return {
-            endpoints: {
-                caddy: this.caddy?.endpointUrl,
-                headscale: this.headscale?.endpointUrl,
-                headplane: this.headplane?.endpointUrl,
-                technitium: this.technitium?.endpointUrl,
-                zot: this.zot?.endpointUrl,
-                traefik: this.traefik?.endpointUrl,
+            endpoints: mergeEndpointExports(
+                this.caddy,
+                this.headscale,
+                this.headplane,
+                this.technitium,
+                this.traefik,
+                this.zot,
+            ),
+            apps: {
+                technitium: this.technitium
+                    ? {
+                          resolverIp: this.technitium.resolverIp,
+                          users: this.technitium.users,
+                      }
+                    : undefined,
+                zot: this.zot ? { users: this.zot.users } : undefined,
             },
-            technitiumUsers: this.technitium?.users,
-            technitiumResolverIp: this.technitium?.resolverIp,
-            zotUsers: this.zot?.users,
         };
     }
 

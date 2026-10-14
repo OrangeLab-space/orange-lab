@@ -55,12 +55,14 @@ export class Auth {
             providerBaseUrl:
                 local?.providerBaseUrl ??
                 coreStack.outputs.security?.apply(
-                    security => security?.oidcProviderBaseUrl,
+                    security => security?.apps?.pocket?.oidcProviderBaseUrl,
                 ),
             providerUrl:
                 config.get(this.appName, 'auth/providerUrl') ??
                 local?.providerUrl ??
-                coreStack.outputs.security?.apply(security => security?.oidcProviderUrl),
+                coreStack.outputs.security?.apply(
+                    security => security?.apps?.pocket?.oidcProviderUrl,
+                ),
             providerName:
                 config.get(this.appName, 'auth/providerName') ?? local?.providerName,
             clientId: config.require(this.appName, 'auth/clientId'),

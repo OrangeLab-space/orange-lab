@@ -1,4 +1,4 @@
-import { config } from '@orangelab/pulumi';
+import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import { Automatic1111 } from './components/automatic1111/automatic1111';
 import { InvokeAi } from './components/invokeai/invokeai';
 import { KubeAi } from './components/kubeai/kubeai';
@@ -39,24 +39,15 @@ const n8n = config.isEnabled('n8n')
     ? new N8n('n8n', { ollamaUrl: ollama?.serviceUrl })
     : undefined;
 
-export const endpoints = {
-    ...automatic1111?.app.network.endpoints,
-    ...invokeAi?.app.network.endpoints,
-    kubeai: kubeAI?.endpointUrl,
-    ollama: ollama?.endpointUrl,
-    'open-webui': openWebUI?.endpointUrl,
-    ...sdnext?.app.network.endpoints,
-    ...n8n?.app.network.endpoints,
-};
-
-export const clusterEndpoints = {
-    ...automatic1111?.app.network.clusterEndpoints,
-    ...invokeAi?.app.network.clusterEndpoints,
-    kubeai: kubeAI?.serviceUrl,
-    ollama: ollama?.serviceUrl,
-    ...sdnext?.app.network.clusterEndpoints,
-    ...n8n?.app.network.clusterEndpoints,
-};
+export const endpoints = mergeEndpointExports(
+    automatic1111,
+    invokeAi,
+    kubeAI,
+    ollama,
+    openWebUI,
+    sdnext,
+    n8n,
+);
 
 export const apps = {
     'open-webui': openWebUI
