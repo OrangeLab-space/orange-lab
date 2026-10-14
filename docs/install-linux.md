@@ -53,10 +53,11 @@ Binding `tailscale0` to the zone is required so firewalld allows forwarded pod t
 (Optional) Ports used by apps, open them on the node where the app runs:
 
 ```sh
-firewall-cmd --permanent --add-port=9100/tcp # Prometheus metrics
+firewall-cmd --permanent --add-port=9100/tcp  # Prometheus metrics
 firewall-cmd --permanent --add-port=45876/tcp # Beszel metrics
-firewall-cmd --permanent --add-port=53/tcp  # Technitium DNS Zone transfers, DNSSEC
-firewall-cmd --permanent --add-port=53/udp  # Technitium standard DNS queries
+firewall-cmd --permanent --add-port=53/tcp    # Technitium DNS Zone transfers, DNSSEC
+firewall-cmd --permanent --add-port=53/udp    # Technitium standard DNS queries
+firewall-cmd --permanent --add-port=3478/udp  # Headscale DERP STUN
 
 systemctl reload firewalld
 ```
