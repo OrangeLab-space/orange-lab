@@ -46,7 +46,7 @@ config:
 
     traefik:enabled: false
     traefik:hostname: traefik
-    traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml'
+    traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml'
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     traefik:auth/allowedGroups: admin,power-user
 
@@ -60,7 +60,7 @@ config:
     # caddy:webfingerSubject: acct:admin@example.com
 
     headscale:enabled: false
-    headscale:image: headscale/headscale:v0.29.4
+    headscale:image: headscale/headscale:v0.29.5
     headscale:hostname: headscale
     headscale:storageSize: 1Gi
     headscale:network/public: true
@@ -105,7 +105,7 @@ config:
     # Requires headscale:enabled. Create the API key first with
     # components/network/headplane/headscale-apikey.sh
     headplane:enabled: false
-    headplane:image: ghcr.io/tale/headplane:0.7.1
+    headplane:image: ghcr.io/tale/headplane:0.8.0
     headplane:hostname: headplane
     headplane:storageSize: 1Gi
     # Sign in with Pocket ID. Roles come from a group custom claim
@@ -136,7 +136,7 @@ config:
     # technitium:podNameservers: 1.1.1.1
 
     zot:enabled: false
-    zot:image: ghcr.io/project-zot/zot:v2.1.21
+    zot:image: ghcr.io/project-zot/zot:v2.1.22
     zot:hostname: registry
     zot:storageSize: 100Gi
     # Pocket ID groups allowed to sign in (unset = unrestricted)
@@ -214,7 +214,7 @@ config:
     # rustfs:dataPath: /mnt/my-drive/rustfs-data
     # rustfs:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     rustfs:rootUser: admin
-    rustfs:image: rustfs/rustfs:1.0.0
+    rustfs:image: rustfs/rustfs:1.0.1
     rustfs:provisioner/image: rustfs/rc:latest
     # rustfs:fixVolumePermissions: '-Rv'
 
@@ -225,7 +225,7 @@ config:
     nfd:excludeNodeLabel: orangelab/alpine
 
     nvidia-gpu-operator:enabled: false
-    nvidia-gpu-operator:version: v26.7.1
+    nvidia-gpu-operator:version: v26.7.2
 
     amd-gpu-operator:enabled: false
     amd-gpu-operator:version: v1.5.1

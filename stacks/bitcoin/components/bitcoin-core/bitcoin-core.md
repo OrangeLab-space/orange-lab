@@ -4,7 +4,7 @@
 | ------------ | ---------------------------------------------------------------------------------------------- |
 | Homepage     | https://bitcoincore.org/                                                                       |
 | Docker image | https://hub.docker.com/r/btcpayserver/bitcoin                                                  |
-| Dockerfile   | https://github.com/btcpayserver/dockerfile-deps/blob/master/Bitcoin/29.0/linuxamd64.Dockerfile |
+| Dockerfile   | https://github.com/btcpayserver/dockerfile-deps/blob/master/Bitcoin/29.2/linuxamd64.Dockerfile |
 
 Bitcoin Core is the reference implementation of the Bitcoin protocol. The node uses persistent volume storage mounted at `/data`.
 
@@ -12,7 +12,7 @@ Bitcoin Core is the reference implementation of the Bitcoin protocol. The node u
 pulumi config set bitcoin-core:enabled true
 
 # (Recommended) Lock version
-pulumi config set bitcoin-core:image btcpayserver/bitcoin:29.0
+pulumi config set bitcoin-core:image btcpayserver/bitcoin:29.2
 
 # Optional configuration
 pulumi config set bitcoin-core:commandArgs "bitcoind -datadir=/data -maxuploadtarget=500"
@@ -41,7 +41,7 @@ Images can use different users for its operations. You can add `runAsUser: 999` 
 
 ```sh
 # set custom image location
-pulumi config set bitcoin-core:image bitcoin/bitcoin:29.0
+pulumi config set bitcoin-core:image bitcoin/bitcoin:29.2
 
 pulumi config set bitcoin-core:runAsUser 1000
 pulumi config set bitcoin-core:volumeOwnerUserId 1000

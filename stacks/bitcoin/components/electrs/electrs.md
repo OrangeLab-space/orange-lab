@@ -18,7 +18,7 @@ Requires a Bitcoin node ([`bitcoin-core`](../bitcoin-core/bitcoin-core.md) or [`
 pulumi config set electrs:enabled true
 
 # (Optional) lock version
-pulumi config set electrs:image getumbrel/electrs:v0.11.0
+pulumi config set electrs:image getumbrel/electrs:v0.11.1
 
 pulumi up
 ```

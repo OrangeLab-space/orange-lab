@@ -25,7 +25,7 @@ config:
     bitcoin-core:prune: 0
     bitcoin-core:debug: false
     bitcoin-core:debugexclude: addrman,bench,estimatefee,leveldb,libevent,mempool,net,txpackages,validation
-    bitcoin-core:image: btcpayserver/bitcoin:29.0
+    bitcoin-core:image: btcpayserver/bitcoin:29.2
     bitcoin-core:commandArgs: bitcoind -datadir=/data
     bitcoin-core:volumePath: /data
     # (Optional) Override image ENTRYPOINT and set container user; required for non-btcpayserver images
@@ -56,11 +56,11 @@ config:
     electrs:storageSize: 200Gi
     electrs:storageClass: longhorn-large
     electrs:hostname: electrs
-    electrs:image: getumbrel/electrs:v0.11.0
+    electrs:image: getumbrel/electrs:v0.11.1
 
     mempool:enabled: false
     mempool:frontend/hostname: mempool
-    mempool:frontend/image: mempool/frontend:v3.2.1
+    mempool:frontend/image: mempool/frontend:v3.3.1
     mempool:backend/hostname: mempool-backend
-    mempool:backend/image: mempool/backend:v3.2.1
+    mempool:backend/image: mempool/backend:v3.3.1
     mempool:db/storageSize: 1Gi

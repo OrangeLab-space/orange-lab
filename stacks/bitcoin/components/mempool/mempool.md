@@ -25,8 +25,8 @@ pulumi up
 pulumi config set mempool:enabled true
 
 # Optional configuration
-pulumi config set mempool:backend/image mempool/backend:v3.2.1
-pulumi config set mempool:frontend/image mempool/frontend:v3.2.1
+pulumi config set mempool:backend/image mempool/backend:v3.3.1
+pulumi config set mempool:frontend/image mempool/frontend:v3.3.1
 pulumi config set mempool:frontend/hostname explorer # public frontend hostname
 pulumi config set mempool:backend/hostname mempool-backend # cluster-internal backend hostname
 

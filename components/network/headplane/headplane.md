@@ -120,7 +120,7 @@ else their role from the Users page.
 
 | Key                      | Description                                                            |
 | ------------------------ | ---------------------------------------------------------------------- |
-| `headplane:image`        | Headplane version, default `ghcr.io/tale/headplane:0.7.1`              |
+| `headplane:image`        | Headplane version, default `ghcr.io/tale/headplane:0.8.0`              |
 | `headplane:hostname`     | Subdomain for this UI, default `headplane`                             |
 | `headplane:storageSize`  | Volume for Headplane's own SQLite (users, sessions, linked identities) |
 | `headplane:auth`         | Sign in with Pocket ID. Unset = API-key login only                     |
