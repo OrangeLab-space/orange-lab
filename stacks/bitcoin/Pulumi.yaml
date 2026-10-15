@@ -15,6 +15,7 @@ config:
 
     # Default RPC users that will be created (comma-separated)
     bitcoin:rpcUsers: admin,electrs,mempool
+    bitcoin:whitelist: 10.42.0.0/16
 
     bitcoin-core:enabled: false
     bitcoin-core:hostname: bitcoin

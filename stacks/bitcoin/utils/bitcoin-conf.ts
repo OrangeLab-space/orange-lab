@@ -1,3 +1,4 @@
+import { config } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 import { RpcUser } from './rpc-user';
@@ -38,6 +39,8 @@ function create({
         .map(value => `debugexclude=${value}`)
         .join('\n');
 
+    const whitelist = config.require('bitcoin', 'whitelist');
+
     const rpcAuth = useRpcAuthFile
         ? pulumi.output('rpcauthfile=/conf/rpc.conf')
         : createRpc(rpcUsers, useRpcAuthFile);
@@ -56,6 +59,7 @@ printtoconsole=1
 rpcallowip=0.0.0.0/0
 rpcbind=0.0.0.0
 server=1
+whitelist=in,noban@${whitelist}
 ${rpcAuth}
 `;
 }
