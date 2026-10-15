@@ -56,7 +56,12 @@ export class OpenWebUI extends pulumi.ComponentResource {
             ENABLE_IMAGE_GENERATION: this.args.automatic1111Url ? 'True' : 'False',
             ENABLE_LOGIN_FORM: isTailscale || auth ? 'False' : 'True',
             ENABLE_PASSWORD_AUTH: auth ? 'False' : 'True',
-            ENABLE_PERSISTENT_CONFIG: 'False',
+            ENABLE_PERSISTENT_CONFIG: config.requireBoolean(
+                this.name,
+                'ENABLE_PERSISTENT_CONFIG',
+            )
+                ? 'True'
+                : 'False',
             ENABLE_SEARCH_QUERY_GENERATION: 'True',
             ENABLE_SIGNUP: auth ? 'False' : 'True',
             ENABLE_VERSION_UPDATE_CHECK: 'False',

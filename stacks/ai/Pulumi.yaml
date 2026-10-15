@@ -59,6 +59,8 @@ config:
     open-webui:hostname: webui
     open-webui:storageSize: 5Gi
     open-webui:DEFAULT_USER_ROLE: user
+    # true stores admin-UI config changes in the volume; false keeps Pulumi settings authoritative
+    open-webui:ENABLE_PERSISTENT_CONFIG: false
     open-webui:image: ghcr.io/open-webui/open-webui:main-slim
     # open-webui:debug: false
     # OIDC (OAuth) login. Set open-webui:auth to an OIDC provider to enable (currently: pocket).

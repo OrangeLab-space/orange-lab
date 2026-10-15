@@ -23,6 +23,9 @@ pulumi config set open-webui:WEBUI_SECRET_KEY "$KEY" --secret
 # Reference the deployed core stack: organization/project/stack
 pulumi config set orangelab:coreStackRef example-org/orangelab/lab
 
+# (Optional) persist admin-UI changes in the volume; false keeps the environment authoritative
+pulumi config set open-webui:ENABLE_PERSISTENT_CONFIG true
+
 # Deploy
 pulumi up
 ```
