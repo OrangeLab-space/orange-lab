@@ -27,7 +27,14 @@ export class OpenWebUI extends pulumi.ComponentResource {
         const isTailscale = httpEndpointInfo.className === 'tailscale';
 
         const auth = this.app.auth.getOidc();
-        const env = this.getEnvironment(httpEndpointInfo.url, isTailscale, auth);
+        const openAi = this.getOpenAiConnections();
+        const env = this.getEnvironment(
+            httpEndpointInfo.url,
+            isTailscale,
+            auth,
+            openAi.baseUrls,
+            openAi.apiConfigs,
+        );
 
         this.app.addDeployment({
             ports: [{ name: 'http', port: 8080 }],
@@ -35,16 +42,76 @@ export class OpenWebUI extends pulumi.ComponentResource {
             env,
             envSecret: {
                 OAUTH_CLIENT_SECRET: auth?.clientSecret,
+                OPENAI_API_KEYS: openAi.apiKeys,
                 WEBUI_SECRET_KEY: this.secretKey,
             },
             healthCheck: { httpGet: { path: '/health' } },
         });
     }
 
+    /**
+     * OpenAI-compatible backends, index-aligned and semicolon-joined as Open WebUI expects.
+     * The optional Responses-API connection comes first so it claims its model IDs before the
+     * external Chat Completions connection lists the same names (Open WebUI merge is first-wins).
+     */
+    private getOpenAiConnections(): {
+        baseUrls?: pulumi.Output<string>;
+        apiKeys?: pulumi.Output<string>;
+        apiConfigs?: string;
+    } {
+        const baseUrls: pulumi.Input<string>[] = [];
+        const apiKeys: pulumi.Input<string>[] = [];
+        const apiConfigs: Record<string, object> = {};
+
+        const externalBaseUrl = config.get(this.name, 'openai/baseUrl');
+        const externalApiKey = externalBaseUrl
+            ? config.requireSecret(this.name, 'openai/apiKey')
+            : undefined;
+
+        const responsesModels = config.getCommaSeparated(this.name, 'openai/responsesModels');
+        if (responsesModels) {
+            if (!externalBaseUrl || !externalApiKey) {
+                throw new Error(
+                    'Open WebUI: open-webui:openai/responsesModels is set but open-webui:openai/baseUrl is not.',
+                );
+            }
+            apiConfigs[baseUrls.length.toString()] = {
+                api_type: 'responses',
+                model_ids: responsesModels,
+            };
+            baseUrls.push(externalBaseUrl);
+            apiKeys.push(externalApiKey);
+        }
+
+        if (this.args.openAiUrl) {
+            baseUrls.push(this.args.openAiUrl);
+            apiKeys.push('not-used');
+        }
+
+        if (externalBaseUrl && externalApiKey) {
+            baseUrls.push(externalBaseUrl);
+            apiKeys.push(externalApiKey);
+        }
+
+        return {
+            baseUrls: baseUrls.length
+                ? pulumi.all(baseUrls).apply(urls => urls.join(';'))
+                : undefined,
+            apiKeys: apiKeys.length
+                ? pulumi.all(apiKeys).apply(keys => keys.join(';'))
+                : undefined,
+            apiConfigs: Object.keys(apiConfigs).length
+                ? JSON.stringify(apiConfigs)
+                : undefined,
+        };
+    }
+
     private getEnvironment(
         endpointUrl: pulumi.Input<string>,
         isTailscale: boolean,
         auth: OidcAuthConfig | undefined,
+        openAiBaseUrls: pulumi.Input<string> | undefined,
+        openAiApiConfigs: string | undefined,
     ): Record<string, pulumi.Input<string> | undefined> {
         const env: Record<string, pulumi.Input<string> | undefined> = {
             AUTOMATIC1111_BASE_URL: this.args.automatic1111Url,
@@ -69,8 +136,8 @@ export class OpenWebUI extends pulumi.ComponentResource {
             IMAGE_GENERATION_ENGINE: 'automatic1111',
             LOG_LEVEL: this.app.debug ? 'debug' : undefined,
             OLLAMA_BASE_URLS: this.args.ollamaUrl,
-            OPENAI_API_BASE_URL: this.args.openAiUrl,
-            OPENAI_API_KEY: 'not-used',
+            OPENAI_API_BASE_URLS: openAiBaseUrls,
+            OPENAI_API_CONFIGS: openAiApiConfigs,
             USER_PERMISSIONS_FEATURES_DIRECT_TOOL_SERVERS: 'True',
             USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS: 'True',
             USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS: 'True',

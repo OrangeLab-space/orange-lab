@@ -30,6 +30,49 @@ pulumi config set open-webui:ENABLE_PERSISTENT_CONFIG true
 pulumi up
 ```
 
+## Models
+
+Model backends are configured through the stack: add a connection below, then run `pulumi up`.
+
+### Ollama
+
+Enabling the [Ollama](../ollama/ollama.md) component connects it automatically; models are pulled on start from `ollama:models`. `open-webui:DEFAULT_MODELS` selects the model(s) shown by default.
+
+```sh
+pulumi config set ollama:enabled true
+pulumi config set ollama:models gemma4,qwen2.5-coder:1.5b
+
+# Comma-separated; each entry is referenced as <model>:latest
+pulumi config set open-webui:DEFAULT_MODELS gemma4:latest
+
+pulumi up
+```
+
+If local models stop appearing in Open WebUI, run `pulumi up` to re-apply the Ollama connection from the environment.
+
+### OpenAI-compatible (OpenCode Zen)
+
+The [kubeAI](../kubeai/kubeai.md) component is connected automatically when enabled. Other OpenAI-compatible providers can be added alongside it; OpenCode Zen serves an OpenAI-compatible API at `https://opencode.ai/inference/v1`:
+
+```sh
+pulumi config set open-webui:openai/baseUrl https://opencode.ai/inference/v1
+pulumi config set open-webui:openai/apiKey <service-account-key> --secret
+
+pulumi up
+```
+
+Create a service account key in the [OpenCode Console](https://opencode.ai/console) under **Keys**: **Add Service Account**, open it, then **Add API Key**. Grant only the model-inference permission (**Models → request** in the Console's permission list); it is sufficient for chat. The key is shown once; pass it as `open-webui:openai/apiKey`.
+
+Setting `openai/baseUrl` requires `openai/apiKey`, and the base URL must include the `/v1` suffix.
+
+Open WebUI sets the protocol on each **connection**, not per model: a connection is Chat Completions unless configured as the Responses API. OpenCode Zen serves Kimi, GLM, DeepSeek, MiniMax and similar models on `/chat/completions`, but GPT, Muse Spark and Grok only on `/responses`, so those fail with `Model does not support this protocol.` through the chat connection. `open-webui:openai/responsesModels` adds a second connection with `api_type: responses` that claims those IDs first, so the chat connection skips them. The list can't be derived automatically — Zen's model list doesn't report which API a model uses.
+
+```sh
+pulumi config set open-webui:openai/responsesModels gpt-6-luna,muse-spark-1.3
+
+pulumi up
+```
+
 ## OpenID Connect (Pocket ID)
 
 OIDC is optional. The discovery URL is resolved automatically from the core stack.
