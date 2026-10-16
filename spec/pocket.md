@@ -126,6 +126,28 @@ deletes or rewrites them.
 
 Exit codes: `0` no drift, `1` drift detected, `2` usage or config error.
 
+## When sign-in to a single app breaks
+
+A single app's broken sign-in is usually that app, not Pocket ID.
+
+1. Run `./scripts/pocket-verify.sh --app <app>`. If it is clean, the client, its
+   groups and its restrictions match the repository — Pocket ID is doing its
+   part, so keep going.
+2. Read the app's own log for the failing URL. A 5xx from the app's SSO *start*
+   URL happens before Pocket ID is contacted at all.
+3. Only then suspect Pocket ID itself.
+
+**Known case — Jellyfin.** `/sso/OID/start/pocketid` answered
+`Error processing request` (HTTP 500) on every attempt: two versions of the
+`SSO-Auth` plugin sat side by side in `/data/plugins/` (one folder per version,
+same manifest GUID), and the Jellyfin major upgrade made the newer build's ABI
+acceptable, so *both* registered the same route
+(`AmbiguousMatchException: The request matched multiple endpoints`). Jellyfin
+loads every plugin folder and never deduplicates by GUID. `pocket-verify.sh` was
+clean throughout — an app-side failure is not Pocket drift. Removing the stale
+folder and restarting the deployment fixed it; see
+[Jellyfin](../stacks/media/components/jellyfin/jellyfin.md).
+
 ## Adding OIDC to an application — playbook
 
 1. **Ask the access model.** One of: `admin` only (admin/infra tool);

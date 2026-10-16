@@ -62,6 +62,12 @@ The most common causes:
 - **Passkeys fail after a hostname change.** Passkeys are bound to the origin, so
   every user has to register again.
 
+If only **one** app is affected and the audit is clean, the app is the likelier
+culprit: a 5xx from the app's SSO _start_ URL happens before Pocket ID is
+contacted, so read that app's log first. Jellyfin, for example, fails this way
+when an upgrade leaves an old plugin version next to the new one
+([Jellyfin](../stacks/media/components/jellyfin/jellyfin.md)).
+
 `<app>:auth/allowedGroups` is declared in the owning `Pulumi.yaml` (repository
 root for core components, `stacks/<module>/Pulumi.yaml` for applications). After
 changing it, re-run the app's `pocket-<app>.sh` wrapper — `allowedGroups` is read

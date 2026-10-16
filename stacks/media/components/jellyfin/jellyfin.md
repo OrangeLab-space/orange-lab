@@ -112,7 +112,7 @@ curl -sf -X POST "$JELLYFIN_URL/sso/OID/Add/pocketid" \
     "enableAllFolders": true,
     "enabledFolders": [],
     "roles": [],
-    "adminRoles": ["admin"],
+    "adminRoles": ["jellyfin-admin"],
     "roleClaim": "groups",
     "oidScopes": ["groups"],
     "defaultUsernameClaim": "preferred_username",
@@ -130,6 +130,19 @@ curl -sf "$JELLYFIN_URL/sso/OID/Get" -H "Authorization: MediaBrowser Token=\"$AP
 - Keep the local `admin` account usable as a fallback login.
 - If a Pocket ID username matches an existing Jellyfin account, the plugin overrides that account's permissions on login; `Enable Authorization` makes group membership the source of truth for admin and folder access.
 - Existing Jellyfin users can link or unlink their SSO identity at `/SSOViews/linking`.
+
+### After an upgrade
+
+Jellyfin keeps **one folder per plugin version** in `/data/plugins/` and loads
+every folder it finds. An upgrade can leave the previous version behind, so two
+copies of the same plugin register the same routes and every sign-in attempt
+fails with `Error processing request`. Check for a stale folder and remove it:
+
+```sh
+kubectl -n jellyfin exec deploy/jellyfin -- ls /data/plugins
+kubectl -n jellyfin exec deploy/jellyfin -- rm -rf "/data/plugins/SSO Authentication_<old-version>"
+kubectl -n jellyfin rollout restart deploy/jellyfin
+```
 
 ## Hardware Acceleration
 
