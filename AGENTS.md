@@ -79,3 +79,4 @@ Agent-facing operating notes. Read as needed:
 
 - [`spec/headscale.md`](spec/headscale.md) — control plane invariants, CLI gotchas, migration constraints
 - [`spec/longhorn.md`](spec/longhorn.md) — volume provisioning, failure behaviour, recovery
+- [`spec/pocket.md`](spec/pocket.md) — OIDC provider, group model, client scripts, onboarding new apps

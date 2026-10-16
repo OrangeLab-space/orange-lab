@@ -15,7 +15,7 @@ Guides the user through installing an OrangeLab application — from discovering
   - Application stacks: `stacks/<module>/README.md` (e.g. [`stacks/apps/README.md`](/stacks/apps/README.md), [`stacks/ai/README.md`](/stacks/ai/README.md), [`stacks/bitcoin/README.md`](/stacks/bitcoin/README.md), [`stacks/dev/README.md`](/stacks/dev/README.md), [`stacks/iot/README.md`](/stacks/iot/README.md), [`stacks/media/README.md`](/stacks/media/README.md))
 - Common application settings (`hostname`, `storageSize`, `fromVolume`, `network/public`, `auth`, node placement, GPU): [`docs/configuration.md`](/docs/configuration.md)
 - Longhorn storage classes and default settings: [`components/storage/longhorn/longhorn.ts`](/components/storage/longhorn/longhorn.ts) and [`spec/longhorn.md`](/spec/longhorn.md)
-- Pocket ID OIDC client setup and group access control: [`components/security/pocket/pocket.md`](/components/security/pocket/pocket.md)
+- Pocket ID OIDC client setup and group access control: [`components/security/pocket/pocket.md`](/components/security/pocket/pocket.md) and the agent operating notes in [`spec/pocket.md`](/spec/pocket.md)
 
 ## Security & Operational Rules
 
