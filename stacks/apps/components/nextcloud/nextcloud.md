@@ -148,6 +148,11 @@ pulumi up
 
 ## Access
 
+Sign-in via Pocket ID is restricted to `admin` and `nextcloud-users`
+(`nextcloud:auth/allowedGroups`). `nextcloud-users` is a new-user default group,
+so every OrangeLab account has it, and it is provisioned as a Nextcloud group on
+login (see `nextcloud:groupProvisioningWhitelist`).
+
 After deployment, access Nextcloud at:
 
 ```sh

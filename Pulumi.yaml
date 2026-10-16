@@ -39,12 +39,14 @@ config:
     #   secure: OAUTH_CLIENT_SECRET
     # Hostname for Tailscale operator proxy for Kubernetes API
     tailscale:hostname: k8s
+    # Pocket ID groups allowed to sign in to the tailnet (unset = unrestricted)
+    tailscale:auth/allowedGroups: admin
 
     traefik:enabled: false
     traefik:hostname: traefik
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml'
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    traefik:auth/allowedGroups: admin,power-user
+    traefik:auth/allowedGroups: admin
 
     cert-manager:enabled: false
     cert-manager:clusterIssuer: letsencrypt-issuer
@@ -78,7 +80,7 @@ config:
     # Optional OIDC sign-in through Pocket ID
     # headscale:auth: pocket
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    # headscale:auth/allowedGroups: admin,power-user
+    headscale:auth/allowedGroups: admin,vpn-users
     #
     # Run the built-in DERP relay for clients that cannot connect directly.
     # Disabled = clients relay through Tailscale's public DERP servers.
@@ -136,7 +138,7 @@ config:
     zot:hostname: registry
     zot:storageSize: 100Gi
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    zot:auth/allowedGroups: admin,power-user
+    zot:auth/allowedGroups: admin
     # Vulnerability scan interval for cached images (minimum 2h)
     zot:scanInterval: 24h
     # Upstream registries cached on-demand: host (K3s mirror key), upstream URL, and
@@ -180,7 +182,7 @@ config:
     longhorn:version: 1.13.0
     longhorn:hostname: longhorn
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    longhorn:auth/allowedGroups: admin,power-user
+    longhorn:auth/allowedGroups: admin
     # Initial value for default storage. Adjust each volume in Longhorn UI
     longhorn:replicaCount: 2
     longhorn:snapshotEnabled: false
@@ -206,7 +208,7 @@ config:
     rustfs:hostname: rustfs
     rustfs:hostname-api: rustfs-api
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    rustfs:auth/allowedGroups: admin,power-user
+    rustfs:auth/allowedGroups: admin,rustfs-admin,rustfs-users
     # rustfs:dataPath: /mnt/my-drive/rustfs-data
     # rustfs:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     rustfs:rootUser: admin
@@ -256,7 +258,7 @@ config:
     # beszel:hubKey: BESZEL_KEY
     beszel:hostname: beszel
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    beszel:auth/allowedGroups: admin,power-user
+    beszel:auth/allowedGroups: admin
     beszel:image: henrygd/beszel:latest
     beszel:agent/image: henrygd/beszel-agent:latest
     # Deploy to all nodes by default, even if requiredNodeLabel used on beszel

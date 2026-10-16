@@ -62,7 +62,7 @@ pulumi config set prometheus:auth/clientSecret <client-secret> --secret
 
 Users log in with the **Sign in with Pocket ID** button; the password form stays available for the Grafana `admin` account. When an OAuth login creates a new Grafana user instead of matching the existing admin, update the admin user's email (Administrators -> Users) to match the Pocket ID user's email.
 
-Grafana requests the Pocket ID `groups` scope and maps members of the admin group (`orangelab:auth/adminGroup`, default `admin`, displayed as `Admins`) to the Grafana `Admin` role; every other OAuth user receives the `Viewer` role. The client is restricted to `admin` and `power-user`, so only those users can sign in and see Grafana in **My Apps** - `power-user` members get `Viewer`. Group names are case-sensitive machine names, not display names. See the [Grafana generic OAuth docs](https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/generic-oauth/) for the mapping behavior.
+Grafana requests the Pocket ID `groups` scope and maps members of its admin group (`grafana-admin`, overridable with `prometheus:auth/adminGroup`) to the Grafana `Admin` role; every other OAuth user receives the `Viewer` role. The client is restricted to `admin` and `grafana-admin`, so only those users can sign in and see Grafana in **My Apps** - `admin` members get `Viewer`. Group names are case-sensitive machine names, not display names. See the [Grafana generic OAuth docs](https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/generic-oauth/) for the mapping behavior.
 
 ## Grafana dashboards
 

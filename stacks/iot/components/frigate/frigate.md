@@ -171,8 +171,8 @@ groups (`X-Forwarded-User` / `X-Forwarded-Groups`), which Frigate maps to roles:
 - authenticated users matching no group get `frigate:auth/defaultRole` (default
   `viewer`; must be `admin` or `viewer`).
 
-`groupMap` defaults to `{admin: [admin]}` (membership in the shared `admin`
-group grants Frigate's `admin` role; everyone else gets `viewer`). Set the whole
+`groupMap` defaults to `{admin: [frigate-admin]}` (membership in `frigate-admin`
+grants Frigate's `admin` role; other allowed users get `viewer`). Set the whole
 map to add a read-only role for the `viewers` group:
 
 ```sh
@@ -187,7 +187,7 @@ parses it as JSON). In `Pulumi.yaml` the same map is written as YAML under
 frigate:auth/groupMap:
     value:
         admin:
-            - admin
+            - frigate-admin
         viewer:
             - viewers
 ```
@@ -197,10 +197,9 @@ defined in `frigate:config` under `auth.roles`, otherwise they grant no camera
 access.
 
 Create the OIDC client from the iot stack directory and apply the printed
-commands. The `admin` group must already exist (the scripts never create groups).
-The client is left unrestricted - any authenticated Pocket ID user can sign in,
-and their group membership determines their Frigate role (unmatched users get
-`viewer`):
+commands. The groups must already exist (the scripts never create them). The
+client is restricted to `admin` and `frigate-admin`; `frigate-admin`
+members get the `admin` role and other allowed users get `viewer`:
 
 ```sh
 cd stacks/iot

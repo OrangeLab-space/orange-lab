@@ -29,6 +29,8 @@ config:
     vaultwarden:smtp/secure: starttls
     vaultwarden:signupsAllowed: false
     vaultwarden:signupsVerify: true
+    # Pocket ID groups allowed to sign in; unset = unrestricted.
+    vaultwarden:auth/allowedGroups: admin,vaultwarden-users
 
     nextcloud:enabled: false
     nextcloud:hostname: nextcloud
@@ -36,6 +38,9 @@ config:
     nextcloud:db/storageSize: 5Gi
     nextcloud:trustedProxies: '10.42.0.0/16,10.43.0.0/16,127.0.0.0/8'
     nextcloud:groupProvisioningWhitelist: '^nextcloud-.*$'
+    # Pocket ID groups allowed to sign in; nextcloud-users is also provisioned as
+    # a Nextcloud group by the whitelist above.
+    nextcloud:auth/allowedGroups: admin,nextcloud-users
     nextcloud:smtp/enabled: false
     # nextcloud:smtp/host: smtp.example.com
     # nextcloud:smtp/from: noreply@example.com

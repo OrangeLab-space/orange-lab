@@ -62,6 +62,8 @@ config:
     # true stores admin-UI config changes in the volume; false keeps Pulumi settings authoritative
     open-webui:ENABLE_PERSISTENT_CONFIG: false
     open-webui:image: ghcr.io/open-webui/open-webui:main-slim
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    open-webui:auth/allowedGroups: admin,open-webui-users
     # open-webui:debug: false
     # OIDC (OAuth) login. Set open-webui:auth to an OIDC provider to enable (currently: pocket).
     # Requires orangelab:coreStackRef pointing at a core stack with the provider enabled.
@@ -94,6 +96,8 @@ config:
     invokeai:storageSize: 20Gi
     invokeai:storageClass: longhorn-gpu
     invokeai:gpu: nvidia
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    invokeai:auth/allowedGroups: admin
     # invokeai:huggingfaceToken: TOKEN
 
     n8n:enabled: false
@@ -103,3 +107,5 @@ config:
     n8n:storageSize: 1Gi
     n8n:db/storageSize: 1Gi
     n8n:db/instances: 1
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    n8n:auth/allowedGroups: admin,n8n-users

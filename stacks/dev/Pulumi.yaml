@@ -42,4 +42,4 @@ config:
     #   secure: <client-secret>
     # forgejo:auth/providerName: SSO
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    forgejo:auth/allowedGroups: admin,power-user
+    forgejo:auth/allowedGroups: admin,forgejo-users,forgejo-admin

@@ -31,7 +31,7 @@ pulumi up
 
 ## SSO (Pocket ID)
 
-DroppedNeedle supports OIDC login via [Pocket ID](../../../../components/security/pocket/pocket.md). Keep the local admin account as a password fallback - both login methods stay available per user.
+DroppedNeedle supports OIDC login via [Pocket ID](../../../../components/security/pocket/pocket.md). Keep the local admin account as a password fallback - both login methods stay available per user. The Pocket ID client is restricted to `admin` and `droppedneedle-users`.
 
 1. From `stacks/media`, create the OIDC client with Pocket ID's API key:
 

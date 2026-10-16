@@ -76,6 +76,7 @@ pulumi up
 ## OpenID Connect (Pocket ID)
 
 OIDC is optional. The discovery URL is resolved automatically from the core stack.
+When enabled, the client is restricted to `admin` and `open-webui-users`.
 
 - The core stack must have Pocket ID enabled and deployed first.
 - The discovery URL comes from `security.apps.pocket.oidcProviderUrl` through `orangelab:coreStackRef`.

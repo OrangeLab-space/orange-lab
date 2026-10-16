@@ -129,18 +129,18 @@ Pocket ID's **My Apps** dashboard using a launcher client.
 #### Launcher-only applications
 
 Apps that are safe to reach without authentication can register a client purely
-to control who sees the **My Apps** tile. The client is restricted to `admin`
-and `power-user`, but the app's route stays public - others can still open its
-URL directly. The [Traefik Dashboard](../../network/traefik/traefik.md) works
-this way (read-only, VPN-only).
+to control who sees the **My Apps** tile. The client is restricted to `admin`,
+but the app's route stays public - others can still open its URL directly. The
+[Traefik Dashboard](../../network/traefik/traefik.md) works this way (read-only,
+VPN-only).
 
 #### Route protection (`protectRoutes`)
 
 Admin tools that have no authentication of their own are protected by the shared
 Traefik OIDC middleware. Requires the **Traefik** routing provider (it raises an
-error with Tailscale). The client is restricted to `admin` and `power-user`, so
-Pocket ID refuses sign-in for everyone else and hides the launcher tile from
-them - they cannot reach the tool even by opening its URL directly.
+error with Tailscale). The client is restricted to `admin`, so Pocket ID refuses
+sign-in for everyone else and hides the launcher tile from them - they cannot
+reach the tool even by opening its URL directly.
 
 - [Longhorn](../../storage/longhorn/longhorn.md) (no user management)
 

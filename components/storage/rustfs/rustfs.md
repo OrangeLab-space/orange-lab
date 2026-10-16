@@ -94,9 +94,10 @@ Access is granted through a custom claim on the shared Pocket ID groups. Add a c
 | Pocket ID group | Custom claim key  | Custom claim value |
 | --------------- | ----------------- | ------------------ |
 | `admin`         | `rustfs_policies` | `consoleAdmin`     |
-| `power-user`    | `rustfs_policies` | `readwrite`        |
+| `rustfs-admin`  | `rustfs_policies` | `consoleAdmin`     |
+| `rustfs-users`  | `rustfs_policies` | `readwrite`        |
 
-Users without a `rustfs_policies` claim cannot log in (`OIDC policy mapping did not resolve to current policies`). The client is restricted to `admin` and `power-user`, so only those users can sign in and see RustFS in **My Apps**.
+Users without a `rustfs_policies` claim cannot log in (`OIDC policy mapping did not resolve to current policies`). The client is restricted to `admin`, `rustfs-admin` and `rustfs-users`, so only those users can sign in and see RustFS in **My Apps**.
 
 ### Manual setup
 
@@ -110,7 +111,7 @@ Create the client in Pocket ID before deploying RustFS:
 | PKCE           | Enabled (RustFS requires S256)                                           |
 | Logo (dark)    | https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rustfs.svg            |
 | Logo (light)   | https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rustfs-dark.svg       |
-| Allowed groups | `admin`, `power-user`                                                    |
+| Allowed groups | `admin`, `rustfs-admin`, `rustfs-users`                                 |
 
 When OIDC is enabled:
 

@@ -35,6 +35,8 @@ config:
     #   secure: <SMTP_PASSWORD>
     immich:smtp/port: 587
     immich:smtp/secure: starttls
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    immich:auth/allowedGroups: admin,immich-users
 
     # Define shared volume (hostPath)
     # jellyfin-media:hostPath: /mnt/my-drive/media
@@ -46,6 +48,8 @@ config:
     jellyfin:hostname: jellyfin
     jellyfin:image: jellyfin/jellyfin:latest
     jellyfin:storageSize: 5Gi
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    jellyfin:auth/allowedGroups: admin,jellyfin-users,jellyfin-admin
     # App-specific settings for local media volume
     # jellyfin:media/hostPath: /mnt/my-drive/media
     # or reference to volume config
@@ -63,6 +67,8 @@ config:
     droppedneedle:storageSize: 1Gi
     # droppedneedle:media: jellyfin-media
     droppedneedle:SLSKD_DOWNLOADS_PATH: /media/slskd-downloads
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    droppedneedle:auth/allowedGroups: admin,droppedneedle-users
 
     prowlarr:enabled: false
     prowlarr:hostname: prowlarr
@@ -94,6 +100,8 @@ config:
     seerr:hostname: seerr
     seerr:image: ghcr.io/seerr-team/seerr:latest
     seerr:storageSize: 1Gi
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    seerr:auth/allowedGroups: admin,seerr-users
 
     transmission:enabled: false
     transmission:hostname: transmission

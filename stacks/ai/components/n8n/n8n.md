@@ -28,8 +28,9 @@ pulumi up
 ## Pocket ID Launcher
 
 n8n supports native OIDC SSO on self-hosted Business and Enterprise plans. The
-current component does not configure n8n SSO, so this creates an unrestricted
-Pocket ID App Dashboard launcher:
+current component does not configure n8n SSO, so this creates a Pocket ID App
+Dashboard launcher restricted to `admin` and `n8n-users`
+(`n8n:auth/allowedGroups`):
 
 ```sh
 cd stacks/ai

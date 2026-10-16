@@ -22,7 +22,7 @@ Seerr has no OIDC support - users log in with a Jellyfin username and password. 
 
 ## Pocket ID Launcher
 
-Seerr itself does not support OIDC, but it can appear in Pocket ID's App Dashboard as a plain launcher icon:
+Seerr itself does not support OIDC, but it can appear in Pocket ID's App Dashboard as a plain launcher icon, restricted to `admin` and `seerr-users` (`seerr:auth/allowedGroups`):
 
 ```sh
 cd stacks/media

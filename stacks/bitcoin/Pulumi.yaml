@@ -65,3 +65,5 @@ config:
     mempool:backend/hostname: mempool-backend
     mempool:backend/image: mempool/backend:v3.3.1
     mempool:db/storageSize: 1Gi
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    mempool:auth/allowedGroups: admin,mempool-users

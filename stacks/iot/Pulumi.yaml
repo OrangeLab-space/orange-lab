@@ -31,6 +31,8 @@ config:
     # Release archive is fetched from <oidcRepo>/releases/download/<oidcVersion>/hass-oidc-auth.zip
     home-assistant:oidcRepo: https://github.com/christiaangoossens/hass-oidc-auth
     home-assistant:oidcVersion: v1.2.1
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    home-assistant:auth/allowedGroups: admin,home-assistant-admin
     # Frigate custom integration, installed into /config/custom_components
     # when the Frigate component is enabled (repo + release tag, fetched from a tarball)
     home-assistant:frigateRepo: https://github.com/blakeblackshear/frigate-hass-integration
@@ -88,11 +90,13 @@ config:
     frigate:config/recreate: false
     # Single sign-on via Pocket ID. Create the OIDC client first with
     # ./components/frigate/pocket-frigate.sh. See frigate.md.
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    frigate:auth/allowedGroups: admin,frigate-admin
     # Pocket ID groups mapped to Frigate roles (Frigate role -> list of groups).
     frigate:auth/groupMap:
         value:
             admin:
-                - admin
+                - frigate-admin
             # viewer:
             #     - viewers
     # Fallback role for authenticated users not matched above (admin | viewer).

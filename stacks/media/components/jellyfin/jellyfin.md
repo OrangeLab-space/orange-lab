@@ -46,7 +46,7 @@ An existing admin user works but a dedicated user is recommended.
 
 ## SSO (Pocket ID)
 
-Jellyfin supports OIDC login via [Pocket ID](../../../../components/security/pocket/pocket.md) using the [SSO plugin (K0lin fork)](https://github.com/K0lin/jellyfin-plugin-sso). This is a manual setup - the plugin is configured in the Jellyfin web UI and requires no Pulumi configuration.
+Jellyfin supports OIDC login via [Pocket ID](../../../../components/security/pocket/pocket.md) using the [SSO plugin (K0lin fork)](https://github.com/K0lin/jellyfin-plugin-sso). This is a manual setup - the plugin is configured in the Jellyfin web UI and requires no Pulumi configuration. The Pocket ID client is restricted to `admin`, `jellyfin-users` and `jellyfin-admin`.
 
 > [!WARNING]
 > SSO only works in browsers and apps that support [QuickConnect](https://jellyfin.org/docs/general/server/quick-connect). Native Jellyfin apps (Android, iOS, Smart TV) sign in via QuickConnect only: start QuickConnect in the app, then accept the code in the web browser after logging in with Pocket ID.

@@ -109,14 +109,14 @@ pulumi config set technitium:auth/clientSecret <client-secret> --secret
 pulumi up
 ```
 
-2. The client is restricted to `admin` and `power-user`; both must already exist in Pocket ID (see [Pocket ID](../../security/pocket/pocket.md)). Sign-in is further limited to users in a mapped group below. Re-running the script resets the sign-in groups to exactly `admin,power-user`.
+2. The client is restricted to `admin` and `technitium-admin`; both must already exist in Pocket ID (see [Pocket ID](../../security/pocket/pocket.md)). Sign-in is further limited to users in a mapped group below. Re-running the script resets the sign-in groups to exactly `admin,technitium-admin`.
 
 The default map grants the shared groups the Technitium `Administrators` role:
 
-| Pocket ID group | Technitium role  |
-| --------------- | ---------------- |
-| `admin`         | `Administrators` |
-| `power-user`    | `Administrators` |
+| Pocket ID group    | Technitium role  |
+| ------------------ | ---------------- |
+| `admin`            | `Administrators` |
+| `technitium-admin` | `Administrators` |
 
 Add more groups to grant narrower roles, and comment out the roles you don't use.
 
@@ -126,7 +126,7 @@ The group map can be customized (e.g. to reuse existing role groups) with a JSON
 object mapping the Technitium role to Pocket ID groups:
 
 ```sh
-pulumi config set technitium:auth/groupMap '{"Administrators":["admin"]}'
+pulumi config set technitium:auth/groupMap '{"Administrators":["admin","technitium-admin"]}'
 ```
 
 In `Pulumi.yaml` the same value is written as YAML under `value:` (the defaults
@@ -138,7 +138,7 @@ technitium:auth/groupMap:
     value:
         Administrators:
             - admin
-            - power-user
+            - technitium-admin
 ```
 
 Failed logins with "Access denied" mean the Pocket ID user is not a member of any group in `technitium:auth/groupMap`. The signup error "SSO authentication succeeded but new user sign up is restricted only to members of mapped groups" additionally appears when the **Scopes** field is missing `groups` - without it the token carries no group information at all and every user is rejected regardless of membership.
@@ -165,7 +165,7 @@ Then enable SSO and fill in these exact fields:
 | Scopes                             | `openid profile email groups` (includes `groups` for the group map) |
 | Allow Signup                       | on (auto-provisions accounts on first SSO login)                    |
 | Allow Signup Only for Mapped Users | on (only users in a mapped group can log in)                        |
-| Group Map                          | `admin:Administrators,power-user:Administrators` (or matching `technitium:auth/groupMap`) |
+| Group Map                          | `admin:Administrators,technitium-admin:Administrators` (or matching `technitium:auth/groupMap`) |
 
 Saving restarts the web service; a **Login with SSO** button then appears on the login page.
 
