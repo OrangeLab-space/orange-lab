@@ -71,7 +71,7 @@ cd stacks/media
 | Enable Authorization  | yes (group membership controls admin status)                   |
 | Enable All Folders    | yes                                                            |
 | Roles                 | (empty - every user gets access)                               |
-| Admin Roles           | `admin`                                                        |
+| Admin Roles           | `jellyfin-admin`                                               |
 | Role Claim            | `groups`                                                       |
 | Scopes                | `groups`                                                       |
 | Username claim        | `preferred_username`                                           |

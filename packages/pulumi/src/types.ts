@@ -341,7 +341,6 @@ export interface HttpRouteSpec {
 export interface CoreStackExports {
     config?: {
         customDomain?: string;
-        adminGroup?: string;
         tailnet?: string;
         longhorn?: {
             backupAllVolumes?: boolean;

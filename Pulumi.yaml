@@ -30,10 +30,6 @@ config:
     # Global Redis image - apps can override with <app>:redis/image
     orangelab:redis/image: docker.io/redis:8-alpine
 
-    # Pocket ID group that grants each app's admin role.
-    # Apps can override with <app>:auth/adminGroup.
-    orangelab:auth/adminGroup: admin
-
     ### Network ###
 
     tailscale:enabled: false
@@ -123,13 +119,13 @@ config:
     technitium:DNS_SERVER_FORWARDER_PROTOCOL: 'Udp' # Udp, Tcp, Tls, Https, HttpsJson
     # technitium:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    technitium:auth/allowedGroups: admin,power-user
+    technitium:auth/allowedGroups: admin,technitium-admin
     # Pocket ID groups mapped to Technitium roles for SSO (Technitium role -> list of groups).
     technitium:auth/groupMap:
         value:
             Administrators:
                 - admin
-                - power-user
+                - technitium-admin
     # Send pod DNS through Technitium, so ad-blocking applies inside the cluster.
     # Comma-separated fallback resolvers, tried after Technitium. Unset = pods keep
     # resolving through the node's own resolver.
@@ -245,7 +241,7 @@ config:
     # prometheus:grafana/password: admin # auto-generated if not set
     prometheus:hostname: prometheus
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    prometheus:auth/allowedGroups: admin,power-user
+    prometheus:auth/allowedGroups: admin,grafana-admin
     prometheus:alertmanager/hostname: alertmanager
     prometheus:grafana/hostname: grafana
     prometheus:storageSize: 100Gi

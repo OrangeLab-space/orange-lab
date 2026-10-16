@@ -71,10 +71,7 @@ export class Auth {
                 : config.requireSecret(this.appName, 'auth/clientSecret'),
             adminGroup:
                 config.get(this.appName, 'auth/adminGroup') ??
-                coreStack.outputs.config?.apply(
-                    coreConfig => coreConfig?.adminGroup ?? 'admin',
-                ) ??
-                'admin',
+                `${this.appName}-admin`,
             groupMap:
                 (config.getObject(this.appName, 'auth/groupMap') as
                     | Record<string, string[]>
