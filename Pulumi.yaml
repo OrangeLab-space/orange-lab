@@ -46,7 +46,7 @@ config:
     traefik:hostname: traefik
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml'
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    traefik:auth/allowedGroups: admin
+    traefik:auth/allowedGroups: admin,traefik-admin
 
     cert-manager:enabled: false
     cert-manager:clusterIssuer: letsencrypt-issuer
@@ -138,7 +138,7 @@ config:
     zot:hostname: registry
     zot:storageSize: 100Gi
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    zot:auth/allowedGroups: admin
+    zot:auth/allowedGroups: admin,zot-admin
     # Vulnerability scan interval for cached images (minimum 2h)
     zot:scanInterval: 24h
     # Upstream registries cached on-demand: host (K3s mirror key), upstream URL, and
@@ -182,7 +182,7 @@ config:
     longhorn:version: 1.13.0
     longhorn:hostname: longhorn
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    longhorn:auth/allowedGroups: admin
+    longhorn:auth/allowedGroups: admin,longhorn-admin
     # Initial value for default storage. Adjust each volume in Longhorn UI
     longhorn:replicaCount: 2
     longhorn:snapshotEnabled: false
@@ -243,7 +243,7 @@ config:
     # prometheus:grafana/password: admin # auto-generated if not set
     prometheus:hostname: prometheus
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    prometheus:auth/allowedGroups: admin,grafana-admin
+    prometheus:auth/allowedGroups: admin,prometheus-admin
     prometheus:alertmanager/hostname: alertmanager
     prometheus:grafana/hostname: grafana
     prometheus:storageSize: 100Gi
@@ -258,7 +258,7 @@ config:
     # beszel:hubKey: BESZEL_KEY
     beszel:hostname: beszel
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    beszel:auth/allowedGroups: admin
+    beszel:auth/allowedGroups: admin,beszel-admin
     beszel:image: henrygd/beszel:latest
     beszel:agent/image: henrygd/beszel-agent:latest
     # Deploy to all nodes by default, even if requiredNodeLabel used on beszel

@@ -97,7 +97,7 @@ config:
     invokeai:storageClass: longhorn-gpu
     invokeai:gpu: nvidia
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    invokeai:auth/allowedGroups: admin
+    invokeai:auth/allowedGroups: admin,invokeai-admin
     # invokeai:huggingfaceToken: TOKEN
 
     n8n:enabled: false

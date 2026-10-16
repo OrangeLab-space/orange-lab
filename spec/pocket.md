@@ -40,13 +40,14 @@ URL.
 
 ## Groups
 
-`admin` opens every app; each app's own admin role comes from `<app>-admin`.
+`admin` opens every app; a `<app>-admin` group delegates one app, and its admin
+role where the app maps groups to roles.
 
 | Group | Purpose |
 | --- | --- |
 | `admin` | Access to every app; carries the `rustfs_policies=consoleAdmin` and `headplane_role=admin` claims |
 | `<app>-users` | Access to one app |
-| `<app>-admin` | Access and admin role in one app |
+| `<app>-admin` | Access to one app, plus its admin role where the app maps groups to roles |
 | `vpn-users` | Access to the VPN mesh (Headscale, and the Tailscale tailnet); a new-user default group |
 
 Friendly names are `Category - Module|Stack/App` (`Admins - Media/Jellyfin`) so

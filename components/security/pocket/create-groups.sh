@@ -72,8 +72,8 @@ app_admins() {
             --claim rustfs_policies=consoleAdmin \
         --group technitium-admin \
             --friendly-name "Admins - Network/Technitium" \
-        --group grafana-admin \
-            --friendly-name "Admins - Monitoring/Grafana" \
+        --group prometheus-admin \
+            --friendly-name "Admins - Monitoring/Prometheus" \
         --group forgejo-admin \
             --friendly-name "Admins - Dev/Forgejo" \
         --group home-assistant-admin \
@@ -81,7 +81,17 @@ app_admins() {
         --group frigate-admin \
             --friendly-name "Admins - IoT/Frigate" \
         --group jellyfin-admin \
-            --friendly-name "Admins - Media/Jellyfin"
+            --friendly-name "Admins - Media/Jellyfin" \
+        --group traefik-admin \
+            --friendly-name "Admins - Network/Traefik" \
+        --group zot-admin \
+            --friendly-name "Admins - Network/Zot" \
+        --group beszel-admin \
+            --friendly-name "Admins - Monitoring/Beszel" \
+        --group longhorn-admin \
+            --friendly-name "Admins - Storage/Longhorn" \
+        --group invokeai-admin \
+            --friendly-name "Admins - AI/InvokeAI"
 }
 
 app_users() {

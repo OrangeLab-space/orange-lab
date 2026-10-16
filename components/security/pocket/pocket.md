@@ -229,14 +229,15 @@ Keep `pocket:fromVolume` set afterwards - it wires the app to the restored (stat
 ## Groups and Access Control
 
 Application access and privilege are separate: members of `admin` can open every
-app, and each app's admin role comes from its own `<app>-admin` group.
+app, and each app's own `<app>-admin` group delegates access to that one app -
+plus its admin role, for the apps that map groups to roles.
 
-| Group         | Purpose                                                                                                                                                                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin`       | Access to every app; carries the `rustfs_policies=consoleAdmin` and `headplane_role=admin` claims                                                                                                                         |
-| `<app>-users` | Access to a single app: `immich-users`, `jellyfin-users`, `droppedneedle-users`, `seerr-users`, `open-webui-users`, `n8n-users`, `mempool-users`, `forgejo-users`, `nextcloud-users`, `vaultwarden-users`, `rustfs-users` |
-| `<app>-admin` | Access and admin role in that app: `technitium-admin`, `grafana-admin`, `forgejo-admin`, `home-assistant-admin`, `frigate-admin`, `jellyfin-admin`, `rustfs-admin`                                                        |
-| `vpn-users`   | Access to the VPN mesh (Headscale); also a new-user default group                                                                                                                                                         |
+| Group         | Purpose                                                                                                                                                                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin`       | Access to every app; carries the `rustfs_policies=consoleAdmin` and `headplane_role=admin` claims                                                                                                                                                                                               |
+| `<app>-users` | Access to a single app: `immich-users`, `jellyfin-users`, `droppedneedle-users`, `seerr-users`, `open-webui-users`, `n8n-users`, `mempool-users`, `forgejo-users`, `nextcloud-users`, `vaultwarden-users`, `rustfs-users`                                                                       |
+| `<app>-admin` | Access to one app, plus its admin role where the app maps groups to roles: `technitium-admin`, `prometheus-admin`, `forgejo-admin`, `home-assistant-admin`, `frigate-admin`, `jellyfin-admin`, `rustfs-admin`, `traefik-admin`, `zot-admin`, `beszel-admin`, `longhorn-admin`, `invokeai-admin` |
+| `vpn-users`   | Access to the VPN mesh (Headscale); also a new-user default group                                                                                                                                                                                                                               |
 
 `rustfs-admin` and `rustfs-users` carry the `rustfs_policies` custom claim
 (`consoleAdmin` / `readwrite`) instead of mapping to a role.
