@@ -76,20 +76,25 @@ fi
 POCKET_ID_URL=$(pulumi --cwd "$repo_root" stack output --json | jq -er '.security.endpoints.public.pocket')
 POCKET_ID_URL="${POCKET_ID_URL%/}"
 
+#
+# API helper. Fails fast: a non-2xx answer is reported as-is instead of being
+# retried, because retrying hides the real cause and can duplicate a write.
+#
 pocket_api() {
-    local method="$1" endpoint="$2" attempt response
+    local method="$1" endpoint="$2" response status body
     shift 2
-    for attempt in 1 2 3 4 5; do
-        if response=$(curl --fail-with-body --silent --show-error -X "${method}" \
-            "${POCKET_ID_URL}${endpoint}" "$@" 2>&1); then
-            printf '%s' "${response}"
-            return 0
-        fi
-        printf 'Pocket ID request failed (attempt %s/5): %s %s\n' "${attempt}" "${method}" "${endpoint}" >&2
-        printf '%s\n' "${response}" >&2
-        sleep 3
-    done
-    return 1
+    if ! response=$(curl --silent --show-error -w $'\n%{http_code}' -X "${method}" \
+        "${POCKET_ID_URL}${endpoint}" "$@" 2>&1); then
+        printf 'Pocket ID request failed: %s %s\n%s\n' "${method}" "${endpoint}" "${response}" >&2
+        return 1
+    fi
+    status="${response##*$'\n'}"
+    body="${response%$'\n'*}"
+    if ((status >= 400)); then
+        printf 'Pocket ID returned HTTP %s: %s %s\n%s\n' "${status}" "${method}" "${endpoint}" "${body}" >&2
+        return 1
+    fi
+    printf '%s' "${body}"
 }
 
 find_client_id() {

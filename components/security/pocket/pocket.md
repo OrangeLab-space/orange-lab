@@ -270,6 +270,16 @@ groups they need - `scripts/pocket-groups.sh --group <new> --members-from
 <cohort>` copies membership between groups - then remove the cohorts with
 `scripts/pocket-groups.sh --delete <group>`.
 
+To check an instance against the repository - after onboarding, or when sign-in
+misbehaves - run the read-only audit. It reports any group or client that has
+drifted from what the scripts and per-app wrappers declare, and exits non-zero
+when it finds a difference:
+
+```sh
+./scripts/pocket-verify.sh               # whole instance
+./scripts/pocket-verify.sh --app immich  # one application
+```
+
 Applications take their admin role from a derived per-app group
 (`<app>-admin`, overridable with `<app>:auth/adminGroup`), or map groups to roles
 with `<app>:auth/groupMap` (Pocket ID group -> app role), for example Technitium:

@@ -30,6 +30,8 @@ Required deployed outputs:
 
 Options:
   --delete <name>          Delete the named group; repeatable
+  --print-spec             Print the resolved group spec as JSON and exit
+                           without contacting Pocket ID (needs no config)
 
 Options per group:
   --friendly-name <label>  Display name (default: the group name)
@@ -51,6 +53,7 @@ all_users_flags=()
 default_group_flags=()
 members_from_list=()
 delete_groups=()
+print_spec=false
 current=-1
 
 while (($# > 0)); do
@@ -104,6 +107,10 @@ while (($# > 0)); do
             delete_groups+=("$2")
             shift 2
             ;;
+        --print-spec)
+            print_spec=true
+            shift
+            ;;
         --default-group)
             ((current >= 0)) || { printf '--default-group given before any --group\n' >&2; exit 2; }
             default_group_flags[current]="true"
@@ -124,6 +131,26 @@ if ((${#groups[@]} == 0 && ${#delete_groups[@]} == 0)); then
 fi
 
 #
+# Print-only mode: emit the resolved spec as JSON. No config and no API calls,
+# so it also works before the stack is deployed.
+#
+if [[ "${print_spec}" == true ]]; then
+    for i in "${!groups[@]}"; do
+        claims_json=$(printf '%s' "${claims[$i]}" | jq -R -s '
+            split("\n") | map(select(length > 0)) |
+            map(split("=") | {key: .[0], value: (.[1:] | join("="))}) | from_entries')
+        printf '%s\n' "$(jq -c -n \
+            --arg name "${groups[$i]}" \
+            --arg friendly "${friendly_names[$i]}" \
+            --argjson claims "${claims_json}" \
+            --argjson all_users "$( [[ "${all_users_flags[$i]}" == true ]] && echo true || echo false )" \
+            --argjson default_group "$( [[ "${default_group_flags[$i]}" == true ]] && echo true || echo false )" \
+            '{name: $name, friendlyName: $friendly, claims: $claims, allUsers: $all_users, defaultGroup: $default_group}')"
+    done | jq -s 'sort_by(.name)'
+    exit 0
+fi
+
+#
 # Configuration
 #
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -139,22 +166,24 @@ POCKET_ID_URL=$(pulumi --cwd "$repo_root" stack output --json | jq -er '.securit
 POCKET_ID_URL="${POCKET_ID_URL%/}"
 
 #
-# API helper with retry (Pocket ID intermittently answers 400/5xx)
+# API helper. Fails fast: a non-2xx answer is reported as-is instead of being
+# retried, because retrying hides the real cause and can duplicate a write.
 #
 pocket_api() {
-    local method="$1" endpoint="$2" attempt response
+    local method="$1" endpoint="$2" response status body
     shift 2
-    for attempt in 1 2 3 4 5; do
-        if response=$(curl --fail-with-body --silent --show-error -X "${method}" \
-            "${POCKET_ID_URL}${endpoint}" "$@" 2>&1); then
-            printf '%s' "${response}"
-            return 0
-        fi
-        printf 'Pocket ID request failed (attempt %s/5): %s %s\n' "${attempt}" "${method}" "${endpoint}" >&2
-        printf '%s\n' "${response}" >&2
-        sleep 3
-    done
-    return 1
+    if ! response=$(curl --silent --show-error -w $'\n%{http_code}' -X "${method}" \
+        "${POCKET_ID_URL}${endpoint}" "$@" 2>&1); then
+        printf 'Pocket ID request failed: %s %s\n%s\n' "${method}" "${endpoint}" "${response}" >&2
+        return 1
+    fi
+    status="${response##*$'\n'}"
+    body="${response%$'\n'*}"
+    if ((status >= 400)); then
+        printf 'Pocket ID returned HTTP %s: %s %s\n%s\n' "${status}" "${method}" "${endpoint}" "${body}" >&2
+        return 1
+    fi
+    printf '%s' "${body}"
 }
 
 #

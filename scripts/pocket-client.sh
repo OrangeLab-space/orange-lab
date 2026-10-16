@@ -163,25 +163,26 @@ else
 fi
 
 #
-# API helper with retry (Pocket ID intermittently answers 400/5xx)
+# API helper. Fails fast: a non-2xx answer is reported as-is instead of being
+# retried, because retrying hides the real cause and can duplicate a write.
 #
 pocket_api() {
     local method="$1"
     local endpoint="$2"
     shift 2
-    local attempt response status=1
-    for attempt in 1 2 3 4 5; do
-        if response=$(curl --fail-with-body --silent --show-error -X "${method}" \
-            "${POCKET_ID_URL}${endpoint}" "$@" 2>&1); then
-            printf '%s' "${response}"
-            return 0
-        fi
-        status=1
-        printf 'Pocket ID request failed (attempt %s/5): %s %s\n' "${attempt}" "${method}" "${endpoint}" >&2
-        printf '%s\n' "${response}" >&2
-        sleep 3
-    done
-    return "${status}"
+    local response status body
+    if ! response=$(curl --silent --show-error -w $'\n%{http_code}' -X "${method}" \
+        "${POCKET_ID_URL}${endpoint}" "$@" 2>&1); then
+        printf 'Pocket ID request failed: %s %s\n%s\n' "${method}" "${endpoint}" "${response}" >&2
+        return 1
+    fi
+    status="${response##*$'\n'}"
+    body="${response%$'\n'*}"
+    if ((status >= 400)); then
+        printf 'Pocket ID returned HTTP %s: %s %s\n%s\n' "${status}" "${method}" "${endpoint}" "${body}" >&2
+        return 1
+    fi
+    printf '%s' "${body}"
 }
 
 #
@@ -315,7 +316,7 @@ if [[ -z "${client_id}" ]]; then
                 pkceEnabled: $pkce_enabled,
                 skipConsent: true
             }')"); then
-        printf 'Error: could not create the client after 5 attempts - re-run the script.\n' >&2
+        printf 'Error: could not create the client - fix the error above and re-run the script.\n' >&2
         exit 1
     fi
     client_id=$(jq -er '.id' <<<"${client_response}")

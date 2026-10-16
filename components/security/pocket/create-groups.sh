@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<EOF
-Usage: $0 [section]
+Usage: $0 [section] [--print-spec]
 
 Create Pocket ID groups for OrangeLab. Run from the repository root.
 Sections can be run independently; the default is all of them.
@@ -18,17 +18,43 @@ Sections:
   app-users    per-app user groups
   all          every section (default)
 
+Options:
+  --print-spec   Print the expected group spec as JSON and exit without
+                 touching Pocket ID (used by scripts/pocket-verify.sh)
+
 Example:
   $0 app-admins
+  $0 --print-spec | jq
 EOF
 }
 
 pocket_groups="$(git rev-parse --show-toplevel)/scripts/pocket-groups.sh"
 
-section="${1:-all}"
+section=all
+print_spec=false
+for arg in "$@"; do
+    case "$arg" in
+        --print-spec) print_spec=true ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        base|app-admins|app-users|all) section="$arg" ;;
+        *)
+            printf 'Unknown parameter: %s\n\n' "$arg" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+spec_args=()
+if [[ "$print_spec" == true ]]; then
+    spec_args=(--print-spec)
+fi
 
 base() {
-    "$pocket_groups" \
+    "$pocket_groups" "${spec_args[@]}" \
         --group admin \
             --friendly-name "Admins - All apps" \
             --claim rustfs_policies=consoleAdmin \
@@ -40,7 +66,7 @@ base() {
 }
 
 app_admins() {
-    "$pocket_groups" \
+    "$pocket_groups" "${spec_args[@]}" \
         --group rustfs-admin \
             --friendly-name "Admins - Storage/RustFS" \
             --claim rustfs_policies=consoleAdmin \
@@ -59,7 +85,7 @@ app_admins() {
 }
 
 app_users() {
-    "$pocket_groups" \
+    "$pocket_groups" "${spec_args[@]}" \
         --group open-webui-users \
             --friendly-name "Users - AI/Open WebUI" \
         --group n8n-users \
@@ -90,27 +116,19 @@ app_users() {
 }
 
 case "$section" in
-    base)
-        base
-        ;;
-    app-admins)
-        app_admins
-        ;;
-    app-users)
-        app_users
-        ;;
-    all)
-        base
-        app_admins
-        app_users
-        ;;
-    -h|--help)
-        usage
-        exit 0
-        ;;
+    base) sections=(base) ;;
+    app-admins) sections=(app_admins) ;;
+    app-users) sections=(app_users) ;;
+    all) sections=(base app_admins app_users) ;;
     *)
         printf 'Unknown section: %s\n\n' "$section" >&2
         usage >&2
         exit 2
         ;;
 esac
+
+if [[ "$print_spec" == true ]]; then
+    for s in "${sections[@]}"; do "$s"; done | jq -s 'add | sort_by(.name)'
+else
+    for s in "${sections[@]}"; do "$s"; done
+fi
