@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<EOF
-Usage: $0 --app-name <name> --client-name <name> --launch-url <url> --callback-url <url> [options]
+Usage: $0 --app-name <name> --client-name <name> --callback-url <url> [options]
 
 Create or refresh a Pocket ID OIDC client for the application stack in the current directory.
 Existing clients are reused and their secrets are not rotated.
@@ -11,11 +11,12 @@ Existing clients are reused and their secrets are not rotated.
 Required parameters:
   --app-name <name>          Pulumi endpoint and config name, e.g. open-webui
   --client-name <name>       Pocket ID client display name, e.g. "Open WebUI"
-  --launch-url <url>         Public application URL and Pocket ID launch URL
   --callback-url <url>       OIDC callback URL; may be specified multiple times
   --callback-urls <urls>     Comma- or space-separated OIDC callback URLs
 
 Optional parameters:
+  --launch-url <url>               Public application URL and Pocket ID launch URL
+                                   (omit when the client has no web UI to launch)
   --logout-callback-url <url>      Logout callback URL; may be specified multiple times
   --logout-callback-urls <urls>    Comma- or space-separated logout callback URLs
   --dark-icon-url <url>      URL for the dark-theme client icon
@@ -104,7 +105,7 @@ done
 #
 # Validation
 #
-for parameter in app_name client_name launch_url; do
+for parameter in app_name client_name; do
     if [[ -z "${!parameter}" ]]; then
         printf 'Missing required parameter: --%s\n\n' "${parameter//_/-}" >&2
         usage >&2
@@ -309,7 +310,7 @@ if [[ -z "${client_id}" ]]; then
                 name: $name,
                 callbackURLs: $callback_urls,
                 logoutCallbackURLs: $logout_callback_urls,
-                launchURL: $launch_url,
+                launchURL: (if $launch_url == "" then null else $launch_url end),
                 isPublic: $is_public,
                 pkceEnabled: $pkce_enabled,
                 skipConsent: true
@@ -360,7 +361,7 @@ else
 fi
 
 #
-# Sync callback URLs on reused clients (merged, other settings untouched)
+# Sync callback URLs and launch URL on reused clients (callback URLs merged, other settings untouched)
 #
 if [[ "${callback_urls_json}" != '[]' || "${logout_callback_urls_json}" != '[]' ]]; then
     existing_client=$(jq -c --arg name "${client_name}" \
@@ -373,11 +374,13 @@ if [[ "${callback_urls_json}" != '[]' || "${logout_callback_urls_json}" != '[]' 
         --argjson existing "${existing_client}" \
         --argjson requested "${logout_callback_urls_json}" \
         '$requested - ($existing.logoutCallbackURLs // [])')
+    existing_launch_url=$(jq -r '.launchURL // ""' <<<"${existing_client}")
     existing_pkce_enabled=$(jq -r '.pkceEnabled // false' <<<"${existing_client}")
     existing_is_public=$(jq -r '.isPublic // false' <<<"${existing_client}")
-    if [[ "${missing_callback_urls}" != '[]' || "${missing_logout_urls}" != '[]' || "${existing_pkce_enabled}" != "${pkce_enabled}" || "${existing_is_public}" != "${public_client}" ]]; then
+    if [[ "${missing_callback_urls}" != '[]' || "${missing_logout_urls}" != '[]' || "${existing_launch_url}" != "${launch_url}" || "${existing_pkce_enabled}" != "${pkce_enabled}" || "${existing_is_public}" != "${public_client}" ]]; then
         update_body=$(jq -c -n \
             --argjson existing "${existing_client}" \
+            --arg launch_url "${launch_url}" \
             --argjson requested_callbacks "${callback_urls_json}" \
             --argjson requested_logout "${logout_callback_urls_json}" \
             --argjson pkce_enabled "${pkce_enabled}" \
@@ -392,7 +395,7 @@ if [[ "${callback_urls_json}" != '[]' || "${logout_callback_urls_json}" != '[]' 
                 requiresReauthentication: ($existing.requiresReauthentication // false),
                 requiresPushedAuthorizationRequests: ($existing.requiresPushedAuthorizationRequests // false),
                 skipConsent: ($existing.skipConsent // false),
-                launchURL: $existing.launchURL,
+                launchURL: (if $launch_url == "" then null else $launch_url end),
                 hasLogo: ($existing.hasLogo // false),
                 hasDarkLogo: ($existing.hasDarkLogo // false),
                 isGroupRestricted: ($existing.isGroupRestricted // false),
