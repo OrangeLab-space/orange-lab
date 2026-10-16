@@ -1,4 +1,10 @@
-import { Application, config, createPassword, OidcProviderSettings } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    createPassword,
+    OidcProviderSettings,
+    requireOutput,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import bcrypt from 'bcryptjs';
 
@@ -86,30 +92,28 @@ function createConfigJson(
     name: string,
     externalUrl: pulumi.Input<string>,
 ): pulumi.Output<string> {
-    const providerUrl = app.oidc?.providerBaseUrl;
     const providerName = app.oidc?.providerName ?? '';
+    const issuer = app.oidc
+        ? requireOutput(
+              app.oidc.providerBaseUrl,
+              'Zot: SSO enabled (zot:auth) but the OIDC provider base URL is unavailable. Enable the security module in this stack, then deploy.',
+          )
+        : undefined;
 
-    return pulumi
-        .all([externalUrl, pulumi.output(providerUrl)])
-        .apply(([url, issuer]) => {
-            if (app.oidc && !issuer) {
-                throw new Error(
-                    'Zot: SSO enabled (zot:auth) but the OIDC provider base URL is unavailable. Enable the security module in this stack, then deploy.',
-                );
-            }
-            return JSON.stringify({
-                storage: {
-                    rootDirectory: '/var/lib/registry',
-                    dedupe: true,
-                    gc: true,
-                },
-                http: createHttpConfig(url, issuer, providerName),
-                extensions: createExtensions(
-                    config.require(name, 'scanInterval'),
-                    config.requireObject(name, 'registries') as SyncRegistry[],
-                ),
-            });
-        });
+    return pulumi.all([externalUrl, issuer]).apply(([url, issuer]) =>
+        JSON.stringify({
+            storage: {
+                rootDirectory: '/var/lib/registry',
+                dedupe: true,
+                gc: true,
+            },
+            http: createHttpConfig(url, issuer, providerName),
+            extensions: createExtensions(
+                config.require(name, 'scanInterval'),
+                config.requireObject(name, 'registries') as SyncRegistry[],
+            ),
+        }),
+    );
 }
 
 function createHttpConfig(

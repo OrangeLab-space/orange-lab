@@ -3,6 +3,7 @@ import {
     config,
     HttpEndpointInfo,
     OidcAuthConfig,
+    requireOutput,
     SmtpSecurity,
     SmtpSettings,
 } from '@orangelab/pulumi';
@@ -117,14 +118,10 @@ export class Vaultwarden extends pulumi.ComponentResource {
         if (!auth || !secret) return { enabled: false };
 
         return {
-            authority: pulumi.output(auth.providerBaseUrl).apply(url => {
-                if (!url) {
-                    throw new Error(
-                        'Vaultwarden: OIDC enabled (vaultwarden:auth) but the OIDC provider base URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled.',
-                    );
-                }
-                return url;
-            }),
+            authority: requireOutput(
+                auth.providerBaseUrl,
+                'Vaultwarden: OIDC enabled (vaultwarden:auth) but the OIDC provider base URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled.',
+            ),
             clientId: { existingSecretKey: 'SSO_CLIENT_ID' },
             clientSecret: { existingSecretKey: 'SSO_CLIENT_SECRET' },
             enabled: true,

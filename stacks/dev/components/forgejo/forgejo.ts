@@ -4,6 +4,7 @@ import {
     DatabaseConfig,
     HttpEndpointInfo,
     OidcAuthConfig,
+    requireOutput,
     SmtpSecurity,
     SmtpSettings,
 } from '@orangelab/pulumi';
@@ -187,7 +188,10 @@ export class Forgejo extends pulumi.ComponentResource {
                                 ? [
                                       {
                                           adminGroup: args.auth.adminGroup,
-                                          autoDiscoverUrl: args.auth.providerUrl,
+                                          autoDiscoverUrl: requireOutput(
+                                              args.auth.providerUrl,
+                                              'Forgejo: OIDC enabled (forgejo:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, or set forgejo:auth/providerUrl.',
+                                          ),
                                           existingSecret: this.oidcSecret.metadata.name,
                                           groupClaimName: 'groups',
                                           name: args.auth.providerName ?? 'SSO',

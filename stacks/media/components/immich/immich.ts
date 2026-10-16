@@ -5,6 +5,7 @@ import {
     DatabaseConfig,
     HttpEndpointInfo,
     OidcAuthConfig,
+    requireOutput,
     SmtpSettings,
     VolumeMount,
 } from '@orangelab/pulumi';
@@ -100,14 +101,10 @@ export class Immich extends pulumi.ComponentResource {
             clientId: auth.clientId,
             clientSecret: auth.clientSecret,
             enabled: true,
-            issuerUrl: pulumi.output(auth.providerUrl).apply(url => {
-                if (!url) {
-                    throw new Error(
-                        'Immich: OIDC enabled (immich:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, or set immich:auth/providerUrl.',
-                    );
-                }
-                return url;
-            }),
+            issuerUrl: requireOutput(
+                auth.providerUrl,
+                'Immich: OIDC enabled (immich:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, or set immich:auth/providerUrl.',
+            ),
             scope: 'openid email profile',
             signingAlgorithm: 'RS256',
             tokenEndpointAuthMethod: 'client_secret_post',

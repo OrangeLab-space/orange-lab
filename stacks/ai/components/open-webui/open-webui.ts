@@ -1,4 +1,4 @@
-import { Application, config, OidcAuthConfig } from '@orangelab/pulumi';
+import { Application, config, OidcAuthConfig, requireOutput } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export interface OpenWebUIArgs {
@@ -166,12 +166,6 @@ export class OpenWebUI extends pulumi.ComponentResource {
         auth: OidcAuthConfig,
         endpointUrl: pulumi.Input<string>,
     ): void {
-        if (auth.providerUrl === undefined) {
-            throw new Error(
-                'Open WebUI: OIDC enabled (open-webui:auth) but orangelab:coreStackRef is not set. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, then deploy this stack.',
-            );
-        }
-
         env.ENABLE_OAUTH_SIGNUP = 'True';
         env.OAUTH_AUTO_REDIRECT = 'True';
         env.OAUTH_CLIENT_ID = auth.clientId;
@@ -180,14 +174,10 @@ export class OpenWebUI extends pulumi.ComponentResource {
         env.OAUTH_UPDATE_EMAIL_ON_LOGIN = 'True';
         env.OAUTH_UPDATE_NAME_ON_LOGIN = 'True';
         env.OAUTH_UPDATE_PICTURE_ON_LOGIN = 'True';
-        env.OPENID_PROVIDER_URL = pulumi.output(auth.providerUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'Open WebUI: orangelab:coreStackRef is set but the core stack did not export an OIDC provider URL. Deploy (or refresh) the core stack with the auth provider enabled before deploying this stack.',
-                );
-            }
-            return url;
-        });
+        env.OPENID_PROVIDER_URL = requireOutput(
+            auth.providerUrl,
+            'Open WebUI: OIDC enabled (open-webui:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, then deploy this stack.',
+        );
         env.WEBUI_AUTH_SIGNOUT_REDIRECT_URL = endpointUrl;
     }
 }

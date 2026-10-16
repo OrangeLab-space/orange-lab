@@ -1,6 +1,7 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { OidcAuthConfig } from './auth';
+import { requireOutput } from './utils';
 
 export const traefikOidcMiddlewareName = (appName: string) => `${appName}-oidc-auth`;
 const pluginName = 'traefik-oidc-auth';
@@ -35,10 +36,10 @@ export function createTraefikOidcMiddleware(
     },
 ): kubernetes.apiextensions.CustomResource {
     const name = traefikOidcMiddlewareName(args.appName);
-    const providerUrl = args.oidc.providerBaseUrl;
-    if (providerUrl === undefined) {
-        throw new Error(`${args.appName}: OIDC provider endpoints are unavailable.`);
-    }
+    const providerUrl = requireOutput(
+        args.oidc.providerBaseUrl,
+        `${args.appName}: OIDC provider endpoints are unavailable.`,
+    );
 
     const scopes = ['openid', 'profile', 'email'];
     if (args.oidc.forwardIdentity) {

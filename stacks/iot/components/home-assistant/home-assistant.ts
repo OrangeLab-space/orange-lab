@@ -1,4 +1,4 @@
-import { Application, config } from '@orangelab/pulumi';
+import { Application, config, requireOutput } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export interface HomeAssistantDevice {
@@ -236,13 +236,9 @@ export class HomeAssistant extends pulumi.ComponentResource {
     }
 
     private getDiscoveryUrl() {
-        return pulumi.output(this.app.oidc?.providerUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'Home Assistant: OIDC enabled (home-assistant:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with Pocket ID enabled.',
-                );
-            }
-            return url;
-        });
+        return requireOutput(
+            this.app.oidc?.providerUrl,
+            'Home Assistant: OIDC enabled (home-assistant:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with Pocket ID enabled.',
+        );
     }
 }

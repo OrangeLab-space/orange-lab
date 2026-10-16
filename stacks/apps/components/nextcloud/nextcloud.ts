@@ -6,6 +6,7 @@ import {
     DatabaseConfig,
     HttpEndpointInfo,
     OidcAuthConfig,
+    requireOutput,
     SmtpSettings,
 } from '@orangelab/pulumi';
 import * as k8s from '@pulumi/kubernetes';
@@ -236,14 +237,10 @@ $CONFIG = array (
     private createOidcSecret(auth: OidcAuthConfig | undefined): k8s.core.v1.Secret | undefined {
         if (!auth) return undefined;
 
-        const discoveryUri = pulumi.output(auth.providerUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'Nextcloud: OIDC enabled (nextcloud:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, or set nextcloud:auth/providerUrl.',
-                );
-            }
-            return url;
-        });
+        const discoveryUri = requireOutput(
+            auth.providerUrl,
+            'Nextcloud: OIDC enabled (nextcloud:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, or set nextcloud:auth/providerUrl.',
+        );
 
         return new k8s.core.v1.Secret(
             `${this.appName}-oidc`,

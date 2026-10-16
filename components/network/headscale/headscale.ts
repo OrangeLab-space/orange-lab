@@ -3,6 +3,7 @@ import {
     config,
     OidcAuthConfig,
     OidcProviderSettings,
+    requireOutput,
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
@@ -178,19 +179,13 @@ export class Headscale extends pulumi.ComponentResource {
             return pulumi.output(serverUrl).apply(url => render(url));
         }
 
+        const issuer = requireOutput(
+            this.oidc.providerBaseUrl,
+            `${this.name}: the OIDC issuer is unavailable. Deploy (or refresh) the security module with Pocket ID enabled before deploying ${this.name}.`,
+        );
+
         return pulumi
-            .all([
-                serverUrl,
-                this.oidc.providerBaseUrl,
-                pulumi.output(this.oidc.clientId),
-            ])
-            .apply(([url, issuer, clientId]) => {
-                if (!issuer) {
-                    throw new Error(
-                        `${this.name}: the OIDC issuer is unavailable. Deploy (or refresh) the security module with Pocket ID enabled before deploying ${this.name}.`,
-                    );
-                }
-                return render(url, { issuer, clientId });
-            });
+            .all([serverUrl, issuer, this.oidc.clientId])
+            .apply(([url, issuer, clientId]) => render(url, { issuer, clientId }));
     }
 }

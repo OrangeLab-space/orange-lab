@@ -4,6 +4,7 @@ import {
     createPassword,
     OidcAuthConfig,
     OidcProviderSettings,
+    requireOutput,
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
@@ -118,22 +119,20 @@ export class Headplane extends pulumi.ComponentResource {
     }
 
     private createConfig(baseUrl: pulumi.Output<string>): pulumi.Output<string> {
-        return pulumi
-            .all([baseUrl, this.oidc?.providerBaseUrl, this.oidc?.clientId])
-            .apply(([url, issuer, clientId]) => {
-                if (this.oidc && !issuer) {
-                    throw new Error(
-                        `${this.name}: headplane:auth is set but the OIDC issuer is unavailable. Deploy (or refresh) the security module with Pocket ID enabled before deploying ${this.name}.`,
-                    );
-                }
+        const oidc = this.oidc;
+        if (!oidc) {
+            return baseUrl.apply(url => createHeadplaneConfig({ baseUrl: url }));
+        }
 
-                return createHeadplaneConfig({
-                    baseUrl: url,
-                    oidc:
-                        this.oidc && issuer && clientId
-                            ? { issuer, clientId }
-                            : undefined,
-                });
-            });
+        const issuer = requireOutput(
+            oidc.providerBaseUrl,
+            `${this.name}: headplane:auth is set but the OIDC issuer is unavailable. Deploy (or refresh) the security module with Pocket ID enabled before deploying ${this.name}.`,
+        );
+
+        return pulumi
+            .all([baseUrl, issuer, oidc.clientId])
+            .apply(([url, issuer, clientId]) =>
+                createHeadplaneConfig({ baseUrl: url, oidc: { issuer, clientId } }),
+            );
     }
 }

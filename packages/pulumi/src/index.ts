@@ -8,6 +8,7 @@ export { Metadata } from './metadata';
 export { Nodes, NodesArgs } from './nodes';
 export { createPassword } from './secrets';
 export { Smtp } from './smtp';
+export { requireOutput } from './utils';
 export {
     createTraefikOidcMiddleware,
     traefikOidcMiddlewareName,

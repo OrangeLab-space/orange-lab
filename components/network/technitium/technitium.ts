@@ -4,6 +4,7 @@ import {
     createPassword,
     OidcAuthConfig,
     OidcProviderSettings,
+    requireOutput,
 } from '@orangelab/pulumi';
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
@@ -116,11 +117,6 @@ export class Technitium extends pulumi.ComponentResource {
         env: Record<string, pulumi.Input<string> | undefined>,
         auth: OidcAuthConfig,
     ): void {
-        if (auth.providerUrl === undefined) {
-            throw new Error(
-                'Technitium: SSO enabled (technitium:auth) but the OIDC provider is unavailable. Enable the security module (orangelab:security) in this stack, then deploy.',
-            );
-        }
         if (auth.groupMap === undefined) {
             throw new Error(
                 'Technitium: SSO enabled (technitium:auth) but technitium:auth/groupMap is not configured.',
@@ -129,26 +125,16 @@ export class Technitium extends pulumi.ComponentResource {
 
         env.DNS_SERVER_SSO_ALLOW_SIGNUP = 'true';
         env.DNS_SERVER_SSO_ALLOW_SIGNUP_ONLY_FOR_MAPPED_USERS = 'true';
-        env.DNS_SERVER_SSO_AUTHORITY = pulumi.output(auth.providerBaseUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'Technitium: the security module is enabled but the OIDC provider base URL is unavailable. Deploy (or refresh) the security module with the Pocket ID auth provider enabled before deploying this stack.',
-                );
-            }
-            return url;
-        });
+        env.DNS_SERVER_SSO_AUTHORITY = requireOutput(
+            auth.providerBaseUrl,
+            'Technitium: the security module is enabled but the OIDC provider base URL is unavailable. Deploy (or refresh) the security module with the Pocket ID auth provider enabled before deploying this stack.',
+        );
         env.DNS_SERVER_SSO_CLIENT_ID = auth.clientId;
         env.DNS_SERVER_SSO_GROUP_MAP = serializeGroupMap(auth.groupMap);
-        env.DNS_SERVER_SSO_METADATA_ADDRESS = pulumi
-            .output(auth.providerUrl)
-            .apply(url => {
-                if (!url) {
-                    throw new Error(
-                        'Technitium: the security module is enabled but the OIDC provider URL is unavailable. Deploy (or refresh) the security module with the Pocket ID auth provider enabled before deploying this stack.',
-                    );
-                }
-                return url;
-            });
+        env.DNS_SERVER_SSO_METADATA_ADDRESS = requireOutput(
+            auth.providerUrl,
+            'Technitium: the security module is enabled but the OIDC provider URL is unavailable. Deploy (or refresh) the security module with the Pocket ID auth provider enabled before deploying this stack.',
+        );
         env.DNS_SERVER_SSO_SCOPES = 'openid,profile,email,groups';
         env.DNS_SERVER_SSO_ENABLED = 'true';
     }

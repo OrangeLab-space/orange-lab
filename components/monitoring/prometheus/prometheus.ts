@@ -1,4 +1,10 @@
-import { Application, Nodes, config, OidcProviderSettings } from '@orangelab/pulumi';
+import {
+    Application,
+    Nodes,
+    config,
+    OidcProviderSettings,
+    requireOutput,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
 
@@ -39,6 +45,12 @@ export class Prometheus extends pulumi.ComponentResource {
             this.app.network.getHttpEndpointInfo(prometheusHostname);
         const alertManagerHttpEndpoint =
             this.app.network.getHttpEndpointInfo(alertManagerHostname);
+        const oidcIssuer = this.app.oidc
+            ? requireOutput(
+                  this.app.oidc.providerBaseUrl,
+                  `${name}: OIDC enabled (${name}:auth) but the OIDC provider base URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled.`,
+              )
+            : undefined;
         this.app.addHelmChart(
             name,
             {
@@ -98,8 +110,8 @@ export class Prometheus extends pulumi.ComponentResource {
                                       },
                                       'auth.generic_oauth': {
                                           allow_sign_up: 'true',
-                                           api_url: pulumi.interpolate`${this.app.oidc.providerBaseUrl}/api/oidc/userinfo`,
-                                           auth_url: pulumi.interpolate`${this.app.oidc.providerBaseUrl}/authorize`,
+                                           api_url: pulumi.interpolate`${oidcIssuer}/api/oidc/userinfo`,
+                                           auth_url: pulumi.interpolate`${oidcIssuer}/authorize`,
                                            client_id: this.app.oidc.clientId,
                                           client_secret:
                                               '$__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}',
@@ -114,7 +126,7 @@ export class Prometheus extends pulumi.ComponentResource {
                                               ),
                                           scopes: 'openid email profile groups',
                                           skip_org_role_sync: 'false',
-                                           token_url: pulumi.interpolate`${this.app.oidc.providerBaseUrl}/api/oidc/token`,
+                                           token_url: pulumi.interpolate`${oidcIssuer}/api/oidc/token`,
                                           use_pkce: 'true',
                                       },
                                   }

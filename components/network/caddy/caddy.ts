@@ -1,4 +1,9 @@
-import { Application, config, OidcProviderSettings } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    OidcProviderSettings,
+    requireOutput,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 import { createCaddyfile } from './caddy-config';
@@ -64,17 +69,17 @@ export class Caddy extends pulumi.ComponentResource {
     private createConfig(
         providerBaseUrl: pulumi.Input<string | undefined>,
     ): pulumi.Output<string> {
-        return pulumi.output(providerBaseUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'caddy: the WebFinger document must name the OIDC issuer, but no provider URL is available. Enable the security module (pocket) in this stack, then deploy.',
-                );
-            }
-            return createCaddyfile({
+        const issuer = requireOutput(
+            providerBaseUrl,
+            'caddy: the WebFinger document must name the OIDC issuer, but no provider URL is available. Enable the security module (pocket) in this stack, then deploy.',
+        );
+
+        return issuer.apply(url =>
+            createCaddyfile({
                 issuer: url,
                 subject: config.require(this.name, 'webfingerSubject'),
                 redirect: config.get(this.name, 'rootRedirect'),
-            });
-        });
+            }),
+        );
     }
 }
