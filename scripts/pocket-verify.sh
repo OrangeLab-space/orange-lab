@@ -14,6 +14,8 @@ Exits non-zero when the live instance has drifted from the declared state.
 Groups and clients that nothing in the repository declares are reported as
 notes, not drift - they are assumed to have been added by hand.
 
+Progress is written to stderr; --json and --quiet suppress it.
+
 Run from the repository root.
 
 Required Pulumi config:
@@ -69,8 +71,19 @@ done
 #
 # Configuration
 #
+# Progress goes to stderr so stdout stays parseable, and is suppressed for
+# --json (machine consumers) and --quiet (results only).
+#
+progress() {
+    if [[ "${json_output}" == false && "${quiet}" == false ]]; then
+        printf '%s\n' "$*" >&2
+    fi
+}
+
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd -- "${script_dir}/.." && pwd)
+
+progress 'Reading Pulumi configuration...'
 
 if ! pocket_api_key=$(pulumi --cwd "$repo_root" config get pocket:apiKey 2>/dev/null); then
     printf 'Missing secret config: pocket:apiKey\n' >&2
@@ -124,14 +137,36 @@ to_json() {
     fi
 }
 
+# Reads a stack's configuration once and caches it: `pulumi config` costs about
+# a second per call, and every app in a stack needs the same one. Sets
+# stack_config_json instead of printing, so the cache survives (a command
+# substitution would run this in a subshell and lose the write).
+declare -A stack_config_cache
+stack_config_json=''
+load_stack_config() {
+    local dir="$1" label
+    if [[ -z "${stack_config_cache[$dir]+x}" ]]; then
+        if [[ "${dir}" == "${repo_root}" ]]; then
+            label='core'
+        else
+            label="${dir#"${repo_root}/"}"
+        fi
+        progress "  reading Pulumi config: ${label}"
+        stack_config_cache[$dir]=$(pulumi --cwd "$dir" config --json 2>/dev/null || printf '{}')
+    fi
+    stack_config_json="${stack_config_cache[$dir]}"
+}
+
 #
 # Declared state
 #
+progress 'Reading the declared group spec...'
 expected_groups=$(cd "$repo_root" && ./components/security/pocket/create-groups.sh --print-spec)
 
 #
 # Live state
 #
+progress "Querying Pocket ID at ${POCKET_ID_URL}..."
 live_groups=$(pocket_api GET '/api/user-groups?pagination%5Blimit%5D=100')
 groups_index=$(jq -c '[.data[] | {id, name}]' <<<"${live_groups}")
 live_clients=$(pocket_api GET '/api/oidc/clients?pagination%5Blimit%5D=100')
@@ -152,6 +187,12 @@ all_user_ids=$(jq -c '[.[].id] | sort' <<<"${users}")
 #
 # Groups
 #
+if [[ -n "${app_filter}" ]]; then
+    group_count=$(jq -r --arg prefix "${app_filter}-" '[.[] | select(.name | startswith($prefix))] | length' <<<"${expected_groups}")
+else
+    group_count=$(jq -r 'length' <<<"${expected_groups}")
+fi
+progress "Checking ${group_count} group(s)..."
 while IFS= read -r name; do
     [[ -n "${name}" ]] || continue
     if [[ -n "${app_filter}" && "${name}" != "${app_filter}-"* ]]; then
@@ -209,8 +250,15 @@ fi
 # Clients - declared by the wrappers plus each stack's <app>:auth/allowedGroups
 #
 expected_client_names=()
+mapfile -t wrappers < <(find "${repo_root}/components" "${repo_root}/stacks" -name 'pocket-*.sh' -not -path '*/node_modules/*' | sort)
 
-while IFS= read -r wrapper; do
+if [[ -n "${app_filter}" ]]; then
+    progress "Checking the client declared for ${app_filter}..."
+else
+    progress "Checking ${#wrappers[@]} client(s)..."
+fi
+
+for wrapper in "${wrappers[@]}"; do
     app=$(sed -n 's/^app_name=//p' "${wrapper}" | head -n1 | tr -d '"')
     client=$(sed -n 's/^client_name=//p' "${wrapper}" | head -n1 | sed 's/^"//; s/"$//')
     rel="${wrapper#"${repo_root}/"}"
@@ -229,7 +277,8 @@ while IFS= read -r wrapper; do
         stack_dir="${repo_root}/stacks/${rest%%/*}"
     fi
 
-    allowed_raw=$(pulumi --cwd "${stack_dir}" config get "${app}:auth/allowedGroups" 2>/dev/null || true)
+    load_stack_config "${stack_dir}"
+    allowed_raw=$(jq -r --arg key "${app}:auth/allowedGroups" '.[$key].value // ""' <<<"${stack_config_json}")
     want_allowed=$(printf '%s' "${allowed_raw}" | tr ',' '\n' | sed '/^$/d' | sort | paste -sd, -)
 
     wants_launch=false
@@ -267,7 +316,7 @@ while IFS= read -r wrapper; do
     elif [[ -n "${launch}" ]]; then
         add_drift "client ${client}" "has launch URL \"${launch}\" but its wrapper passes no --launch-url (unexpected tile)"
     fi
-done < <(find "${repo_root}/components" "${repo_root}/stacks" -name 'pocket-*.sh' -not -path '*/node_modules/*' | sort)
+done
 
 if [[ -n "${app_filter}" && ${#expected_client_names[@]} == 0 ]]; then
     printf 'No pocket-<app>.sh wrapper found for --app %s.\n' "${app_filter}" >&2

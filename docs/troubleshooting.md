@@ -34,6 +34,39 @@ If that works, then Tailscale Ingress needs to be looked at. Try stopping the `t
 
 Make sure there is no leftover entry for a service at https://login.tailscale.com/admin/machines. If there is a conflicting entry, remove it before enabling the app again (specifically the Ingress resource managed by Tailscale operator).
 
+## Pocket ID sign-in
+
+Pocket ID is the OIDC provider applications sign in through. When someone cannot
+sign in, or an app is missing from their **My Apps** dashboard, audit the live
+instance against the repository first — it reports exactly which group, client or
+launch URL has drifted:
+
+```sh
+./scripts/pocket-verify.sh                 # whole instance
+./scripts/pocket-verify.sh --app immich    # one application
+./scripts/pocket-verify.sh --json | jq     # machine-readable (exits 1 on drift)
+```
+
+The most common causes:
+
+- **The user is not in an allowed group.** Sign-in requires membership of one of
+  the app's `allowedGroups`; the client audit lists what each one allows. Group
+  membership is managed by hand in Pocket ID.
+- **The client is not restricted.** When `isGroupRestricted` is false the
+  allowed-group list is ignored, so every Pocket ID user can sign in.
+- **A tile is missing.** A client only appears in **My Apps** when it has a launch
+  URL; the VPN clients deliberately have none.
+- **A claim or role group is missing.** RustFS needs a `rustfs_policies` claim and
+  Headplane a `headplane_role` claim; other apps map groups to roles with
+  `auth/groupMap` or an `<app>-admin` group.
+- **Passkeys fail after a hostname change.** Passkeys are bound to the origin, so
+  every user has to register again.
+
+`<app>:auth/allowedGroups` is declared in the owning `Pulumi.yaml` (repository
+root for core components, `stacks/<module>/Pulumi.yaml` for applications). After
+changing it, re-run the app's `pocket-<app>.sh` wrapper — `allowedGroups` is read
+only by the wrapper, so no `pulumi up` is needed.
+
 ## Longhorn
 
 Longhorn troubleshooting guide - https://github.com/longhorn/longhorn/wiki/Troubleshooting

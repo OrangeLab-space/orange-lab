@@ -105,8 +105,8 @@ Present a concise summary and ask the user to decide on:
      - For **large volumes** (`storageSize >= 500Gi`, media libraries, AI models, blockchain data, etc.): recommend **explicitly disabling backups** (`pulumi config set <app>:backupVolume false` or `<app>:<component>/backupVolume false`), even when `longhorn:backupAllVolumes` is `true`.
 5. **OIDC Authentication (if supported)**:
    - Ask if they want to enable Pocket ID authentication (`<app>:auth pocket`).
-   - By default, recommend restricting access to the `admin` group (`<app>:auth/allowedGroups admin`). Ask if they prefer `admin` only, `admin,power-user`, custom groups, or unrestricted access.
-   - Note any app-specific role mapping (e.g. `<app>:auth/groupMap`, `<app>:auth/adminGroup`, or custom claims like `headplane_role` / `rustfs_policies`).
+   - By default, recommend restricting access to the `admin` group (`<app>:auth/allowedGroups admin`). Ask if they prefer `admin` only, `admin,<app>-admin`, an `admin,<app>-users` app group, custom groups, or unrestricted access.
+   - Note any app-specific role mapping (e.g. `<app>:auth/groupMap`, the derived `<app>-admin` admin group, or custom claims like `headplane_role` / `rustfs_policies`).
 6. **Optional parameters**:
    - At the end, show the remaining optional settings and their defaults from `Pulumi.yaml` (e.g. `hostname`, `network/public`, app-specific flags) and ask if anything else is missing or if they want to customize any of them.
 
@@ -193,6 +193,11 @@ At each configuration step, **show the exact `pulumi config set` commands to the
      ```sh
      curl -sS -L -o /dev/null -w "%{http_code} %{url_effective}\n" <endpoint-url>
      ```
+   - Audit the Pocket ID client and its groups for this app:
+     ```sh
+     ./scripts/pocket-verify.sh --app <app>
+     ```
+     Read-only; exits non-zero if the client or its `<app>-*` groups have drifted from what the wrapper and the stack config declare.
 2. **Report to the user**:
    - **Endpoints & Stack Exports**: Show the deployed private/public/cluster endpoints and any app exports from `pulumi stack output`.
    - **Generated Secrets / Keys / Config**: Inform the user of any auto-generated passwords, encryption keys, cookie secrets, or database credentials created during deployment (e.g. `createPassword` resources in state, `<app>:users`, database secrets).
