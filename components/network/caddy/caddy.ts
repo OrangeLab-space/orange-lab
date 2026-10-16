@@ -1,6 +1,8 @@
 import { Application, config, OidcProviderSettings } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
+import { createCaddyfile } from './caddy-config';
+
 export interface CaddyArgs {
     oidc?: OidcProviderSettings;
 }
@@ -34,17 +36,8 @@ export class Caddy extends pulumi.ComponentResource {
             );
         }
 
-        const issuer = pulumi.output(args.oidc?.providerBaseUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'caddy: the WebFinger document must name the OIDC issuer, but no provider URL is available. Enable the security module (pocket) in this stack, then deploy.',
-                );
-            }
-            return url;
-        });
-
         this.app.addConfigVolume({
-            files: { Caddyfile: this.createCaddyfile(issuer) },
+            files: { Caddyfile: this.createConfig(args.oidc?.providerBaseUrl) },
         });
 
         this.app.addDeployment({
@@ -63,55 +56,25 @@ export class Caddy extends pulumi.ComponentResource {
         });
     }
 
-    private createCaddyfile(issuer: pulumi.Output<string>): pulumi.Output<string> {
-        const subject = config.require(this.name, 'webfingerSubject');
-        const redirect = config.get(this.name, 'rootRedirect');
-
-        return issuer.apply(url => {
-            const webfinger = JSON.stringify({
-                subject,
-                links: [
-                    {
-                        rel: 'http://openid.net/specs/connect/1.0/issuer',
-                        href: url,
-                    },
-                ],
+    /**
+     * The WebFinger document must name the OIDC issuer, which comes from the
+     * security module. Resolving it here keeps the document renderer pure and
+     * turns a missing issuer into a failed deploy rather than a broken file.
+     */
+    private createConfig(
+        providerBaseUrl: pulumi.Input<string | undefined>,
+    ): pulumi.Output<string> {
+        return pulumi.output(providerBaseUrl).apply(url => {
+            if (!url) {
+                throw new Error(
+                    'caddy: the WebFinger document must name the OIDC issuer, but no provider URL is available. Enable the security module (pocket) in this stack, then deploy.',
+                );
+            }
+            return createCaddyfile({
+                issuer: url,
+                subject: config.require(this.name, 'webfingerSubject'),
+                redirect: config.get(this.name, 'rootRedirect'),
             });
-
-            // The catch-all redirect is optional - without it the apex only
-            // answers WebFinger and robots.txt, and everything else gets Caddy's
-            // own 404. `handle` blocks are exclusive and evaluated in order,
-            // which is what gives webfinger and robots.txt precedence.
-            const redirectHandler = redirect
-                ? `\thandle {\n\t\tredir ${redirect} 302\n\t}\n`
-                : '';
-
-            // Backtick strings keep the JSON and the robots.txt body literal, so
-            // neither needs Caddyfile escaping.
-            return `{
-	admin off
-	auto_https off
-}
-
-:8080 {
-	log {
-		output stdout
-	}
-
-	handle /.well-known/webfinger {
-		header Content-Type application/jrd+json
-		respond \`${webfinger}\` 200
-	}
-
-	handle /robots.txt {
-		header Content-Type text/plain
-		respond \`User-agent: *
-Disallow: /
-\` 200
-	}
-${redirectHandler}
-}
-`;
         });
     }
 }

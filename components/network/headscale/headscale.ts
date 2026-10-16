@@ -6,6 +6,8 @@ import {
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
+import { createHeadscaleConfig } from './headscale-config';
+
 export interface HeadscaleArgs {
     oidc?: OidcProviderSettings;
 }
@@ -34,7 +36,7 @@ export class Headscale extends pulumi.ComponentResource {
     };
     private readonly dns: {
         overrideLocalDns: boolean;
-        nameserversSection?: string;
+        nameservers?: string[];
     };
 
     constructor(
@@ -82,18 +84,9 @@ export class Headscale extends pulumi.ComponentResource {
 
         // Headscale keeps the node's own resolver unless overrideLocalDns is
         // set, in which case it forces the nameservers below onto every client.
-        // There is no separate fallback list: the nameservers either become the
-        // primary resolvers (override on) or the fallback resolvers (off), and
-        // the latter is only consulted by a node using an exit node.
-        const nameservers = config.getCommaSeparated(this.name, 'nameservers');
-
         this.dns = {
             overrideLocalDns: config.requireBoolean(this.name, 'overrideLocalDns'),
-            nameserversSection: nameservers
-                ? `\n  nameservers:\n    global:\n${nameservers
-                      .map((ns) => `      - ${ns}`)
-                      .join('\n')}\n`
-                : undefined,
+            nameservers: config.getCommaSeparated(this.name, 'nameservers'),
         };
 
         this.app.addDeployment({
@@ -162,47 +155,27 @@ export class Headscale extends pulumi.ComponentResource {
     }
 
     /**
-     * The embedded relay is mounted at `/derp` on this instance's own listener
-     * and advertises its hostname and port, so clients reach it through the
-     * routing provider rather than dialling a public address of their own.
-     * STUN is the only part that needs a listener of its own, and Headscale
-     * refuses to start without one whenever the relay is enabled.
+     * Headscale's config names the OIDC issuer, which comes from the security
+     * module. Resolving the Outputs here keeps the document renderer pure and
+     * turns a missing issuer into a failed deploy rather than a broken file.
      */
-    private createDerpSection(): string {
-        if (!this.derp.enabled) {
-            return `derp:
-  server:
-    enabled: false
-  urls:
-    - https://controlplane.tailscale.com/derpmap/default
-  auto_update_enabled: true`;
-        }
-
-        // Headscale fetches `urls` while starting and treats a failure as
-        // fatal, so this setting decides whether reaching Tailscale is a
-        // prerequisite for the control plane coming up at all.
-        const urls = this.derp.fallback
-            ? `  urls:
-    - https://controlplane.tailscale.com/derpmap/default`
-            : '  urls: []';
-
-        return `derp:
-  server:
-    enabled: true
-    region_id: ${String(this.derp.regionId)}
-    region_code: ${this.derp.regionCode}
-    region_name: ${this.derp.regionCode}
-    stun_listen_addr: 0.0.0.0:${String(this.derp.stunPort)}
-${this.derp.externalIp === undefined ? '' : `    ipv4: ${this.derp.externalIp}\n`}    # On the volume, so a restart does not present a new key and make every
-    # client treat the relay as a different one.
-    private_key_path: /var/lib/headscale/derp_server_private.key
-    automatically_add_embedded_derp_region: true
-${urls}`;
-    }
-
     private createConfig(serverUrl: pulumi.Input<string>): pulumi.Output<string> {
+        const render = (
+            url: string,
+            oidc?: { issuer: string; clientId: string },
+        ): string =>
+            createHeadscaleConfig({
+                serverUrl: url,
+                trustedProxyCidr: config.require('k3s', 'clusterCidr'),
+                baseDomain: config.require(this.name, 'baseDomain'),
+                logLevel: this.app.debug ? 'debug' : 'info',
+                derp: this.derp,
+                dns: this.dns,
+                oidc,
+            });
+
         if (!this.oidc) {
-            return pulumi.output(serverUrl).apply(url => this.createConfigFile(url));
+            return pulumi.output(serverUrl).apply(url => render(url));
         }
 
         return pulumi
@@ -217,66 +190,7 @@ ${urls}`;
                         `${this.name}: the OIDC issuer is unavailable. Deploy (or refresh) the security module with Pocket ID enabled before deploying ${this.name}.`,
                     );
                 }
-                return this.createConfigFile(url, { issuer, clientId });
+                return render(url, { issuer, clientId });
             });
-    }
-
-    private createConfigFile(
-        serverUrl: string,
-        oidc?: { issuer: string; clientId: string },
-    ): string {
-        // Headscale embeds the OIDC client secret through a file path, so it is
-        // projected next to this document rather than interpolated into it.
-        const oidcSection =
-            oidc &&
-            `
-oidc:
-  # Fail at startup rather than serving a login button that cannot work.
-  only_start_if_oidc_is_available: true
-  issuer: ${oidc.issuer}
-  client_id: ${oidc.clientId}
-  client_secret_path: /etc/headscale/client_secret
-  scope: ["openid", "profile", "email"]
-  pkce:
-    enabled: true
-    method: S256
-`;
-
-        return `server_url: ${serverUrl}
-listen_addr: 0.0.0.0:8080
-
-# Only the routing provider forwards requests here, so only its address range may
-# have its X-Forwarded-For believed. Without this every client is logged as the
-# proxy's address.
-trusted_proxies:
-  - ${config.require('k3s', 'clusterCidr')}
-
-noise:
-  private_key_path: /var/lib/headscale/noise_private.key
-
-prefixes:
-  v4: 100.64.0.0/10
-  v6: fd7a:115c:a1e0::/48
-  allocation: sequential
-
-# The embedded relay is served at /derp on this same listener, so clients reach
-# it through the routing provider like everything else — it needs no port of its
-# own. Only STUN is separate, and it is absent unless derp/enabled is set.
-${this.createDerpSection()}
-
-database:
-  type: sqlite
-  sqlite:
-    path: /var/lib/headscale/db.sqlite
-    write_ahead_log: true
-
-log:
-  level: ${this.app.debug ? 'debug' : 'info'}
-
-dns:
-  magic_dns: true
-  base_domain: ${config.require(this.name, 'baseDomain')}
-  override_local_dns: ${String(this.dns.overrideLocalDns)}
-${this.dns.nameserversSection ?? ''}${oidcSection ?? ''}`;
     }
 }
