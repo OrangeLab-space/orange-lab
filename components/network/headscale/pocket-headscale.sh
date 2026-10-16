@@ -15,26 +15,32 @@ client_name="Headscale"
 # because the client must exist before the first deploy - Headscale refuses to
 # start without it. The result must match the endpoint Headscale is reached at.
 custom_domain=$(pulumi config get orangelab:customDomain)
-launch_url="https://$(pulumi config get "${app_name}:hostname").${custom_domain%/}"
-callback_urls=("${launch_url}/oidc/callback")
+headscale_url="https://$(pulumi config get "${app_name}:hostname").${custom_domain%/}"
+callback_urls=("${headscale_url}/oidc/callback")
 
-# Headplane has its own hostname but deliberately reuses this client, so the `sub`
-# claim matches for both and Headplane can link a signed-in user to their Headscale
-# identity without falling back to email. Upstream recommends one shared client
-# over two. Its redirect URI is under the headplane host, not this one.
+# Headscale has no web UI. Headplane (its admin UI) has its own hostname but
+# reuses this client, so the `sub` claim matches for both and it can link a
+# signed-in user to their Headscale identity without falling back to email.
+# Upstream recommends one shared client over two.
+#
+# No launch URL: this client is shared with vpn-users, so a tile would advertise
+# the admin UI to every VPN user. Headplane's callback still has to be
+# registered, since it signs in through the same client.
 if [[ "$(pulumi config get headplane:enabled 2>/dev/null || echo false)" == "true" ]]; then
     headplane_hostname=$(pulumi config get headplane:hostname)
-    callback_urls+=("https://${headplane_hostname}.${custom_domain%/}/admin/oidc/callback")
+    headplane_admin_url="https://${headplane_hostname}.${custom_domain%/}/admin"
+    callback_urls+=("${headplane_admin_url}/oidc/callback")
 fi
+
+# Client icons (selfh.st), so the client is not left with a broken image.
+dark_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/headscale.svg
+light_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/headscale-light.svg
 
 # Headscale needs the client secret to complete the code exchange.
 pkce_enabled=true
 public_client=false
 
-# Unrestricted by default: any Pocket ID account can join the tailnet.
-#
-# To restrict to specific groups, set:
-#   pulumi config set headscale:auth/allowedGroups admin,power-user
+# Restricted to admin and vpn-users by default (from Pulumi.yaml).
 allowed_groups=$(pulumi config get "${app_name}:auth/allowedGroups" 2>/dev/null || true)
 
 restrict_args=()
@@ -48,8 +54,9 @@ fi
 exec "$(git rev-parse --show-toplevel)/scripts/pocket-client.sh" \
     --app-name "$app_name" \
     --client-name "$client_name" \
-    --launch-url "$launch_url" \
     --callback-urls "${callback_urls[*]}" \
+    --dark-icon-url "$dark_icon_url" \
+    --light-icon-url "$light_icon_url" \
     --pkce-enabled "$pkce_enabled" \
     --public-client "$public_client" \
     "${restrict_args[@]}"

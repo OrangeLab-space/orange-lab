@@ -40,7 +40,7 @@ config:
     # Hostname for Tailscale operator proxy for Kubernetes API
     tailscale:hostname: k8s
     # Pocket ID groups allowed to sign in to the tailnet (unset = unrestricted)
-    tailscale:auth/allowedGroups: admin
+    tailscale:auth/allowedGroups: admin,vpn-users
 
     traefik:enabled: false
     traefik:hostname: traefik

@@ -228,40 +228,79 @@ Keep `pocket:fromVolume` set afterwards - it wires the app to the restored (stat
 
 ## Groups and Access Control
 
-Two shared Pocket ID groups are commonly used:
+Application access and privilege are separate: members of `admin` can open every
+app, and each app's admin role comes from its own `<app>-admin` group.
 
-| Group        | Purpose                                                    |
-| ------------ | ---------------------------------------------------------- |
-| `admin`      | Application admins - mapped to each app's admin role       |
-| `power-user` | Access to advanced apps (dev, monitoring, storage, network) |
+| Group         | Purpose                                                                                                                                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admin`       | Access to every app; carries the `rustfs_policies=consoleAdmin` and `headplane_role=admin` claims                                                                                                                         |
+| `<app>-users` | Access to a single app: `immich-users`, `jellyfin-users`, `droppedneedle-users`, `seerr-users`, `open-webui-users`, `n8n-users`, `mempool-users`, `forgejo-users`, `nextcloud-users`, `vaultwarden-users`, `rustfs-users` |
+| `<app>-admin` | Access and admin role in that app: `technitium-admin`, `grafana-admin`, `forgejo-admin`, `home-assistant-admin`, `frigate-admin`, `jellyfin-admin`, `rustfs-admin`                                                        |
+| `vpn-users`   | Access to the VPN mesh (Headscale); also a new-user default group                                                                                                                                                         |
 
-The admin group name is configured once in the core stack and can be overridden
-per app:
+`rustfs-admin` and `rustfs-users` carry the `rustfs_policies` custom claim
+(`consoleAdmin` / `readwrite`) instead of mapping to a role.
 
-| Setting                     | Purpose                            |
-| --------------------------- | ---------------------------------- |
-| `orangelab:auth/adminGroup` | Admin group name (default `admin`) |
-| `<app>:auth/adminGroup`     | Per-app override of the admin group |
+Create them with the idempotent helper, which reuses existing groups and never
+touches their members:
 
-Create the groups under **Groups -> Create group** and add yourself to `admin` -
-the scripts never create them. Applications map Pocket ID groups to their own
-roles with `<app>:auth/groupMap` (Pocket ID group -> app role), for example
-Technitium:
+```sh
+# Run from the repository root
+./components/security/pocket/create-groups.sh
+
+# Run a single section instead: base | app-admins | app-users
+./components/security/pocket/create-groups.sh app-admins
+```
+
+`vpn-users`, `nextcloud-users` and `vaultwarden-users` are new-user **default
+groups**: `create-groups.sh` adds every existing user to them and sets them as
+the signup default, so new accounts get VPN and file/secret access automatically.
+Setting a default group rewrites the whole Application Configuration, so re-check
+**Application Configuration** afterwards if you had customised it.
+
+Re-running `create-groups.sh` only creates or updates the groups it lists - it
+never deletes, so groups you added by hand (or removed from the list) are left in
+place. Removing a group always requires an explicit
+`scripts/pocket-groups.sh --delete <name>`.
+
+Stack-level cohort groups (`ai-users`, `media-users`, `iot-users`,
+`bitcoin-users`, `dev-users`) have been replaced by per-app `<app>-users` groups.
+When migrating an older instance, move each user from a cohort into the app
+groups they need - `scripts/pocket-groups.sh --group <new> --members-from
+<cohort>` copies membership between groups - then remove the cohorts with
+`scripts/pocket-groups.sh --delete <group>`.
+
+Applications take their admin role from a derived per-app group
+(`<app>-admin`, overridable with `<app>:auth/adminGroup`), or map groups to roles
+with `<app>:auth/groupMap` (Pocket ID group -> app role), for example Technitium:
 
 ```yaml
 technitium:auth/groupMap:
     value:
         Administrators:
             - admin
-            - power-user
+            - technitium-admin
 ```
+
+### VPN access
+
+[Headscale](../../network/headscale/headscale.md) is the VPN the cluster uses:
+its client is restricted to `admin` and `vpn-users`. The tailnet is what makes
+tailnet-only apps reachable, so normal users must be in `vpn-users` to reach
+them. The client has no launch URL, so it adds no tile; the
+[Headplane](../../network/headplane/headplane.md) admin UI shares the same client
+and is opened directly.
+
+[Tailscale](../../network/tailscale/tailscale.md) is a separate, optional SaaS
+tailnet. Its client is also restricted to `admin` and `vpn-users`, and has no
+launch URL, so it grants tailnet sign-in without adding a tile.
 
 ### Restricting who sees an application
 
 An OIDC client is **unrestricted by default** - any Pocket ID user can sign in
 and sees the app in **My Apps**. Setting `<app>:auth/allowedGroups` restricts it
 to exactly those groups, so everyone else is refused sign-in and does not see the
-launcher tile. Pocket ID enforces this from the client's *restricted* flag, which
+launcher tile. Pocket ID enforces this from the client's _restricted_ flag, which
 `pocket-<app>.sh --restrict-access` sets alongside the allowed groups.
 
 Advanced apps ([Grafana](../../monitoring/prometheus/prometheus.md),
@@ -271,12 +310,14 @@ Advanced apps ([Grafana](../../monitoring/prometheus/prometheus.md),
 [Technitium](../../network/technitium/technitium.md), the
 [Traefik dashboard](../../network/traefik/traefik.md) and
 [Longhorn](../../storage/longhorn/longhorn.md)) ship with
-`<app>:auth/allowedGroups: admin,power-user`.
+`<app>:auth/allowedGroups: admin[,<app>-admin]`, and user-facing apps with
+`admin,<app>-users[,<app>-admin]`. The VPN clients ship with
+`<app>:auth/allowedGroups: admin,vpn-users`
+([Headscale](../../network/headscale/headscale.md) and
+[Tailscale](../../network/tailscale/tailscale.md)).
 
-All other applications leave the key unset and stay unrestricted. Re-running an
-advanced wrapper resets the client to its configured `allowedGroups`; wrappers
-without an `allowedGroups` value never restrict, so any restriction you add in
-the Pocket UI is preserved.
+Re-running a wrapper resets the client to its configured `allowedGroups`;
+unrestricted wrappers leave any restriction you add in the Pocket UI in place.
 
 ### Applications with their own role system
 

@@ -57,7 +57,7 @@ public path. No extra port forward is needed.
 | `headscale:network/public`     | Must be `true` — clients off-LAN need to reach the control plane  |
 | `headscale:requiredNodeLabel`  | Node selector for the control plane, e.g. `kubernetes.io/hostname=<node>` |
 | `headscale:auth/*`             | Optional Pocket ID client — see [Signing in](#signing-in)          |
-| `headscale:auth/allowedGroups` | Restricts who may sign in. Unset = unrestricted                   |
+| `headscale:auth/allowedGroups` | Restricts who may sign in. Default `admin,vpn-users`               |
 | `headscale:derp/enabled`       | Runs the built-in DERP relay. Default `false`                    |
 | `headscale:derp/stunPort`      | STUN port. Default `3478`, must match your forward               |
 | `headscale:derp/regionId`      | Relay region ID. Default `900` — **must not be `0`**             |
@@ -108,18 +108,17 @@ losing them loses the tailnet's user list.
 
 Users are created by the provider on first sign-in, so nothing is created by
 hand. Run `pocket-headscale.sh` to create the client, then set `headscale:auth`.
+When [Headplane](../headplane/headplane.md) is enabled its callback is added to
+the same client, so Headplane signs in without a second client. The client has no
+launch URL either way, so Headscale adds no **My Apps** tile: it is shared with
+`vpn-users`, and a tile would advertise an admin UI to every VPN user. Headplane
+is opened directly at its own URL.
 
-Access is **unrestricted by default** — any Pocket ID account can join the
-tailnet, because Headscale does no user or group provisioning. To narrow it, set
-the groups *before* running the script:
-
-```sh
-pulumi config set headscale:auth/allowedGroups admin,power-user
-```
-
-There is deliberately no default in `Pulumi.yaml`. `pulumi config get` falls back
-to it, so a default there is not inert — it restricts. This applies to the OIDC
-client only; local users are not group-filtered.
+Access is restricted to `admin` and `vpn-users` by default
+(`headscale:auth/allowedGroups: admin,vpn-users`), because Headscale does no user
+or group provisioning of its own. Both groups must exist in Pocket ID before
+running `pocket-headscale.sh`. This applies to the OIDC client only; local users
+are not group-filtered.
 
 ## Administration
 

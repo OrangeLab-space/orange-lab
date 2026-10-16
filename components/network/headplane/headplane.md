@@ -36,10 +36,10 @@ a tool. The key is a Pulumi secret.
 Sign-in reuses **Headscale's** OIDC client rather than creating a second one, so
 the `sub` claim matches for both and Headplane can link a signed-in user to their
 Headscale identity without falling back to email matching. Apply Headplane's
-callback URL to that client, then point Headplane at the same credentials:
+callback to that client, then point Headplane at the same credentials:
 
 ```sh
-./components/network/headscale/pocket-headscale.sh   # adds headplane's callback
+./components/network/headscale/pocket-headscale.sh   # adds headplane's callback to the shared client
 
 pulumi config set --stack <stack> headplane:auth/clientId \
     "$(pulumi config get --stack <stack> headscale:auth/clientId)"
@@ -48,7 +48,8 @@ pulumi config set --stack <stack> headplane:auth/clientSecret \
 ```
 
 Requires `headscale:enabled` and the routing provider — Headplane serves no
-traffic of its own without Traefik.
+traffic of its own without Traefik. The shared client carries no launch URL, so
+Headplane adds no **My Apps** tile; open it directly at the URL below.
 
 ## Where it is served
 
@@ -99,9 +100,8 @@ Administration → User Groups → group → **Custom Claims**:
 { "headplane_role": "it_admin" }
 ```
 
-Users in an allowed group with no claim get `default_role`, which this component
-sets to `viewer` rather than Headplane's own default of `member` (no access at
-all).
+Users in an allowed group with no claim (such as `vpn-users`) get `default_role`,
+which is `member` (no admin UI access).
 
 Two things to know about Pocket ID claims:
 
@@ -139,7 +139,7 @@ like the gRPC endpoint Headscale keeps off the internet.
   flags to `false` rather than pointing them at something unreachable. DNS and
   settings editing in the UI are therefore disabled.
 - **Roles do not follow Pocket ID groups**, only the custom claim described
-  above. A group without the claim gets `viewer`.
+  above. A group without the claim gets `member`.
 - **The API key is long-lived.** `headscale-apikey.sh` defaults to 90 days.
   When it expires Headplane loses its ability to act on Headscale and sign-in
   stops working; run the script again to replace it. `apikeys list` and

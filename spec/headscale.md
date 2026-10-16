@@ -82,13 +82,13 @@ headscale:storageSize: 1Gi
 headscale:network/public: true
 headscale:requiredNodeLabel: kubernetes.io/hostname=<node>
 headscale:auth: pocket                   # optional
-headscale:auth/allowedGroups:            # deliberately absent
+headscale:auth/allowedGroups: admin,vpn-users
 ```
 
-**Defaults are not inert.** `config.get` falls back to `Pulumi.yaml`, so a
-default on `auth/allowedGroups` silently restricts sign-in even though it looks
-like documentation. Leave access-restricting keys absent rather than defaulted,
-unless the component guards an admin surface that genuinely warrants one.
+**`headscale:auth/allowedGroups` defaults to `admin,vpn-users`.** `config.get`
+falls back to `Pulumi.yaml`, so `pocket-headscale.sh` restricts the OIDC client
+to `admin` and `vpn-users` by default. Both groups must exist in Pocket ID before
+running the script.
 
 **`baseDomain` defaults to `vpn.internal`, and must stay outside
 `customDomain`.** The mesh namespace and the app namespace have to be disjoint.

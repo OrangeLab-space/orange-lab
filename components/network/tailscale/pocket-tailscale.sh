@@ -14,20 +14,21 @@ set -euo pipefail
 #
 app_name=tailscale
 client_name="Tailscale"
-launch_url=https://login.tailscale.com/admin/machines
+# No launch URL: this client signs users in to the tailnet but must not add a
+# My Apps tile (the Tailscale admin console should not be advertised to everyone
+# who has VPN access).
 callback_urls=("https://login.tailscale.com/a/oauth_response")
+
+# Client icons (selfh.st), so the client is not left with a broken image.
+dark_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/tailscale.svg
+light_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/tailscale-light.svg
 
 # Tailscale requires a client secret, so this is a confidential client.
 pkce_enabled=true
 public_client=false
 
-# Unrestricted: any Pocket ID user may sign in. Tailscale does no user or group
-# provisioning with custom OIDC, so membership of the tailnet is exactly
-# membership of Pocket ID.
-#
-# To restrict to specific groups, set:
-#   pulumi config set tailscale:auth/allowedGroups admin,power-user
-# and uncomment --restrict-access below.
+# Restricted to admin and vpn-users by default (from Pulumi.yaml): tailnet
+# membership is the VPN population, the same as Headscale.
 allowed_groups=$(pulumi config get "${app_name}:auth/allowedGroups" 2>/dev/null || true)
 
 restrict_args=()
@@ -41,8 +42,9 @@ fi
 exec "$(git rev-parse --show-toplevel)/scripts/pocket-client.sh" \
     --app-name "$app_name" \
     --client-name "$client_name" \
-    --launch-url "$launch_url" \
     --callback-urls "${callback_urls[*]}" \
+    --dark-icon-url "$dark_icon_url" \
+    --light-icon-url "$light_icon_url" \
     --pkce-enabled "$pkce_enabled" \
     --public-client "$public_client" \
     "${restrict_args[@]}"

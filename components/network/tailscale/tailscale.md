@@ -53,18 +53,16 @@ Issuer** and it should populate with your Pocket ID URL.
 > with an account-mismatch error. Sign out of Pocket ID first, or use a private
 > window.
 
-The client is unrestricted by default, so **anyone with a Pocket ID account can
-sign in** and join the tailnet. Tailscale does no user or group provisioning with
-custom OIDC, so tailnet membership is exactly Pocket ID membership. To limit it
-to specific groups, set `tailscale:auth/allowedGroups` **before** running the
-script:
+The client is restricted to `admin` and `vpn-users` by default
+(`tailscale:auth/allowedGroups: admin,vpn-users`). Tailscale does no user or
+group provisioning with custom OIDC, so tailnet membership is the set of allowed
+Pocket ID groups - the same population that joins the
+[Headscale](../headscale/headscale.md) mesh. Both groups must exist in Pocket ID
+before running the script; everyone else is refused at sign-in.
 
-```sh
-pulumi config set tailscale:auth/allowedGroups admin,power-user
-```
-
-Everyone else - including Pocket ID users in no group at all - will be refused
-at signup.
+The client has no launch URL, so it adds no **My Apps** tile - members sign in to
+the tailnet through Tailscale itself (`tailscale up`), not through a launcher.
+Admins open the console directly at <https://login.tailscale.com/admin>.
 
 When custom domain is configured, Traefik replaces Tailscale for application endpoints.
 

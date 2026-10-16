@@ -138,9 +138,9 @@ oidc:
   # resolve conflicts between groups setting the same claim, so every group
   # that grants access needs its own value here.
   role_claim: headplane_role
-  # Anyone in an allowed group without a role claim gets read-only, rather than
-  # the default of no access at all.
-  default_role: viewer
+  # Anyone in an allowed group without a role claim (e.g. vpn-users) gets
+  # Headplane's default member role rather than admin/viewer visibility.
+  default_role: member
   # The OIDC client is shared with Headscale, which requires PKCE. Pocket ID
   # enforces that requirement, so without this the token exchange is rejected
   # with "the 'code_challenge' parameter is missing".
