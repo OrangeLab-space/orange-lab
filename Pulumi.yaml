@@ -113,7 +113,7 @@ config:
     # headplane:apiKey:
 
     technitium:enabled: false
-    technitium:image: technitium/dns-server:15.6.1
+    technitium:image: technitium/dns-server:15.6.2
     technitium:hostname: dns
     technitium:storageSize: 5Gi
     # set to empty to use root servers recursion
@@ -214,7 +214,7 @@ config:
     # rustfs:dataPath: /mnt/my-drive/rustfs-data
     # rustfs:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     rustfs:rootUser: admin
-    rustfs:image: rustfs/rustfs:1.0.1
+    rustfs:image: rustfs/rustfs:1.0.3
     rustfs:provisioner/image: rustfs/rc:latest
     # rustfs:fixVolumePermissions: '-Rv'
 
