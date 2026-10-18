@@ -99,21 +99,52 @@ function createConfigJson(
               'Zot: SSO enabled (zot:auth) but the OIDC provider base URL is unavailable. Enable the security module in this stack, then deploy.',
           )
         : undefined;
+    const syncRegistries = config.requireObject(name, 'registries') as SyncRegistry[];
 
     return pulumi.all([externalUrl, issuer]).apply(([url, issuer]) =>
         JSON.stringify({
-            storage: {
-                rootDirectory: '/var/lib/registry',
-                dedupe: true,
-                gc: true,
-            },
+            storage: createStorageConfig(
+                syncRegistries,
+                config.getNumber(name, 'retentionKeepTags'),
+            ),
             http: createHttpConfig(url, issuer, providerName),
             extensions: createExtensions(
                 config.require(name, 'scanInterval'),
-                config.requireObject(name, 'registries') as SyncRegistry[],
+                syncRegistries,
             ),
         }),
     );
+}
+
+/**
+ * Retention only applies to the mirrored upstream destinations; a repository that
+ * matches no policy keeps every tag, so images pushed to Zot directly are never
+ * pruned. Evicting a cached tag costs a re-sync from upstream on the next pull.
+ * An unset or zero keep count leaves retention off.
+ */
+function createStorageConfig(syncRegistries: SyncRegistry[], keepTags?: number) {
+    return {
+        rootDirectory: '/var/lib/registry',
+        dedupe: true,
+        gc: true,
+        ...(keepTags
+            ? { retention: createRetentionConfig(syncRegistries, keepTags) }
+            : {}),
+    };
+}
+
+function createRetentionConfig(syncRegistries: SyncRegistry[], keepTags: number) {
+    return {
+        delay: '24h',
+        policies: [
+            {
+                repositories: syncRegistries.map(
+                    ({ destination }) => `${destination}/**`,
+                ),
+                keepTags: [{ patterns: ['.*'], mostRecentlyPulledCount: keepTags }],
+            },
+        ],
+    };
 }
 
 function createHttpConfig(

@@ -120,6 +120,24 @@ pulumi config set <app>:image registry.<domain>/apps/myapp:1.0
 
 > Note: read access is currently anonymous for all repositories (`anonymousPolicy: read` on `**`), so pushed images are readable by anyone who can reach the registry. Per-repository policies to make images private are not configured yet; treat Zot as a network-restricted registry, not a secret store.
 
+## Retention
+
+Each mirrored repository keeps a limited number of tags, so the cache cannot grow without bound. Once retention removes a tag, garbage collection frees the blobs it referenced.
+
+```sh
+# (Optional) Tags kept per mirrored repository (default: 5)
+pulumi config set zot:retentionKeepTags 5
+
+# (Optional) Keep every tag instead - unset or 0 disables eviction
+pulumi config set zot:retentionKeepTags 0
+```
+
+Retention covers only the mirrored upstream destinations ([upstreams](#upstreams) table). A repository matching no policy keeps every tag, so images [pushed](#pushing-your-own-images) to Zot directly are never pruned. Evicting a cached tag drops only the local copy — the next pull re-syncs it from upstream, costing a slower pull rather than a failed one.
+
+Tags are ranked by last pull, which Zot records in its metadata index rather than from real usage: the timestamps come out in tag order, so the tag treated as oldest is arbitrary and can change between cycles. A count keeps that many tags, not the newest versions — keep it above the tags currently deployed.
+
+Pruning runs on Zot's garbage collection cycle. Set the count back to 0 to stop it.
+
 ## SSO
 
 Zot supports OpenID Connect login for the web UI using [Pocket ID](../../security/pocket/pocket.md). The registry API still uses the `admin` password, since CLI clients cannot complete a browser redirect.

@@ -141,6 +141,8 @@ config:
     zot:auth/allowedGroups: admin,zot-admin
     # Vulnerability scan interval for cached images (minimum 2h)
     zot:scanInterval: 24h
+    # Tags kept per mirrored repository before older ones are evicted; unset or 0 keeps all
+    zot:retentionKeepTags: 5
     # Upstream registries cached on-demand: host (K3s mirror key), upstream URL, and
     # local destination (pull as registry.<domain>/<destination>/<image>).
     zot:registries:
