@@ -350,6 +350,13 @@ export interface CoreStackExports {
         tailnet?: string;
         longhorn?: {
             backupAllVolumes?: boolean;
+            backupCron?: string;
+            backupEnabled?: boolean;
+            backupFullInterval?: string;
+            backupRetain?: number;
+            snapshotCron?: string;
+            snapshotEnabled?: boolean;
+            snapshotRetain?: number;
         };
     };
     security?: {

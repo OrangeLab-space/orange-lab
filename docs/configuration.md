@@ -107,6 +107,13 @@ The following settings are supported by most applications in OrangeLab:
 | `excludeNodeLabel`    | Do not deploy to nodes with specified label (hard constraint)                                |
 | `requiredVolumeLabel` | Pin volume to specific node(s). Immutable - requires app redeploy to change                  |
 | `backupVolume`        | Enable volume backups to S3-compatible storage                                               |
+| `storage/snapshotEnabled` | Enable per-app snapshots (defaults to `longhorn:snapshotEnabled`)                        |
+| `storage/snapshotCron` | Per-app snapshot schedule (defaults to `longhorn:snapshotCron`)                             |
+| `storage/snapshotRetain` | Per-app snapshot retention (defaults to `longhorn:snapshotRetain`)                        |
+| `storage/backupEnabled` | Override global backup enablement and volume participation                              |
+| `storage/backupCron` | Per-app backup schedule (defaults to `longhorn:backupCron`)                                  |
+| `storage/backupRetain` | Per-app backup retention (defaults to `longhorn:backupRetain`)                              |
+| `storage/backupFullInterval` | Per-app full-backup interval (defaults to `longhorn:backupFullInterval`)               |
 | `auth`                | Enable OIDC authentication with the selected provider                                         |
 | `auth/clientId`       | OIDC client ID                                                                                |
 | `auth/clientSecret`   | OIDC client secret (not required by apps using a public/PKCE client)                        |
@@ -275,6 +282,13 @@ pulumi config set ollama:fromVolume existing-volume-name
 # Enable backups to S3-compatible storage
 # Ignored when `longhorn:backupAllVolumes` is enabled
 pulumi config set ollama:backupVolume true
+
+# Optional per-app snapshot/backup schedule and retention
+# Unset values fall back to the global `longhorn:` settings
+pulumi config set ollama:storage/snapshotEnabled true
+pulumi config set ollama:storage/snapshotCron '0 */6 * * *'
+pulumi config set ollama:storage/backupCron '0 2 * * *'
+pulumi config set ollama:storage/backupRetain 14
 ```
 
 This approach allows you to safely disable applications without losing data, even during breaking changes.
