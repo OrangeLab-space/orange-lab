@@ -47,6 +47,7 @@
             "npm run lint": "allow",
             "npm run test": "allow",
             "npm test*": "allow",
+            "npx prettier *": "allow",
             "pulumi * --show-secrets *": "ask",
             "pulumi config get *": "allow",
             "pulumi config set *": "ask",
