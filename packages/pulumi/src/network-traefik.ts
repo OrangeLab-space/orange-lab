@@ -12,6 +12,12 @@ import {
     ServicePort,
 } from './types';
 
+/**
+ * Public LoadBalancer ports are published at `<port> + publicPortOffset`, so a
+ * port keeps its own number for private reach.
+ */
+const publicPortOffset = 10000;
+
 /** Gateway serving routes within the tailnet. */
 const privateGatewayRef = {
     name: 'traefik-gateway',
@@ -27,7 +33,8 @@ const publicGatewayRef = {
 };
 
 export class TraefikNetwork implements RoutingProvider {
-    endpoints: Record<string, pulumi.Input<string>> = {};
+    privateEndpoints: Record<string, pulumi.Input<string>> = {};
+    publicEndpoints: Record<string, pulumi.Input<string>> = {};
     customDomain: pulumi.Input<string>;
 
     constructor(
@@ -312,26 +319,41 @@ export class TraefikNetwork implements RoutingProvider {
         component?: string;
         hostname: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
+        public?: boolean;
     }): kubernetes.core.v1.Service | undefined {
         if (params.tcpPorts.length === 0) return undefined;
+
+        const hostname = pulumi.interpolate`${params.hostname}.${this.customDomain}`;
+        const lbPorts = params.tcpPorts.filter(
+            p => p.protocol === 'tcp' || p.protocol === 'udp',
+        );
+        const publicPorts = params.public ? lbPorts.filter(p => p.public) : [];
+
         this.createTlsRoutes({
             component: params.component,
             tlsPorts: params.tcpPorts.filter(p => p.protocol === 'tls'),
             serviceName: params.serviceName,
-            hostname: pulumi.interpolate`${params.hostname}.${this.customDomain}`,
+            hostname,
         });
-        const loadBalancer = this.createInternalLoadBalancer({
+        const loadBalancer = this.createLoadBalancer({
             component: params.component,
-            tcpPorts: params.tcpPorts.filter(
-                p => p.protocol === 'tcp' || p.protocol === 'udp',
-            ),
+            ports: lbPorts,
+            nameSuffix: '-lb',
             externalTrafficPolicy: params.externalTrafficPolicy,
+        });
+        this.createLoadBalancer({
+            component: params.component,
+            ports: publicPorts,
+            nameSuffix: '-public-lb',
+            externalTrafficPolicy: params.externalTrafficPolicy,
+            publicPorts: true,
         });
 
         this.exportTcpEndpoints({
             component: params.component,
             tcpPorts: params.tcpPorts,
-            hostname: pulumi.interpolate`${params.hostname}.${this.customDomain}`,
+            hostname,
+            publicPorts,
         });
 
         return loadBalancer;
@@ -381,32 +403,35 @@ export class TraefikNetwork implements RoutingProvider {
         });
     }
 
-    private createInternalLoadBalancer(params: {
+    /**
+     * A LoadBalancer Service for a component's TCP/UDP ports. Public ports are
+     * published on `<port> + publicPortOffset`, leaving the port's own number
+     * for private reach.
+     */
+    private createLoadBalancer(params: {
         component?: string;
-        tcpPorts: ServicePort[];
+        ports: ServicePort[];
+        nameSuffix: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
+        publicPorts?: boolean;
     }): kubernetes.core.v1.Service | undefined {
+        if (params.ports.length === 0) return undefined;
         const metadata = this.args.metadata.get({ component: params.component });
-        if (params.tcpPorts.length === 0) return undefined;
+        const name = `${metadata.name}${params.nameSuffix}`;
 
         return new kubernetes.core.v1.Service(
-            `${metadata.name}-lb`,
+            name,
             {
-                metadata: {
-                    ...metadata,
-                    name: `${metadata.name}-lb`,
-                },
+                metadata: { ...metadata, name },
                 spec: {
                     type: 'LoadBalancer',
                     externalTrafficPolicy: params.externalTrafficPolicy,
-                    ports: params.tcpPorts.flatMap(p => [
-                        {
-                            name: p.name,
-                            protocol: p.protocol === 'udp' ? 'UDP' : 'TCP',
-                            port: p.port,
-                            targetPort: p.port,
-                        },
-                    ]),
+                    ports: params.ports.map(p => ({
+                        name: p.name,
+                        protocol: p.protocol === 'udp' ? 'UDP' : 'TCP',
+                        port: params.publicPorts ? this.publicPort(p.port) : p.port,
+                        targetPort: p.port,
+                    })),
                     selector: this.args.metadata.getSelectorLabels(params.component),
                 },
             },
@@ -417,11 +442,22 @@ export class TraefikNetwork implements RoutingProvider {
         );
     }
 
+    private publicPort(port: number): number {
+        const mapped = port + publicPortOffset;
+        if (mapped > 65535) {
+            throw new Error(
+                `${this.appName}: public port ${String(port)} maps to ${String(mapped)}, above the maximum 65535.`,
+            );
+        }
+        return mapped;
+    }
+
     private exportHttpEndpoints(params: {
         component?: string;
         httpPorts: ServicePort[];
         hostname: string;
         serviceName: pulumi.Input<string>;
+        public?: boolean;
     }): void {
         params.httpPorts.forEach(port => {
             const portHostname = port.hostname ?? params.hostname;
@@ -430,8 +466,10 @@ export class TraefikNetwork implements RoutingProvider {
                 component: params.component,
                 portName: port.name,
             });
-            this.endpoints[key] =
-                pulumi.interpolate`https://${httpEndpointInfo.hostname}`;
+            const bucket = params.public
+                ? this.publicEndpoints
+                : this.privateEndpoints;
+            bucket[key] = pulumi.interpolate`https://${httpEndpointInfo.hostname}`;
         });
     }
 
@@ -439,16 +477,23 @@ export class TraefikNetwork implements RoutingProvider {
         component?: string;
         tcpPorts: ServicePort[];
         hostname: pulumi.Input<string>;
+        publicPorts: ServicePort[];
     }): void {
         params.tcpPorts.forEach(port => {
             const key = this.getEndpointKey({
                 component: params.component,
                 portName: port.name,
             });
-            this.endpoints[key] =
+            const isPublic = params.publicPorts.includes(port);
+            const bucket = isPublic
+                ? this.publicEndpoints
+                : this.privateEndpoints;
+            bucket[key] =
                 port.protocol === 'tls'
                     ? pulumi.interpolate`${params.hostname}:3443`
-                    : pulumi.interpolate`${params.hostname}:${port.port}`;
+                    : pulumi.interpolate`${params.hostname}:${
+                          isPublic ? this.publicPort(port.port) : port.port
+                      }`;
         });
     }
 

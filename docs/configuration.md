@@ -161,6 +161,10 @@ What this does depends on the routing provider:
   both inside and outside the tailnet. Requires a `funnel` node attribute in the
   tailnet policy, and only works on ports 443, 8443 and 10000 over HTTPS.
 
+`network/public` covers HTTP only. TCP and UDP ports opt in individually with
+`public: true` on the port, and Traefik publishes them at `<port> + 10000` — see
+[TCP ports](../components/network/NETWORK.md#tcp-ports).
+
 Turning it back off removes the public route; the private name is unaffected.
 
 See [Network module](../components/network/NETWORK.md) for choosing between

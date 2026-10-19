@@ -59,7 +59,7 @@ public path. No extra port forward is needed.
 | `headscale:auth/*`             | Optional Pocket ID client — see [Signing in](#signing-in)          |
 | `headscale:auth/allowedGroups` | Restricts who may sign in. Default `admin,vpn-users`               |
 | `headscale:derp/enabled`       | Runs the built-in DERP relay. Default `false`                    |
-| `headscale:derp/stunPort`      | STUN port. Default `3478`, must match your forward               |
+| `headscale:derp/stunPort`      | STUN port. Default `3478`, the WAN port to forward                |
 | `headscale:derp/regionId`      | Relay region ID. Default `900` — **must not be `0`**             |
 | `headscale:derp/regionCode`    | Region name shown in `tailscale status`. Default `headscale`     |
 | `headscale:derp/externalIp`    | Relay's public IPv4. Required when `derp/enabled`                |
@@ -164,10 +164,10 @@ clients reach it through the routing provider like any other app. Only STUN is
 separate, and only because it is raw UDP that no reverse proxy carries.
 
 So enabling it needs one thing done outside Pulumi — forward the STUN port to
-the node:
+the node. The public port is the configured port plus 10000:
 
 ```
-WAN 3478/udp → <node>:3478     # must match headscale:derp/stunPort
+WAN 3478/udp → <node>:13478    # WAN port must match headscale:derp/stunPort
 ```
 
 ```sh
@@ -189,10 +189,11 @@ when wrong:
 - **`derp/externalIp` is required.** Given only a hostname, clients cannot
   confirm the region over UDP and decline it.
 
-The STUN port is served by the cluster's own load balancer, which only opens
-`hostPort` on nodes labelled `svccontroller.k3s.cattle.io/enablelb=true`. So the
-forward above must point at a node carrying that label, and if Headscale is pinned
-with `headscale:requiredNodeLabel`, that node needs the label too — otherwise STUN
+The STUN port is served by the cluster's own load balancer on
+`<stunPort> + 10000`, which only opens `hostPort` on nodes labelled
+`svccontroller.k3s.cattle.io/enablelb=true`. So the forward above must point at a
+node carrying that label, and if Headscale is pinned with
+`headscale:requiredNodeLabel`, that node needs the label too — otherwise STUN
 answers nowhere and the relay degrades to the silent failure above.
 
 Only the _relay_ touches it: encrypted WireGuard packets between two of your own

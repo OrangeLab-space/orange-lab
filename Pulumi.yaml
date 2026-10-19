@@ -86,6 +86,7 @@ config:
     # Disabled = clients relay through Tailscale's public DERP servers.
     # Enabling it needs a UDP port forward for STUN; see headscale.md.
     headscale:derp/enabled: false
+    # STUN WAN port to forward; the node publishes it at this port + 10000
     headscale:derp/stunPort: 3478
     # Region ID. Tailscale reads 0 as "unset" and will never select such a relay,
     # so it must be non-zero. 900-999 are reserved for self-hosted regions.

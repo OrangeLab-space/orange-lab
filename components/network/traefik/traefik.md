@@ -72,6 +72,12 @@ Three layers keep public and private apart:
    (`<app>-http-public`) from its private counterpart, so dropping public
    exposure cannot disturb internal routing.
 
+TCP and UDP follow the same split. A port marked `public` gets a second
+LoadBalancer publishing it at `<port> + 10000`, and the router forward targets
+that offset port — `WAN 22/tcp → <node>:10022`, mirroring `WAN 443 → 10443`. So
+every public port forms one forward band at or above 10000 while private ports
+are never forwarded.
+
 The public path needs NAT loopback to be useful internally. With it, a single
 public A record serves both sides: internal clients resolve the WAN IP, hairpin
 through the router, and land on the same public listener.

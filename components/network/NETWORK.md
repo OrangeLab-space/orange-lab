@@ -125,8 +125,8 @@ orangelab:
 
 Only Traefik can serve your own domain names. That single limitation is why
 options 2–4 all require it, and it is what decides between option 1 and the
-rest. Both providers also expose TCP endpoints as a LoadBalancer on the cluster
-network.
+rest. Both providers also expose TCP endpoints as a LoadBalancer, private by
+default; only Traefik can publish them publicly — see [TCP ports](#tcp-ports).
 
 Per-application override:
 
@@ -150,6 +150,32 @@ tailnet. What it does depends on the routing provider:
 - **Tailscale** — [Funnel](./tailscale/tailscale.md#public-exposure-with-funnel),
   which publishes the same `ts.net` name to the internet. Requires a `funnel`
   node attribute in the tailnet policy, and is limited to ports 443, 8443 and 10000.
+
+### TCP ports
+
+`network/public` covers HTTP only. A TCP or UDP port opts in separately, with
+`public: true` on the port, and only under Traefik:
+
+```ts
+ports: [{ name: 'ssh', port: 22, protocol: 'tcp', public: true }]
+```
+
+The private LoadBalancer keeps the port's own number; a second LoadBalancer
+publishes the same port at `<port> + 10000` — 22 becomes 10022, 8333 becomes
+18333. That offset is what the router forwards to: the WAN port keeps its number,
+only the node side moves.
+
+```
+WAN 22/tcp   → <node>:10022
+WAN 8333/udp → <node>:18333
+```
+
+So every public port forms one forward band at or above 10000, and private ports
+are never forwarded.
+
+Under Tailscale a TCP port is always private: Funnel serves HTTPS only, so
+marking one `public` fails the deploy instead of pretending to be reachable.
+Public TLS ports are not wired up yet.
 
 ## Quick Start
 

@@ -182,10 +182,13 @@ it through the routing provider like any other app. `derp.server.ipv4`/`ipv6` ar
 *additive* addresses for when DNS is broken, not the primary target — so a busy
 `443/tcp` does not block it.
 
-The one thing it does need is `3478/udp`, forwarded to the node, because STUN is
-raw UDP that no reverse proxy carries. Headscale refuses to start without it
-whenever the relay is enabled, so the component always emits `stun_listen_addr`
-alongside `enabled: true`.
+The one thing it does need is `3478/udp` forwarded to the node, because STUN is
+raw UDP that no reverse proxy carries. The port opts into public exposure, so the
+public LoadBalancer publishes it on `<stunPort> + 10000` — forward WAN `3478/udp`
+to the node's `13478`. Headscale still advertises `3478`, which is why the WAN port
+must match `stun_listen_addr`. It refuses to start without `stun_listen_addr`
+whenever the relay is enabled, so the component always emits it alongside
+`enabled: true`.
 
 Two things worth being precise about: the relay carries only opaque,
 end-to-end-encrypted WireGuard packets between two of your own nodes, so

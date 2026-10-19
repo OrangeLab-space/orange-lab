@@ -24,6 +24,12 @@ export interface ServicePort {
      */
     protocol?: 'http' | 'tcp' | 'tls' | 'udp';
     private?: boolean;
+    /**
+     * Publish this TCP/UDP port to the public internet as well. Only takes
+     * effect together with the application's `network/public`, and only with
+     * the Traefik routing provider.
+     */
+    public?: boolean;
 }
 
 export interface VolumeMount {
@@ -392,7 +398,10 @@ export interface PublicTcpServiceConfig {
  */
 export interface RoutingProvider {
     getPublicTcpService: (params: { hostname: string }) => PublicTcpServiceConfig;
-    endpoints: Record<string, pulumi.Input<string>>;
+    /** Endpoints reachable only within the tailnet. */
+    privateEndpoints: Record<string, pulumi.Input<string>>;
+    /** Endpoints reachable from the public internet. */
+    publicEndpoints: Record<string, pulumi.Input<string>>;
     getHttpEndpointInfo: (hostname: string) => HttpEndpointInfo;
     createHttpRoute: (
         spec: HttpRouteSpec,
@@ -419,5 +428,7 @@ export interface RoutingProvider {
         component?: string;
         hostname: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
+        /** The application is publicly exposed; publish its `public` ports. */
+        public?: boolean;
     }) => kubernetes.core.v1.Service | undefined;
 }

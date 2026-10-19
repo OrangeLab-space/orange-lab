@@ -60,7 +60,8 @@ export function getNamespaceLabels(appName: string): Record<string, string> | un
 }
 
 export class Network {
-    endpoints: Record<string, pulumi.Input<string>> = {};
+    privateEndpoints: Record<string, pulumi.Input<string>> = {};
+    publicEndpoints: Record<string, pulumi.Input<string>> = {};
     clusterEndpoints: Record<string, pulumi.Input<string>> = {};
     private provider: RoutingProvider;
     private tcpLoadBalancer?: kubernetes.core.v1.Service;
@@ -202,22 +203,27 @@ export class Network {
                     component: spec.name,
                     hostname,
                     externalTrafficPolicy: spec.externalTrafficPolicy,
+                    public: this.publiclyExposed,
                 });
                 if (loadBalancer) this.tcpLoadBalancer = loadBalancer;
             }
         }
 
-        Object.assign(this.endpoints, this.provider.endpoints);
+        Object.assign(this.privateEndpoints, this.provider.privateEndpoints);
+        Object.assign(this.publicEndpoints, this.provider.publicEndpoints);
     }
 
     /**
      * Record an endpoint the automatic port handling cannot see — an
      * application served by a Helm chart, or one that suppresses its own route
-     * and serves a path prefix. Reaches the same records the automatic
-     * handling fills, so it is classified the same way on export.
+     * and serves a path prefix. Such applications do not expose per-port
+     * settings, so its endpoints follow the application's `network/public`.
      */
     addEndpoint(name: string, url: pulumi.Input<string>): void {
-        this.endpoints[name] = url;
+        const bucket = this.publiclyExposed
+            ? this.publicEndpoints
+            : this.privateEndpoints;
+        bucket[name] = url;
     }
 
     /**
@@ -230,13 +236,16 @@ export class Network {
 
     /**
      * Endpoints grouped by where they are reachable. `public` holds the
-     * applications that opted into internet exposure, `private` the ones only
-     * the tailnet reaches, `cluster` the in-cluster Service addresses.
+     * endpoints reachable from the internet, `private` the ones only the
+     * tailnet reaches, `cluster` the in-cluster Service addresses.
      */
     getEndpointExports(): EndpointExports {
         const exports: EndpointExports = {};
-        if (Object.keys(this.endpoints).length > 0) {
-            exports[this.publiclyExposed ? 'public' : 'private'] = this.endpoints;
+        if (Object.keys(this.publicEndpoints).length > 0) {
+            exports.public = this.publicEndpoints;
+        }
+        if (Object.keys(this.privateEndpoints).length > 0) {
+            exports.private = this.privateEndpoints;
         }
         if (Object.keys(this.clusterEndpoints).length > 0) {
             exports.cluster = this.clusterEndpoints;

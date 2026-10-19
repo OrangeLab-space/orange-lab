@@ -57,7 +57,7 @@ firewall-cmd --permanent --add-port=9100/tcp  # Prometheus metrics
 firewall-cmd --permanent --add-port=45876/tcp # Beszel metrics
 firewall-cmd --permanent --add-port=53/tcp    # Technitium DNS Zone transfers, DNSSEC
 firewall-cmd --permanent --add-port=53/udp    # Technitium standard DNS queries
-firewall-cmd --permanent --add-port=3478/udp  # Headscale DERP STUN
+firewall-cmd --permanent --add-port=13478/udp # Headscale DERP STUN (public port)
 
 systemctl reload firewalld
 ```

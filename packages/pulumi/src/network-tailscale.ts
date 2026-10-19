@@ -14,7 +14,8 @@ import {
 } from './types';
 
 export class TailscaleNetwork implements RoutingProvider {
-    endpoints: Record<string, pulumi.Input<string>> = {};
+    privateEndpoints: Record<string, pulumi.Input<string>> = {};
+    publicEndpoints: Record<string, pulumi.Input<string>> = {};
     tailnetDomain: pulumi.Input<string>;
 
     constructor(
@@ -188,8 +189,14 @@ export class TailscaleNetwork implements RoutingProvider {
         component?: string;
         hostname: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
+        public?: boolean;
     }): kubernetes.core.v1.Service | undefined {
         if (params.tcpPorts.length === 0) return undefined;
+
+        assert(
+            !params.public || !params.tcpPorts.some(p => p.public),
+            `${this.appName}: public TCP ports are not supported by the tailscale routing provider.`,
+        );
 
         const loadBalancer = this.createTcpLoadBalancer({
             component: params.component,
@@ -246,6 +253,7 @@ export class TailscaleNetwork implements RoutingProvider {
         httpPorts: ServicePort[];
         hostname: string;
         serviceName: pulumi.Input<string>;
+        public?: boolean;
     }): void {
         params.httpPorts.forEach(port => {
             const portHostname = port.hostname ?? params.hostname;
@@ -256,7 +264,10 @@ export class TailscaleNetwork implements RoutingProvider {
             });
             // `hostname` is only the subdomain label here — the operator appends
             // the tailnet domain itself. The full name comes from `url`.
-            this.endpoints[key] = httpEndpointInfo.url;
+            const bucket = params.public
+                ? this.publicEndpoints
+                : this.privateEndpoints;
+            bucket[key] = httpEndpointInfo.url;
         });
     }
 
@@ -270,7 +281,8 @@ export class TailscaleNetwork implements RoutingProvider {
                 component: params.component,
                 portName: port.name,
             });
-            this.endpoints[key] = pulumi.interpolate`${params.hostname}:${port.port}`;
+            this.privateEndpoints[key] =
+                pulumi.interpolate`${params.hostname}:${port.port}`;
         });
     }
 
