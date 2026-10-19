@@ -139,3 +139,17 @@ counter is not reset after a successful rebuild, so it reflects historical
 attempts rather than the current state. Check the volume's `robustness` field
 instead, and allow time for the rebuild: a degraded volume during a rebuild is
 expected until the new replica is usable.
+
+### Backup target unavailable
+
+A `system-backup list` timeout usually means RustFS is slow to answer Longhorn's
+root-prefix listing, not that the backup target is broken. Restart RustFS, wait
+for the next reconcile, then check the target:
+
+```sh
+kubectl -n rustfs rollout restart deployment/rustfs
+kubectl -n longhorn-system get backuptarget default
+```
+
+See [Longhorn behavior notes](../spec/longhorn.md#backup-target-can-flap-on-slow-s3-storage)
+for the full diagnosis and fallback settings.

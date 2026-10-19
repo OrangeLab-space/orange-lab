@@ -151,3 +151,89 @@ rebuild, so a high count on an otherwise healthy replica means nothing.
 
 **SQLite applications are fragile.** A volume that hit 100% may have left the
 database damaged, and resizing does not repair it.
+
+## Backup target can flap on slow S3 storage
+
+Longhorn reports:
+
+```text
+failed to list system backups in s3://<bucket>@<region>/:
+timeout executing: ... longhorn system-backup list ...
+```
+
+The target then shows `available=false` and nightly backups stop, even though
+RustFS is healthy and normal S3 requests still succeed.
+
+Longhorn 1.13's `system-backup list` sends an S3 `ListObjectsV2` request with
+`prefix=/`. RustFS answers that by walking the bucket. On slow storage
+(USB/HDD), and with the background scanner running, the walk can exceed
+`backup-execution-timeout`, which defaults to 1 minute. The target is marked
+unavailable and retried every minute.
+
+The status is intermittent: a single `available=true` does not prove the target
+is stable; check `lastSyncedAt` and the manager log over a few minutes.
+
+### Diagnose
+
+```sh
+kubectl -n longhorn-system get backuptarget default
+
+kubectl -n longhorn-system get settings.longhorn.io backup-execution-timeout \
+  -o custom-columns=NAME:.metadata.name,VALUE:.value
+
+kubectl -n longhorn-system logs -l app=longhorn-manager -c longhorn-manager --since=10m \
+  | grep -iE 'backup store|system-backup|timeout'
+
+# RustFS writes most logs to a file, not stdout
+kubectl -n rustfs exec deploy/rustfs -- \
+  sh -c 'grep -iE "inflight_slow|walk_dir" /logs/rustfs.log | tail -20'
+```
+
+Look for `GET /<bucket>?delimiter=%2F&list-type=2&prefix=%2F` and `walk_dir`
+on the RustFS data path. If those appear, it is the slow listing, not bad
+credentials, DNS or a dead RustFS.
+
+### Restart RustFS first
+
+Restarting the single RustFS pod clears the stuck walk and has restored the
+target without changing configuration:
+
+```sh
+kubectl -n rustfs rollout restart deployment/rustfs
+kubectl -n rustfs rollout status deployment/rustfs
+
+# Wait for the next backup-target reconcile (up to a minute)
+kubectl -n longhorn-system get backuptarget default
+```
+
+`available=true` and a fresh `lastSyncedAt` mean the listing succeeded. The first
+call after a cold restart can still take close to the 1-minute Longhorn timeout.
+
+### If it keeps recurring
+
+These are live changes; Pulumi will revert them on the next `pulumi up` unless
+the same values are added to the component config:
+
+```sh
+# Longhorn: allow the system-backup listing to take up to 10 minutes
+kubectl -n longhorn-system patch settings.longhorn.io backup-execution-timeout \
+  --type merge -p '{"value":"10"}'
+
+# RustFS: widen the walk budget for slow storage
+kubectl -n rustfs set env deployment/rustfs \
+  RUSTFS_DRIVE_TIMEOUT_PROFILE=high_latency
+
+kubectl -n rustfs rollout status deployment/rustfs
+```
+
+If the scanner is competing for I/O, disabling it removes the background
+full-bucket walk; the trade-off is stale usage/scanner data:
+
+```sh
+kubectl -n rustfs set env deployment/rustfs RUSTFS_ENABLE_SCANNER=false
+kubectl -n rustfs rollout status deployment/rustfs
+```
+
+The durable fix is faster storage (SSD/NVMe) or fewer objects (prune old
+backups). Do not delete the backup target, credential secret or bucket to
+"reset" it; the target recovers once the listing completes.
