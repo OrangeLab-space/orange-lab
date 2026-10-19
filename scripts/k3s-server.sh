@@ -16,6 +16,12 @@ echo
 # bind-address listens on every interface so LAN clients can reach the API, while
 # advertise-address stays on the tailnet address every node dials. The SAN list
 # also carries the LAN IP as a recovery path if tailscaled is unavailable.
+#
+# The toleration seconds decide when pods on an unreachable node are evicted:
+# 40s lease + 40s grace + toleration. A node behind a flaky WAN link drops out
+# for a few minutes at a time, so 180s keeps its pods (and the longhorn
+# instance-manager) alive through those stalls instead of evicting them every
+# few minutes. Upstream default is 300s; 180s keeps failover reasonably quick.
 echo "curl -sfL https://get.k3s.io |  sh -s - \
 --bind-address=0.0.0.0 \
 --advertise-address=\$NODE_IP \
@@ -27,9 +33,8 @@ echo "curl -sfL https://get.k3s.io |  sh -s - \
 --service-cidr=\$SERVICE_CIDR \
 --flannel-iface=tailscale0 \
 --disable=traefik \
---kube-apiserver-arg=enable-admission-plugins=DefaultTolerationSeconds \
---kube-apiserver-arg=default-not-ready-toleration-seconds=10 \
---kube-apiserver-arg=default-unreachable-toleration-seconds=10"
+--kube-apiserver-arg=default-not-ready-toleration-seconds=180 \
+--kube-apiserver-arg=default-unreachable-toleration-seconds=180"
 echo
 echo systemctl restart k3s.service
 echo systemctl enable k3s.service --now
