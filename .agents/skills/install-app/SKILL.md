@@ -210,4 +210,5 @@ At each configuration step, **show the exact `pulumi config set` commands to the
    - **First-Login Owner Bootstrap & Next Steps**:
      - If the application designates the **first user who logs in** as the Owner/Admin (e.g. `headplane`, `open-webui`, `immich`, `n8n`, `droppedneedle`), explicitly advise the user to **log out of Pocket ID first** (if currently signed in as a non-admin user) and then open the application URL to sign in as `admin` first.
      - Advise on how to expose the service publicly if desired (`pulumi config set <app>:network/public true` and redeploy), or note if the app is intentionally private-only (like `headplane`).
+     - If the app declares TCP/UDP ports with `public: true`, tell the user to forward each `WAN <port>` to the node's `<port> + 10000` (see [`components/network/NETWORK.md`](/components/network/NETWORK.md#tcp-ports)).
      - Mention any post-install UI steps or Pocket ID role claims documented in `<app>.md`.

@@ -66,14 +66,14 @@ These apply to `Pulumi.yaml` in the core stack and to every module's `Pulumi.yam
 Every module and stack exports the same two keys, so a caller learns one shape:
 
 - **`endpoints`** — addresses grouped by reach, via `mergeEndpointExports(...apps)`:
-  - `public` — the app sets `network/public: true`, so it answers on the Traefik public gateway and the internet
-  - `private` — the tailnet gateway only; every app not explicitly opted in
+  - `public` — reachable from the internet: HTTP endpoints when the app sets `network/public: true` (Traefik public gateway or Tailscale Funnel), and TCP endpoints whose port sets `public: true` alongside it
+  - `private` — the tailnet gateway only; every endpoint not explicitly opted in, including a publicly-exposed app's TCP ports
   - `cluster` — in-cluster Service DNS, for app-to-app wiring
 - **`apps`** — app-specific values that are not addresses: `users`, passwords, tokens, `db`, and resolver addresses like Technitium's `resolverIp`
 
 Rules:
 
-- **Classify by `network/public`, not by how a route was actually built.** An opted-in app gets a second route on the public gateway but serves one URL; where that URL goes in the export is the flag's answer, full stop.
+- **HTTP endpoints classify by `network/public`; TCP endpoints by their own reach.** An opted-in app's HTTP endpoints get a second route on the public gateway but serve one URL, so the flag decides where that URL goes. A TCP port lands in `public` only when a public publication was actually built — `public: true` on the port plus the app's `network/public` under Traefik — so a tailnet-only TCP port stays in `private` even for a publicly-exposed app.
 - **Never hand-list an endpoint in `getExports()`.** The library registers them; a hand-written list is what this shape replaced. If a URL is missing, the component never registered it — call `app.network.addEndpoint(name, url)` (or `addClusterEndpoint` for a Service address) where the component derives it.
 - **Helm-served apps must register their own endpoint.** Automatic port handling only sees `addDeployment`; an app brought up by `addHelmChart` or by a chart's own Ingress registers nothing and would silently vanish from the outputs.
 - **Store `app` as `public readonly`** on any component whose endpoints a module merges, so the module can read `component.app.network`.
