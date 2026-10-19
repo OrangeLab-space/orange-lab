@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=mempool
 client_name="Mempool"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.cluster."mempool-frontend"')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private["mempool-frontend"]')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/")
 logout_callback_urls=()
