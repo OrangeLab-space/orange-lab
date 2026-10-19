@@ -83,11 +83,30 @@ export class Longhorn extends pulumi.ComponentResource {
             repo: 'https://charts.longhorn.io',
             values: {
                 csi: {
+                    allowControllerSecretAccess: false,
                     attacherReplicaCount: 1,
                     provisionerReplicaCount: 1,
                     resizerReplicaCount: 1,
                     snapshotterReplicaCount: 1,
                 },
+                networkPolicies: config.enableMonitoring()
+                    ? {
+                          metricsScrapeSources: [
+                              {
+                                  namespaceSelector: {
+                                      matchLabels: {
+                                          'kubernetes.io/metadata.name': 'prometheus',
+                                      },
+                                  },
+                                  podSelector: {
+                                      matchLabels: {
+                                          'app.kubernetes.io/name': 'prometheus',
+                                      },
+                                  },
+                              },
+                          ],
+                      }
+                    : undefined,
                 defaultBackupStore: backupTarget
                     ? { backupTarget, backupTargetCredentialSecret }
                     : { backupTarget: '', backupTargetCredentialSecret: '' },
@@ -99,7 +118,10 @@ export class Longhorn extends pulumi.ComponentResource {
                     autoCleanupSnapshotWhenDeleteBackup: 'true',
                     autoCleanupSystemGeneratedSnapshot: 'true',
                     backupConcurrentLimit: '2',
-                    concurrentReplicaRebuildPerNodeLimit: '4',
+                    concurrentReplicaRebuildPerNodeLimit: config.require(
+                        'longhorn',
+                        'concurrentReplicaRebuildPerNodeLimit',
+                    ),
                     defaultDataLocality: config.require('longhorn', 'dataLocality'),
                     defaultReplicaCount: config.require('longhorn', 'replicaCount'),
                     deletingConfirmationFlag: 'false',
@@ -267,7 +289,7 @@ export class Longhorn extends pulumi.ComponentResource {
                     task: 'snapshot',
                     cron,
                     name: 'snapshot',
-                    retain: 10,
+                    retain: config.requireNumber(this.name, 'snapshotRetain'),
                     concurrency: 2,
                     labels: { cron },
                 },
@@ -292,7 +314,7 @@ export class Longhorn extends pulumi.ComponentResource {
                     task: 'backup',
                     cron,
                     name: 'backup',
-                    retain: 10,
+                    retain: config.requireNumber(this.name, 'backupRetain'),
                     concurrency: 2,
                     labels: { cron },
                     parameters: {

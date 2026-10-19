@@ -188,16 +188,20 @@ config:
     longhorn:auth/allowedGroups: admin,longhorn-admin
     # Initial value for default storage. Adjust each volume in Longhorn UI
     longhorn:replicaCount: 2
+    # Max concurrent replica rebuilds per node
+    longhorn:concurrentReplicaRebuildPerNodeLimit: 2
     longhorn:snapshotEnabled: false
     longhorn:snapshotCron: '0 * * * *' # every hour
+    longhorn:snapshotRetain: 10
     longhorn:trimEnabled: true
     longhorn:trimCron: '0 0 * * 0' # once a week on Sunday at midnight
     longhorn:backupEnabled: false
     longhorn:backupBucket: backup-longhorn
     longhorn:backupCron: '15 0 * * *' # daily at 0:15
+    longhorn:backupRetain: 10
     # Enable backups for all volumes. Apps can opt in/out individually with <app>:backupVolume: true/false.
     longhorn:backupAllVolumes: false
-    # Full backup every x days, use 0 for incremental only
+    # Full backup every x incremental backups, use 0 for incremental only
     longhorn:backupFullInterval: '14'
     # Set to "least-effort" or "best-effort" to move replicas when nodes become unavailable
     longhorn:replicaAutoBalance: disabled
