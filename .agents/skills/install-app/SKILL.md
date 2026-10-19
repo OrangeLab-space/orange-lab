@@ -100,9 +100,10 @@ Present a concise summary and ask the user to decide on:
        - **Frontend**: `blockdev` (`Block Device` in UI)
        - **Data Engine**: `v1`
        - **Access Mode**: `rwo` (`ReadWriteOnce`)
-   - **Volume Backups (`<app>:backupVolume` / `<app>:<component>/backupVolume`) — ask last in storage**:
+   - **Volume Backups (`<app>:storage/backupEnabled` / `<app>:<component>/storage/backupEnabled`) — ask last in storage**:
      - Default to `true` (enabled) if backups for this volume already exist or if backups are generally enabled in the cluster (`longhorn:backupEnabled` / `longhorn:backupAllVolumes`).
-     - For **large volumes** (`storageSize >= 500Gi`, media libraries, AI models, blockchain data, etc.): recommend **explicitly disabling backups** (`pulumi config set <app>:backupVolume false` or `<app>:<component>/backupVolume false`), even when `longhorn:backupAllVolumes` is `true`.
+     - For **large volumes** (`storageSize >= 500Gi`, media libraries, AI models, blockchain data, etc.): recommend **explicitly disabling backups** (`pulumi config set <app>:storage/backupEnabled false` or `<app>:<component>/storage/backupEnabled false`), even when `longhorn:backupAllVolumes` is `true`.
+     - `backupVolume` is the legacy participation switch and still works; use it only when preserving existing configuration.
 5. **OIDC Authentication (if supported)**:
    - Ask if they want to enable Pocket ID authentication (`<app>:auth pocket`).
    - By default, recommend restricting access to the `admin` group (`<app>:auth/allowedGroups admin`). Ask if they prefer `admin` only, `admin,<app>-admin`, an `admin,<app>-users` app group, custom groups, or unrestricted access.

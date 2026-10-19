@@ -106,14 +106,14 @@ The following settings are supported by most applications in OrangeLab:
 | `requiredNodeLabel`   | Deploy only to node with specified label (hard constraint)                                   |
 | `excludeNodeLabel`    | Do not deploy to nodes with specified label (hard constraint)                                |
 | `requiredVolumeLabel` | Pin volume to specific node(s). Immutable - requires app redeploy to change                  |
-| `backupVolume`        | Enable volume backups to S3-compatible storage                                               |
-| `storage/snapshotEnabled` | Enable per-app snapshots (defaults to `longhorn:snapshotEnabled`)                        |
-| `storage/snapshotCron` | Per-app snapshot schedule (defaults to `longhorn:snapshotCron`)                             |
-| `storage/snapshotRetain` | Per-app snapshot retention (defaults to `longhorn:snapshotRetain`)                        |
-| `storage/backupEnabled` | Override global backup enablement and volume participation                              |
-| `storage/backupCron` | Per-app backup schedule (defaults to `longhorn:backupCron`)                                  |
-| `storage/backupRetain` | Per-app backup retention (defaults to `longhorn:backupRetain`)                              |
-| `storage/backupFullInterval` | Per-app full-backup interval (defaults to `longhorn:backupFullInterval`)               |
+| `backupVolume`        | Legacy per-volume backup participation; prefer `storage/backupEnabled`                      |
+| `storage/snapshotEnabled` | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                |
+| `storage/snapshotCron` | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                     |
+| `storage/snapshotRetain` | Snapshot retention (defaults to `longhorn:snapshotRetain`)                                |
+| `storage/backupEnabled` | Override backup enablement and volume participation                                       |
+| `storage/backupCron` | Backup schedule (defaults to `longhorn:backupCron`)                                          |
+| `storage/backupRetain` | Backup retention (defaults to `longhorn:backupRetain`)                                      |
+| `storage/backupFullInterval` | Full-backup interval (defaults to `longhorn:backupFullInterval`)                       |
 | `auth`                | Enable OIDC authentication with the selected provider                                         |
 | `auth/clientId`       | OIDC client ID                                                                                |
 | `auth/clientSecret`   | OIDC client secret (not required by apps using a public/PKCE client)                        |
@@ -122,6 +122,10 @@ The following settings are supported by most applications in OrangeLab:
 | `auth/groupMap`       | App role -> Pocket ID groups, for apps with native role mapping (object)                      |
 | `auth/adminGroup`     | Pocket ID group granting the app's admin role (defaults to `<app>-admin`)                     |
 | `auth/allowedGroups`  | Comma-separated Pocket ID groups allowed to sign in; unset keeps the client unrestricted      |
+
+The `storage/*` keys can also be prefixed with a component/volume name, e.g.
+`nextcloud:data/storage/backupEnabled`. Component values override app-level
+values, which override the global `longhorn:*` defaults.
 
 ### Custom Hostnames
 
@@ -279,16 +283,20 @@ pulumi config set ollama:storageSize 200Gi
 # Volumes can be cloned or restored from a backup using Longhorn UI.
 pulumi config set ollama:fromVolume existing-volume-name
 
-# Enable backups to S3-compatible storage
-# Ignored when `longhorn:backupAllVolumes` is enabled
+# Legacy participation switch; prefer storage/backupEnabled
 pulumi config set ollama:backupVolume true
 
-# Optional per-app snapshot/backup schedule and retention
+# Optional app-level snapshot/backup schedule and retention
 # Unset values fall back to the global `longhorn:` settings
 pulumi config set ollama:storage/snapshotEnabled true
 pulumi config set ollama:storage/snapshotCron '0 */6 * * *'
 pulumi config set ollama:storage/backupCron '0 2 * * *'
 pulumi config set ollama:storage/backupRetain 14
+
+# Optional per-component overrides
+# Use the component name passed to addStorage({ name: ... })
+pulumi config set <app>:<component>/storage/backupEnabled false
+pulumi config set <app>:<component>/storage/backupCron '0 3 * * *'
 ```
 
 This approach allows you to safely disable applications without losing data, even during breaking changes.

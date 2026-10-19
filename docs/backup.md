@@ -42,7 +42,7 @@ pulumi config set longhorn:backupEnabled true
 pulumi config set longhorn:backupAllVolumes true
 
 # Optional: Exclude specific volumes from backup
-pulumi config set <app>:backupVolume false
+pulumi config set <app>:<component>/storage/backupEnabled false
 
 pulumi up
 ```
@@ -58,54 +58,61 @@ pulumi config set longhorn:backupEnabled true
 # Don't back up volumes by default (this is the default setting)
 pulumi config set longhorn:backupAllVolumes false
 
-# Enable backup for specific application volumes
-pulumi config set <app>:backupVolume true
+# Enable backup for a specific app or component
+pulumi config set <app>:storage/backupEnabled true
+pulumi config set <app>:<component>/storage/backupEnabled true
 
 pulumi up
 ```
 
-The backup setting precedence is:
+For legacy participation, `<app>:<component>/backupVolume` (or
+`<app>:backupVolume` for the main volume) overrides
+`longhorn:backupAllVolumes`. New `storage/*` settings take precedence.
 
-1. App-specific setting (`<app>:backupVolume`) if specified
-2. Global setting (`longhorn:backupAllVolumes`) if no app-specific setting exists
+### Per-app and per-component schedules and retention
 
-### Per-app schedules and retention
-
-Apps can override snapshot and backup schedules and retention. Each setting is
-resolved independently; unset values fall back to the global `longhorn:` values.
+App-level `storage/*` settings are defaults. Component-level settings use the
+volume/component name from `addStorage()` and override the app defaults:
 
 ```sh
-# Per-app snapshots
+# App-wide defaults
 pulumi config set nextcloud:storage/snapshotEnabled true
 pulumi config set nextcloud:storage/snapshotCron '0 */6 * * *'
 pulumi config set nextcloud:storage/snapshotRetain 28
-
-# Per-app backups (requires an S3 backup target)
 pulumi config set nextcloud:storage/backupEnabled true
 pulumi config set nextcloud:storage/backupCron '0 2 * * *'
-pulumi config set nextcloud:storage/backupRetain 30
-pulumi config set nextcloud:storage/backupFullInterval 30
+pulumi config set nextcloud:storage/backupRetain 14
 
-# Exclude a large volume even when longhorn:backupAllVolumes is on
-pulumi config set bitcoin-core:storage/backupEnabled false
+# Component overrides
+pulumi config set nextcloud:data/storage/backupEnabled false
+pulumi config set nextcloud:db/storage/backupCron '0 3 * * *'
+pulumi config set nextcloud:db/storage/backupRetain 30
+pulumi config set nextcloud:db/storage/backupFullInterval 30
+pulumi config set nextcloud:db/storage/snapshotCron '0 */6 * * *'
 ```
 
-- These settings apply to all Longhorn volumes in the app.
-- `storage/snapshotEnabled` overrides `longhorn:snapshotEnabled`. If it is unset,
-  `snapshotCron` and `snapshotRetain` only apply when global snapshots are enabled.
-- `storage/backupEnabled` overrides both `longhorn:backupEnabled` and
-  `backupVolume` / `longhorn:backupAllVolumes`. Set it to `true` to back up an app
-  even when global backup participation is off, or `false` to exclude a large
-  volume even when `backupAllVolumes` is on.
+- Each setting is resolved independently: component `storage/*`, then app-level
+  `storage/*`, then the global `longhorn:*` value.
+- Component keys use the component/volume name, e.g. `nextcloud:data/...` or
+  `nextcloud:db/...`.
+- App-level `storage/backupEnabled` and `storage/snapshotEnabled` are defaults
+  for components that do not set their own.
+- `storage/backupEnabled` and `storage/snapshotEnabled` override the global
+  enablement settings and the legacy `backupVolume` participation switch.
 - If `storage/backupEnabled` is unset, `backupCron`, `backupRetain`, and
   `backupFullInterval` use the global enabled state; the custom schedule applies
   only when backups are enabled for the volume.
+- Components with their own `storage/*` settings get their own Longhorn
+  `RecurringJob`; `storage/backupEnabled=false` or `storage/snapshotEnabled=false`
+  disables that component. Components without overrides use the app-level job or
+  the global backup group.
 - The S3 backup target must still exist; `storage/backupEnabled` controls
   scheduling and participation, not the target configuration.
 - `backupFullInterval` is the number of incremental backups between full
   backups, not days.
 - Trim remains global (`longhorn:trimEnabled` / `longhorn:trimCron`).
-- Apps without overrides keep using the global jobs.
+- `backupVolume` remains supported for compatibility; prefer
+  `storage/backupEnabled` for new configuration.
 
 ## Restoring from Backup
 
