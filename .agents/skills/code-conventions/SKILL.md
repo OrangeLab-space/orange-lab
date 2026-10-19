@@ -16,6 +16,7 @@ description: Use when creating or editing TypeScript code in the orange-lab repo
 - Use `assert` for validations that should never fail
 - Prefer `variable?: Type` over `variable: Type | undefined`
 - Keep methods around 20 lines or less; inline simple operations (single `.map()`, `.filter()`) rather than extracting private methods; orchestration methods coordinating multiple steps may be longer
+- Treat ~200–300 lines as a soft ceiling for a file. When a change would push a file past it, or a method well past ~20 lines, flag the refactor before implementing. Propose moving the cohesive concern to a new module/class; an in-file extraction can add indirection without reducing responsibility.
 - Prefer standard Kubernetes conventions unless there's a specific reason to deviate (e.g. node-role labels use `true` value to match k3s `control-plane` and `master` roles)
 - Assign the `Application` straight to `this.app` and use `this.app` for the rest of the constructor. `addStorage()`, `addDeployment()` and the other chained calls return the app, so `const app = new Application(...); this.app = app;` buys nothing and splits one reference across two names. Helper functions outside the class keep `app` as a parameter — that's a different thing
 

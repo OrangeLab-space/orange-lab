@@ -47,6 +47,7 @@ During implementation, stop and switch back to discussion mode when:
 1. **Library change may be needed**: If the implementation would require manual Kubernetes manifests or workarounds for something the library (`@orangelab/pulumi`) should handle, stop. Propose the library change instead so other components can reuse it.
 2. **Scope changes or faulty assumptions surface**: If something unexpected comes up (a conflict, a wrong assumption, a side effect), stop. Agree on a path forward before continuing — the user may want to defer the fix to a separate task.
 3. **New coupling or assumption**: If the change would introduce a new cross-dependency or assumption (e.g. a shared tool reading app-specific config, one module reaching into another's state), stop and propose it. Don't add couplings silently — they have consequences and need to be discussed.
+4. **Refactor threshold crossed**: If a change would push a method well past ~20 lines or a file past ~200–300 lines, stop before implementing. Propose moving the cohesive concern into a new module/class instead of adding another private method to an already oversized class.
 
 ### Asking for Confirmation
 
@@ -71,7 +72,7 @@ Even if the change seems straightforward, these signals may indicate the current
 - **Applications** use the Application class for Kubernetes resources (including namespaces and storage for Helm charts).
 - **Never describe your infrastructure in committed docs.** No real hostnames, IPs, or machine names — use `example.com`, `<node>`.
 - **Writing TypeScript** (components, stacks, `@orangelab/pulumi` library): follow the `code-conventions` skill.
-- **Writing docs** (component `<app>.md`, stack `README.md`): follow the `document-app` / `document-module` skills.
+- **Writing docs** (component `<app>.md`, stack `README.md`): follow the `document-app` / `document-module` skills. Keep user-facing component pages short; put detailed failure behaviour and operational runbooks in `spec/*.md` and link to them.
 
 ## Specs
 
