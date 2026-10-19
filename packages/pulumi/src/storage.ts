@@ -98,6 +98,14 @@ export class Storage extends pulumi.ComponentResource {
     }
 
     addPersistentVolume(volume?: PersistentVolumeSpec) {
+        if (volume?.name) {
+            config.assertNotConfigured(
+                this.appName,
+                `${volume.name}/backupVolume`,
+                `${this.appName}:${volume.name}/backupVolume is no longer supported. Use ${this.appName}:${volume.name}/storage/backupEnabled instead.`,
+            );
+        }
+
         const volumeName = this.getVolumeName(volume?.name);
         const fullVolumeName = this.getFullVolumeName(volume?.name);
         const prefix = volume?.name ? `${volume.name}/` : '';

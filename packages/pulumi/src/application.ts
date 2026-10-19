@@ -96,6 +96,11 @@ export class Application {
             !config.get(this.appName, 'amd-gpu'),
             `${this.appName}:amd-gpu is deprecated. Use ${this.appName}:gpu instead (amd|nvidia|intel).`,
         );
+        config.assertNotConfigured(
+            this.appName,
+            'backupVolume',
+            `${this.appName}:backupVolume is no longer supported. Use ${this.appName}:storage/backupEnabled instead.`,
+        );
     }
 
     private getStorage() {

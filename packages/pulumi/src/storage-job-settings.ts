@@ -31,12 +31,20 @@ interface StorageOverrides {
     fullInterval?: string;
 }
 
-function hasAnyOverride(overrides: StorageOverrides): boolean {
+/**
+ * Backup enablement alone uses the global backup group. Snapshot enablement
+ * alone keeps a per-app job because the global snapshot job is optional.
+ */
+function hasScheduleSettings(
+    overrides: StorageOverrides,
+    task: 'backup' | 'snapshot',
+): boolean {
+    if (task === 'snapshot' && overrides.enabled !== undefined) return true;
+
     return (
-        overrides.enabled !== undefined ||
         overrides.cron !== undefined ||
         overrides.retain !== undefined ||
-        overrides.fullInterval !== undefined
+        (task === 'backup' && overrides.fullInterval !== undefined)
     );
 }
 
@@ -64,7 +72,7 @@ export class StorageJobSettingsResolver {
         return {
             enabled:
                 enabledOverride ??
-                this.resolveEnabled(task, scope !== undefined, volumeName),
+                this.resolveEnabled(task, scope !== undefined),
             schedule: scope
                 ? this.createSchedule(
                       task,
@@ -89,9 +97,9 @@ export class StorageJobSettingsResolver {
             ? this.getOverrides(volumeName, task)
             : undefined;
         const app = this.getOverrides(undefined, task);
-        const scope = component && hasAnyOverride(component)
+        const scope = component && hasScheduleSettings(component, task)
             ? 'component'
-            : hasAnyOverride(app)
+            : hasScheduleSettings(app, task)
               ? 'app'
               : undefined;
 
@@ -101,10 +109,9 @@ export class StorageJobSettingsResolver {
     private resolveEnabled(
         task: 'backup' | 'snapshot',
         customSchedule: boolean,
-        volumeName?: string,
     ): pulumi.Input<boolean> {
         if (task === 'backup') {
-            return this.resolveBackupEnabled(customSchedule, volumeName);
+            return this.resolveBackupEnabled(customSchedule);
         }
 
         return customSchedule
@@ -146,9 +153,8 @@ export class StorageJobSettingsResolver {
 
     private resolveBackupEnabled(
         customSchedule: boolean,
-        volumeName?: string,
     ): pulumi.Input<boolean> {
-        const participates = this.resolveBackupParticipation(volumeName);
+        const participates = this.resolveBackupParticipation();
         if (!customSchedule) return participates;
 
         return pulumi
@@ -185,11 +191,8 @@ export class StorageJobSettingsResolver {
         };
     }
 
-    private resolveBackupParticipation(volumeName?: string): pulumi.Input<boolean> {
-        const prefix = volumeName ? `${volumeName}/` : '';
-        const localBackupValue =
-            config.getBoolean(this.appName, `${prefix}backupVolume`) ??
-            config.getBoolean('longhorn', 'backupAllVolumes');
+    private resolveBackupParticipation(): pulumi.Input<boolean> {
+        const localBackupValue = config.getBoolean('longhorn', 'backupAllVolumes');
         if (localBackupValue !== undefined) return localBackupValue;
 
         return resolveInherited({

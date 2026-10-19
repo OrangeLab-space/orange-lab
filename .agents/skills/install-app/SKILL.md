@@ -103,7 +103,7 @@ Present a concise summary and ask the user to decide on:
    - **Volume Backups (`<app>:storage/backupEnabled` / `<app>:<component>/storage/backupEnabled`) — ask last in storage**:
      - Default to `true` (enabled) if backups for this volume already exist or if backups are generally enabled in the cluster (`longhorn:backupEnabled` / `longhorn:backupAllVolumes`).
      - For **large volumes** (`storageSize >= 500Gi`, media libraries, AI models, blockchain data, etc.): recommend **explicitly disabling backups** (`pulumi config set <app>:storage/backupEnabled false` or `<app>:<component>/storage/backupEnabled false`), even when `longhorn:backupAllVolumes` is `true`.
-     - `backupVolume` is the legacy participation switch and still works; use it only when preserving existing configuration.
+     - `backupVolume` was removed and now fails deployment; use `storage/backupEnabled` instead.
 5. **OIDC Authentication (if supported)**:
    - Ask if they want to enable Pocket ID authentication (`<app>:auth pocket`).
    - By default, recommend restricting access to the `admin` group (`<app>:auth/allowedGroups admin`). Ask if they prefer `admin` only, `admin,<app>-admin`, an `admin,<app>-users` app group, custom groups, or unrestricted access.

@@ -25,7 +25,7 @@ export class StorageRecurringJobs {
 
         return {
             backup: {
-                customSchedule: settings.backup.schedule !== undefined,
+                customSchedule: settings.backup.schedule?.createJob === true,
                 enabled: settings.backup.enabled,
                 jobName: this.createBackupJob(
                     settings.backup.schedule,
@@ -33,6 +33,7 @@ export class StorageRecurringJobs {
                 ),
             },
             snapshot: {
+                // Snapshot opt-out must suppress the default group even without a job.
                 customSchedule: settings.snapshot.schedule !== undefined,
                 enabled: settings.snapshot.enabled,
                 jobName: this.createSnapshotJob(

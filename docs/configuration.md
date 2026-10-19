@@ -106,11 +106,10 @@ The following settings are supported by most applications in OrangeLab:
 | `requiredNodeLabel`   | Deploy only to node with specified label (hard constraint)                                   |
 | `excludeNodeLabel`    | Do not deploy to nodes with specified label (hard constraint)                                |
 | `requiredVolumeLabel` | Pin volume to specific node(s). Immutable - requires app redeploy to change                  |
-| `backupVolume`        | Legacy per-volume backup participation; prefer `storage/backupEnabled`                      |
 | `storage/snapshotEnabled` | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                |
 | `storage/snapshotCron` | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                     |
 | `storage/snapshotRetain` | Snapshot retention (defaults to `longhorn:snapshotRetain`)                                |
-| `storage/backupEnabled` | Override backup enablement and volume participation                                       |
+| `storage/backupEnabled` | Enable/disable backup participation (unset inherits `longhorn:backupAllVolumes`)           |
 | `storage/backupCron` | Backup schedule (defaults to `longhorn:backupCron`)                                          |
 | `storage/backupRetain` | Backup retention (defaults to `longhorn:backupRetain`)                                      |
 | `storage/backupFullInterval` | Full-backup interval (defaults to `longhorn:backupFullInterval`)                       |
@@ -125,7 +124,8 @@ The following settings are supported by most applications in OrangeLab:
 
 The `storage/*` keys can also be prefixed with a component/volume name, e.g.
 `nextcloud:data/storage/backupEnabled`. Component values override app-level
-values, which override the global `longhorn:*` defaults.
+values, which override the global `longhorn:*` defaults. `backupVolume` was
+removed; use `storage/backupEnabled` instead.
 
 ### Custom Hostnames
 
@@ -283,8 +283,8 @@ pulumi config set ollama:storageSize 200Gi
 # Volumes can be cloned or restored from a backup using Longhorn UI.
 pulumi config set ollama:fromVolume existing-volume-name
 
-# Legacy participation switch; prefer storage/backupEnabled
-pulumi config set ollama:backupVolume true
+# Enable backups for this application (uses the global backup job)
+pulumi config set ollama:storage/backupEnabled true
 
 # Optional app-level snapshot/backup schedule and retention
 # Unset values fall back to the global `longhorn:` settings

@@ -109,8 +109,8 @@ Shared and module dependency config keys:
 Traefik domain and backup policy are read from the core stack when
 `orangelab:coreStackRef` is configured. Set
 `longhorn:backupAllVolumes` in a module stack to override the core policy.
-Individual applications can override it with their `<app>:backupVolume` setting,
-or override schedules and retention with `<app>:storage/snapshot*` and
+Individual applications can override it with their `<app>:storage/backupEnabled`
+setting, or override schedules and retention with `<app>:storage/snapshot*` and
 `<app>:storage/backup*` settings. Components can override the app with
 `<app>:<component>/storage/*`. Unset values are inherited from the core stack.
 
