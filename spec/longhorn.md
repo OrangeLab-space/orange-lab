@@ -138,6 +138,76 @@ This is a latent rebuild risk rather than data loss: a node failure during this
 state has no working rebuild path. Remedy is a detach/attach cycle, which means
 restarting the consuming workload.
 
+## A node reboot rebuilds every replica on that node
+
+Rebooting one storage node makes almost every volume show `degraded` and
+`rebuilding` in the UI. This is expected and is **not** a full re-copy of
+the cluster.
+
+When a node disappears, engines mark the replicas on it failed. When it
+returns, Longhorn waits `replica-replenishment-wait-interval` (900s in
+this cluster) for those replicas to become reusable. If they do, the
+existing replica data is kept and only the delta is rebuilt; if they do
+not, Longhorn creates a new replica and copies the whole volume. A
+reboot therefore touches every volume with a replica on the node, but a
+short reboot reuses the data.
+
+Check whether a rebuild is reuse or a fresh copy:
+
+```sh
+# Reused replicas keep their old creationTimestamp and name.
+kubectl -n longhorn-system get replicas.longhorn.io -o json | jq -r \
+  '.items[] | [.metadata.creationTimestamp, .metadata.name,
+   .metadata.labels.longhornnode, .status.currentState] | @tsv' | sort
+
+kubectl -n longhorn-system logs -l app=longhorn-manager \
+  -c longhorn-manager --since=1h \
+  | grep -E 'will be reused during rebuilding|Cannot find a reusable failed replicas'
+```
+
+Judge the cost by `status.actualSize`, not `spec.size`. Provisioned
+sizes are much larger than used data: in one reboot here, 28 volumes
+rebuilt but the affected volumes held only ~474 GB actual; the 1 TB
+volumes were mostly empty. Rebuilds are serialized by
+`concurrent-replica-rebuild-per-node-limit` (2), so the queue can take
+an hour even when each volume is quick.
+
+`replica-replenishment-wait-interval` is what makes a short reboot
+cheap. Do not lower it.
+
+### Planned reboot
+
+Drain first so Longhorn stops the replicas cleanly:
+
+```sh
+kubectl cordon <node>
+kubectl drain <node> --ignore-daemonsets --delete-emptydir-data
+# wait for the drain to complete and the instance-manager pod on
+# <node> to be evicted
+# reboot
+kubectl uncordon <node>
+```
+
+`node-drain-policy=always-allow` means the drain is not blocked by the
+last replica. Do not evict replicas first: eviction moves the same data
+and takes longer. An unplanned reboot or power loss is the case where
+the catch-up is unavoidable.
+
+### Boot-time disk race
+
+Longhorn starts before encrypted or separately mounted disks are
+available and logs:
+
+```text
+Number of node disks 2 and collected disk info 0 are not equal
+Cannot find a reusable failed replicas for volume <volume>
+```
+
+If the disks become ready before the replenishment wait expires, reuse
+still succeeds. If they take longer, Longhorn creates new replicas and
+does full copies instead. Check that disk mounts are ready promptly
+after boot on any node whose storage is not on the root filesystem.
+
 ## Unrelated but easy to confuse
 
 **A stale `--node-ip` looks like a Longhorn problem.** If k3s carries a node
