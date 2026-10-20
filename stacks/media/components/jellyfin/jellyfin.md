@@ -71,7 +71,7 @@ cd stacks/media
 | Enable Authorization  | yes (group membership controls admin status)                   |
 | Enable All Folders    | yes                                                            |
 | Roles                 | (empty - every user gets access)                               |
-| Admin Roles           | `jellyfin-admin`                                               |
+| Admin Roles           | `admin`, `jellyfin-admin`                                      |
 | Role Claim            | `groups`                                                       |
 | Scopes                | `groups`                                                       |
 | Username claim        | `preferred_username`                                           |
@@ -112,7 +112,7 @@ curl -sf -X POST "$JELLYFIN_URL/sso/OID/Add/pocketid" \
     "enableAllFolders": true,
     "enabledFolders": [],
     "roles": [],
-    "adminRoles": ["jellyfin-admin"],
+    "adminRoles": ["admin", "jellyfin-admin"],
     "roleClaim": "groups",
     "oidScopes": ["groups"],
     "defaultUsernameClaim": "preferred_username",
@@ -128,6 +128,7 @@ curl -sf "$JELLYFIN_URL/sso/OID/Get" -H "Authorization: MediaBrowser Token=\"$AP
 ### Notes
 
 - Keep the local `admin` account usable as a fallback login.
+- The global `admin` group and the delegated `jellyfin-admin` group both grant Jellyfin administrator rights; both must be listed in **Admin Roles**.
 - If a Pocket ID username matches an existing Jellyfin account, the plugin overrides that account's permissions on login; `Enable Authorization` makes group membership the source of truth for admin and folder access.
 - Existing Jellyfin users can link or unlink their SSO identity at `/SSOViews/linking`.
 
