@@ -67,7 +67,7 @@ export class Nextcloud extends pulumi.ComponentResource {
                     affinity: this.app.nodes.getAffinity(),
                     cronjob: {
                         enabled: true,
-                        cronjob: {
+                        sidecar: {
                             resources: {
                                 requests: { cpu: '50m', memory: '128Mi' },
                                 limits: { cpu: '500m', memory: '256Mi' },
