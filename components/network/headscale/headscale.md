@@ -134,6 +134,25 @@ the pod:
 [Headplane](../headplane/headplane.md) is a web UI for the same API. It is
 mesh-only, on its own hostname.
 
+## Server reboots
+
+The node running Headscale has to start K3s before the mesh exists, while the
+mesh address K3s needs only arrives once Headscale answers — which needs K3s.
+Run `./scripts/k3s-server-headscale.sh` where Pulumi is configured and paste the
+output on that node: it installs a systemd drop-in that adds the address before
+every K3s start. With Tailscale's coordination server this is not needed — the
+address is back before the cluster starts.
+
+Recover a boot that is already stuck with:
+
+```sh
+ip addr add <mesh-address>/32 dev tailscale0
+systemctl restart k3s
+```
+
+Sign-in is unavailable until the Pocket ID pod is scheduled: Headscale reads the
+issuer's discovery document at startup and does not serve without it.
+
 ## Naming
 
 | Name                         | Resolves to | Reachable from |

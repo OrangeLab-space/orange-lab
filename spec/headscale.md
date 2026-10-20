@@ -71,6 +71,15 @@ offline. Note the trade: pinning means the control plane cannot be recovered
 from the node it is pinned to, so make sure that node is the most stable one
 available.
 
+**K3s must be able to start without a netmap.** The control-plane node runs k3s
+with `--node-ip` on the mesh interface, but tailscaled only assigns that address
+after Headscale answers — and Headscale runs in the cluster k3s starts.
+`scripts/k3s-server-headscale.sh` installs a systemd drop-in that supplies the
+address before every k3s start. The base k3s installer does not, because a
+cluster using Tailscale's coordination server gets its address back on its own.
+See [Boot order](#boot-order), including the second startup dependency that
+hides behind it.
+
 ## Configuration that shapes generated config
 
 ```yaml
@@ -128,6 +137,62 @@ yields `executable file not found`.
 
 **API keys** (`headscale apikeys create`) are what an admin UI needs, not nodes.
 They are separate from pre-auth keys.
+
+## Boot order
+
+The control-plane node's k3s unit pins `--node-ip` to the node's mesh address
+and `--flannel-iface` to `tailscale0`. Kubelet refuses to register a node whose
+IP is not on a host interface, and tailscaled only assigns that address once it
+has a netmap — which Headscale serves from inside the cluster k3s is starting.
+Nothing in that loop can move first, so the reboot never converges:
+
+```
+failed to validate nodeIP: node IP: "<mesh address>" not found in the host's network interfaces
+```
+
+`systemctl status k3s` shows a restart loop, `tailscale status` reports `NoState`
+with `fetch control key ... connection refused`, and `journalctl -u tailscaled`
+contains `load netmap from cache: netmap cache is not available`. That last line
+separates "no cached map" from "no identity".
+
+**Do not re-authenticate.** A node that lost its netmap still has its node key,
+and gets its address back as soon as Headscale answers. Confirm before touching
+anything:
+
+```sh
+tailscale debug prefs                 # "LoggedOut": false, ControlURL set
+ls -l /var/lib/tailscale/tailscaled.state   # non-empty
+```
+
+Only the interface is missing, so supply it for one boot:
+
+```sh
+ip addr add <mesh address>/32 dev tailscale0
+systemctl restart k3s
+```
+
+Tailscaled adopts the same address when the netmap arrives, leaving one address
+on the interface rather than two. `scripts/k3s-server-headscale.sh` installs a
+systemd drop-in that does this before every k3s start; the base k3s installer
+deliberately does not, because only a self-hosted control plane blocks its own
+boot. A node without the drop-in needs it added after the recovery above.
+
+**A second startup dependency hides behind the first.** With `headscale:auth`
+configured, Headscale reads the issuer's discovery document before it serves
+(`only_start_if_oidc_is_available`). If the identity provider's pod sits on a
+node that is not Ready — likely, since that node is waiting for the mesh too —
+the fetch returns 503 and Headscale crashloops even after k3s is up:
+
+```
+creating OIDC provider from issuer config: 503 Service Unavailable: no available server
+```
+
+`kubectl get endpointslice -n <provider namespace>` shows the endpoint with
+`ready: false`; `kubectl get endpoints` reports none at all, because it lists
+ready addresses only. Start Headscale once with the flag false through a live
+ConfigMap patch, then restore the flag and restart the pod: the mesh heals, the
+node becomes Ready, and the provider serves again. Deleting the provider pod
+instead moves its storage, which is the wrong trade during an outage.
 
 ## Identity
 
