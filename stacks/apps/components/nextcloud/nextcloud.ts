@@ -5,6 +5,7 @@ import {
     config,
     DatabaseConfig,
     HttpEndpointInfo,
+    METRICS_EXPORTER_RESOURCES,
     OidcAuthConfig,
     requireOutput,
     SmtpSettings,
@@ -105,7 +106,10 @@ export class Nextcloud extends pulumi.ComponentResource {
                     },
                     internalDatabase: { enabled: false },
                     livenessProbe: { enabled: true },
-                    metrics: { enabled: true },
+                    metrics: {
+                        enabled: true,
+                        resources: METRICS_EXPORTER_RESOURCES,
+                    },
                     nextcloud: {
                         configs: this.getConfigFiles(args.auth),
                         extraEnv: this.getExtraEnv(args, oidcSecret),

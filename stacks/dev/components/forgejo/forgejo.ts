@@ -221,6 +221,10 @@ export class Forgejo extends pulumi.ComponentResource {
                         create: false,
                         claimName: this.app.storage?.getClaimName(),
                     },
+                    resources: {
+                        requests: { cpu: '100m', memory: '256Mi' },
+                        limits: { cpu: '1', memory: '512Mi' },
+                    },
                     service: {
                         ssh: {
                             ...sshService,
