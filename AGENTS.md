@@ -10,6 +10,8 @@
     - ⚠️ SKIP for markdown/documentation changes - no need to run
 - Build `@orangelab/pulumi` after editing `packages/pulumi/src/`: `npm run build` (must be run before `pulumi up` or `pulumi preview`)
 - Never kill a running `pulumi up` to "unstick" it — it leaves pending operations and orphaned resources. Let it finish or fail on its own.
+- **Recovery from a killed `pulumi up`**: an update interrupted from the outside (rather than one that failed) leaves the stack showing an active update while its state has no pending operations. Clear it with `pulumi cancel --yes`, then re-run the deploy. A *failed* update is different: it leaves pending operations in state, and re-running the deploy clears them.
+- Run long `pulumi up` commands in the background, so an interrupted tool call does not kill the update mid-flight.
 
 ## Architectural Principles
 
@@ -70,7 +72,8 @@ Even if the change seems straightforward, these signals may indicate the current
   - `pulumi config` (listing all entries) and `pulumi stack output` redact secrets unless `--show-secrets` is passed. Agents must never pass `--show-secrets`; when a secret value is needed by the user, give them `pulumi config get <key>` or `pulumi stack output --show-secrets` to run themselves so plaintext secrets never traverse the session. Reading non-secret config values (paths, sizes, flags) is fine via the agent.
 - **Config defaults live in `Pulumi.yaml` only**, never duplicated in code. If a setting has a default there, read it with the `require*` accessor (`config.requireBoolean`, `config.requireNumber`, …) rather than `config.getBoolean(…) ?? false` — the `??` form leaves the same default in two places where it can drift. Reserve `get*` plus `??` for settings that have no default anywhere.
 - **Applications** use the Application class for Kubernetes resources (including namespaces and storage for Helm charts).
-- **Never describe your infrastructure in committed docs.** No real hostnames, IPs, or machine names — use `example.com`, `<node>`.
+- **Never describe your infrastructure in committed docs or commit messages.** No real hostnames, IPs, or machine names — use `example.com`, `<node>`. Commit messages are read by the same people as the docs.
+- **The library sizes the containers it creates.** A component sizes its own container with `resources`; the init containers, database containers and the database operator's metrics exporter are sized by the constants in `packages/pulumi/src/resources.ts`, so no component specifies them.
 - **Writing TypeScript** (components, stacks, `@orangelab/pulumi` library): follow the `code-conventions` skill.
 - **Sizing container cpu/memory requests and limits** (or diagnosing OOMs, memory pressure, CPU throttling): follow the `resource-tuning` skill. Size from measured RSS, not working set.
 - **Writing docs** (component `<app>.md`, stack `README.md`): follow the `document-app` / `document-module` skills. Keep user-facing component pages short; put detailed failure behaviour and operational runbooks in `spec/*.md` and link to them.

@@ -29,6 +29,10 @@ description: Use when creating or editing TypeScript code in the orange-lab repo
 - Only export fields when needed for external use; keep sensitive values like auth keys internal when not required
 - Share provider instances across components (pass via args) rather than creating duplicates
 
+### Object keys
+
+`sort-keys` is enabled with `minKeys: 10`, so an object with fewer than ten keys is never checked — and may already be in a non-alphabetical order. Adding the tenth key activates the rule and the whole object then has to be sorted. This bites Helm `values` objects, which are long and mostly ordered by convention rather than by lint. When the rule fires, reorder the object rather than working around the lint error.
+
 ### Initialization Order
 
 When a value from `Application` (like `this.app.debug`) is needed during chained initialization, create the Application instance first: `this.app = new Application(...);`, then continue with chained methods: `this.app.addStorage().addConfigVolume(...)`.

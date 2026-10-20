@@ -112,6 +112,30 @@ kubectl exec -n longhorn-system <longhorn-manager-pod> -c longhorn-manager -- \
 The Longhorn API is on the `longhorn-backend` Service at port 9500. It is not
 listening on the pod's own `localhost`.
 
+## The CSI components are sized by a Setting, not by the chart
+
+`longhorn-manager`, `longhorn-global-manager` and the Helm chart's own workloads
+are sized through ordinary chart values (`longhornManager.resources`,
+`longhornGlobalManager.resources`). The **CSI components are not** — they are
+created by the Longhorn manager, not by a chart template, so their sizing lives
+in the `system-managed-csi-components-resource-limits` **Setting**:
+
+```sh
+kubectl -n longhorn-system get settings.longhorn.io \
+  system-managed-csi-components-resource-limits -o jsonpath='{.value}'
+```
+
+It is set from the chart's `defaultSettings` in `components/storage/longhorn/longhorn.ts`,
+so it is declarative and survives a `pulumi up` — but it is a Longhorn Setting,
+not a pod spec, so a `kubectl patch` of the pod does nothing.
+
+**Changing it restarts the CSI components**, which briefly interrupts volume
+provisioning and attach/detach. Running workloads with already-attached volumes
+keep running. Set it through the chart values, then deploy.
+
+The engine-image, share-manager, driver-deployer and UI pods are also
+manager-created and are **not** covered by that Setting.
+
 ## `longhorn-manager` is a DaemonSet
 
 Not a Deployment — one pod per node, including nodes that are down, where its

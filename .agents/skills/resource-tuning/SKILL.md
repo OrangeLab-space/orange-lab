@@ -217,7 +217,8 @@ Paths used by the charts in this repository:
 | `traefik` | `resources` | traefik |
 | `home-assistant` | `resources` | home-assistant |
 | `vaultwarden` | `resources` | vaultwarden |
-| `nextcloud` | `resources`, `cronjob.cronjob.resources` | nextcloud, nextcloud-cron |
+| `nextcloud` | `resources`, `cronjob.sidecar.resources` | nextcloud, nextcloud-cron |
+| `forgejo` | `resources` (top level — **not** `gitea.resources`) | forgejo |
 | `node-feature-discovery` | `master/worker/gc/topologyUpdater.resources` | chart sets these already |
 
 Some workloads are **not reachable through chart values** — do not burn time on
@@ -226,6 +227,13 @@ deployments and the GPU operator's device-plugin, node-labeller and
 workflow-controller have no `resources` key in their chart templates. The
 `config-reloader` sidecar that the prometheus-operator injects into the
 prometheus and alertmanager pods is likewise not tunable from the chart.
+
+The reverse also happens: a chart renders the **caller-supplied** init
+containers verbatim, so those *can* be sized from the component even though the
+chart's own built-in init container cannot. In the home-assistant chart the
+`initContainers` list passes straight through `toYaml`, while the built-in
+`configuration.initContainer` (setup-config) has no `resources` key in its
+template.
 
 **Subchart values are keyed by the subchart's own name, not by the parent's
 alias.** In `kube-prometheus-stack` the parent's `kubeStateMetrics.enabled` and
