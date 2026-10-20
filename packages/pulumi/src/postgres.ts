@@ -3,6 +3,7 @@ import * as pulumi from '@pulumi/pulumi';
 import { config } from './config';
 import { Metadata } from './metadata';
 import { Nodes } from './nodes';
+import { DATABASE_RESOURCES } from './resources';
 import { createPassword } from './secrets';
 import { DatabaseConfig } from './types';
 
@@ -94,10 +95,7 @@ export class PostgresCluster extends pulumi.ComponentResource {
                     postgresql: this.args.sharedPreloadLibraries
                         ? { shared_preload_libraries: this.args.sharedPreloadLibraries }
                         : undefined,
-                    resources: {
-                        requests: { cpu: '100m', memory: '128Mi' },
-                        limits: { memory: '1Gi' },
-                    },
+                    resources: DATABASE_RESOURCES,
                     storage: {
                         size: this.args.storageSize,
                         ...(this.args.fromVolume

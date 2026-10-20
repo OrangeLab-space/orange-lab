@@ -2,6 +2,7 @@ import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Metadata } from './metadata';
 import { Nodes } from './nodes';
+import { REDIS_RESOURCES } from './resources';
 import { DatabaseConfig } from './types';
 
 export interface RedisArgs {
@@ -58,14 +59,7 @@ export class Redis extends pulumi.ComponentResource {
                                             name: 'redis',
                                         },
                                     ],
-                                    resources: {
-                                        requests: {
-                                            memory: '64Mi',
-                                        },
-                                        limits: {
-                                            memory: '128Mi',
-                                        },
-                                    },
+                                    resources: REDIS_RESOURCES,
                                 },
                             ],
                         },

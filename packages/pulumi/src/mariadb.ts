@@ -1,6 +1,7 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Metadata } from './metadata';
+import { DATABASE_RESOURCES, METRICS_EXPORTER_RESOURCES } from './resources';
 import { createPassword } from './secrets';
 import { DatabaseConfig } from './types';
 
@@ -85,7 +86,10 @@ export class MariaDbCluster extends pulumi.ComponentResource {
                     affinity: this.args.affinity,
                     database: this.appName,
                     inheritMetadata: { labels: metadata.labels },
-                    metrics: { enabled: true },
+                    metrics: {
+                        enabled: true,
+                        exporter: { resources: METRICS_EXPORTER_RESOURCES },
+                    },
                     myCnf,
                     passwordSecretKeyRef: {
                         name: this.secret.metadata.name,
@@ -93,10 +97,7 @@ export class MariaDbCluster extends pulumi.ComponentResource {
                         generate: false,
                     },
                     replicas: 1,
-                    resources: {
-                        requests: { cpu: '100m', memory: '128Mi' },
-                        limits: { memory: '1Gi' },
-                    },
+                    resources: DATABASE_RESOURCES,
                     rootPasswordSecretKeyRef: {
                         name: this.secret.metadata.name,
                         key: 'rootPassword',

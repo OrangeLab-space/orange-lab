@@ -6,6 +6,12 @@ export { config } from './config';
 export { GrafanaDashboard } from './grafana-dashboard';
 export { Metadata } from './metadata';
 export { Nodes, NodesArgs } from './nodes';
+export {
+    DATABASE_RESOURCES,
+    INIT_CONTAINER_RESOURCES,
+    METRICS_EXPORTER_RESOURCES,
+    REDIS_RESOURCES,
+} from './resources';
 export { createPassword } from './secrets';
 export { Smtp } from './smtp';
 export { requireOutput } from './utils';
