@@ -51,6 +51,22 @@ During implementation, stop and switch back to discussion mode when:
 3. **New coupling or assumption**: If the change would introduce a new cross-dependency or assumption (e.g. a shared tool reading app-specific config, one module reaching into another's state), stop and propose it. Don't add couplings silently — they have consequences and need to be discussed.
 4. **Refactor threshold crossed**: If a change would push a method well past ~20 lines or a file past ~200–300 lines, stop before implementing. Propose moving the cohesive concern into a new module/class instead of adding another private method to an already oversized class.
 
+### Challenging the Request
+
+The requested approach is not automatically the best approach. If investigation
+shows the request is a poor fit — the wrong layer, a pattern the codebase does
+not otherwise use, an option with worse consequences elsewhere — surface it
+before building it.
+
+Say what you would do instead, what it costs, and what it affects elsewhere in
+the system, then let the user decide. Implementing a better idea unasked takes
+a decision away from the person who owns the consequences.
+
+This covers a stated design ("put it in X", "make it a config key") as much as a
+stated goal. It does not cover the many small judgement calls that make up
+ordinary implementation — pick the one that fits the codebase, make it, and
+note it in the report.
+
 ### Asking for Confirmation
 
 Stop and ask when you encounter:
