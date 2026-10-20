@@ -10,6 +10,7 @@
             "dig *": "allow",
             "find *": "allow",
             "gh release *": "ask",
+            "git blame *": "allow",
             "git diff *": "allow",
             "git fetch *": "allow",
             "git grep *": "allow",
