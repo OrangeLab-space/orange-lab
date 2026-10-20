@@ -164,9 +164,13 @@ export class Frigate extends pulumi.ComponentResource {
     ): InitContainerSpec {
         const source = '/config-seed/config.yml';
         const target = '/config/config.yml';
+        // A replaced config Secret can briefly mount empty during a rollout.
+        // Fail instead of overwriting the live config with an empty file; the
+        // pod retries once the volume is populated.
+        const sourceReady = `[ -s ${source} ] || { echo "${source} is empty" >&2; exit 1; }`;
         const copy = recreate
-            ? `cp -vf ${source} ${target}`
-            : `[ -s ${target} ] || cp -v ${source} ${target}`;
+            ? `${sourceReady}; cp -vf ${source} ${target}`
+            : `[ -s ${target} ] || { ${sourceReady}; cp -v ${source} ${target}; }`;
         return {
             name: 'seed-config',
             command: ['sh', '-c', copy],
