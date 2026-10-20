@@ -86,6 +86,9 @@ export class Prometheus extends pulumi.ComponentResource {
                         enabled: true,
                         adminPassword: this.grafanaPassword,
                         affinity: this.nodes.getAffinity(),
+                        // The Grafana volume is ReadWriteOnce, so a rolling update
+                        // deadlocks: the new pod cannot attach it while the old pod holds it.
+                        deploymentStrategy: { type: 'Recreate' },
                         ...(this.app.oidc
                             ? {
                                   envRenderSecret: {
