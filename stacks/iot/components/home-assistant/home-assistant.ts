@@ -97,6 +97,10 @@ export class HomeAssistant extends pulumi.ComponentResource {
                         existingClaim: this.app.storage?.getClaimName(),
                     },
                     replicaCount: 1,
+                    resources: {
+                        requests: { cpu: '100m', memory: '512Mi' },
+                        limits: { cpu: '1', memory: '1Gi' },
+                    },
                     securityContext: {
                         capabilities: {
                             add: ['NET_ADMIN', 'NET_RAW'],

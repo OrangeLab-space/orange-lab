@@ -89,24 +89,6 @@ export class Longhorn extends pulumi.ComponentResource {
                     resizerReplicaCount: 1,
                     snapshotterReplicaCount: 1,
                 },
-                networkPolicies: config.enableMonitoring()
-                    ? {
-                          metricsScrapeSources: [
-                              {
-                                  namespaceSelector: {
-                                      matchLabels: {
-                                          'kubernetes.io/metadata.name': 'prometheus',
-                                      },
-                                  },
-                                  podSelector: {
-                                      matchLabels: {
-                                          'app.kubernetes.io/name': 'prometheus',
-                                      },
-                                  },
-                              },
-                          ],
-                      }
-                    : undefined,
                 defaultBackupStore: backupTarget
                     ? { backupTarget, backupTargetCredentialSecret }
                     : { backupTarget: '', backupTargetCredentialSecret: '' },
@@ -146,8 +128,41 @@ export class Longhorn extends pulumi.ComponentResource {
                     storageMinimalAvailablePercentage: '10',
                     storageOverProvisioningPercentage: '100',
                     storageReservedPercentageForDefaultDisk: '30',
+                    systemManagedCSIComponentsResourceLimits: JSON.stringify({
+                        'csi-attacher': {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                        'csi-provisioner': {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                        'csi-resizer': {
+                            requests: { cpu: '10m', memory: '32Mi' },
+                            limits: { cpu: '500m', memory: '64Mi' },
+                        },
+                        'csi-snapshotter': {
+                            requests: { cpu: '10m', memory: '32Mi' },
+                            limits: { cpu: '500m', memory: '64Mi' },
+                        },
+                        'longhorn-csi-plugin': {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                        'longhorn-liveness-probe': {
+                            requests: { cpu: '10m', memory: '32Mi' },
+                            limits: { cpu: '500m', memory: '64Mi' },
+                        },
+                        'node-driver-registrar': {
+                            requests: { cpu: '10m', memory: '32Mi' },
+                            limits: { cpu: '500m', memory: '64Mi' },
+                        },
+                    }),
                     systemManagedComponentsNodeSelector:
                         'node-role.kubernetes.io/longhorn=true',
+                    // The CSI components are created by the Longhorn manager, not
+                    // by a chart template, so their sizing is a manager Setting.
+                    // Changing it restarts the CSI components.
                 },
                 global: {
                     nodeSelector: {
@@ -174,11 +189,41 @@ export class Longhorn extends pulumi.ComponentResource {
                                 tls: httpEndpointInfo.tls,
                             },
                         }),
+                longhornGlobalManager: {
+                    resources: {
+                        requests: { cpu: '50m', memory: '128Mi' },
+                        limits: { cpu: '500m', memory: '256Mi' },
+                    },
+                },
+                longhornManager: {
+                    resources: {
+                        requests: { cpu: '100m', memory: '1Gi' },
+                        limits: { cpu: '1', memory: '2Gi' },
+                    },
+                },
                 longhornUI: {
                     replicas: 1,
                 },
                 metrics: config.enableMonitoring()
                     ? { serviceMonitor: { enabled: true } }
+                    : undefined,
+                networkPolicies: config.enableMonitoring()
+                    ? {
+                          metricsScrapeSources: [
+                              {
+                                  namespaceSelector: {
+                                      matchLabels: {
+                                          'kubernetes.io/metadata.name': 'prometheus',
+                                      },
+                                  },
+                                  podSelector: {
+                                      matchLabels: {
+                                          'app.kubernetes.io/name': 'prometheus',
+                                      },
+                                  },
+                              },
+                          ],
+                      }
                     : undefined,
                 persistence: {
                     defaultClassReplicaCount: config.requireNumber(

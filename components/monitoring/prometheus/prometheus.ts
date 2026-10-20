@@ -61,6 +61,10 @@ export class Prometheus extends pulumi.ComponentResource {
                         enabled: true,
                         alertmanagerSpec: {
                             affinity: this.nodes.getAffinity(),
+                            resources: {
+                                requests: { cpu: '50m', memory: '128Mi' },
+                                limits: { cpu: '500m', memory: '256Mi' },
+                            },
                             storage: {
                                 volumeClaimTemplate:
                                     this.createVolumeClaimTemplate('alertmanager'),
@@ -99,6 +103,10 @@ export class Prometheus extends pulumi.ComponentResource {
                             enabled: true,
                             existingClaim: this.app.storage?.getClaimName('grafana'),
                         },
+                        resources: {
+                            requests: { cpu: '100m', memory: '256Mi' },
+                            limits: { cpu: '1', memory: '512Mi' },
+                        },
                         'grafana.ini': {
                             server: {
                                 root_url: pulumi.interpolate`${grafanaHttpEndpoint.url}/`,
@@ -133,7 +141,13 @@ export class Prometheus extends pulumi.ComponentResource {
                                 : {}),
                         },
                     },
-                    'kube-state-metrics': { affinity: this.nodes.getAffinity() },
+                    'kube-state-metrics': {
+                        affinity: this.nodes.getAffinity(),
+                        resources: {
+                            requests: { cpu: '50m', memory: '128Mi' },
+                            limits: { cpu: '500m', memory: '256Mi' },
+                        },
+                    },
                     kubeApiServer: { enabled: true },
                     kubeControllerManager: {
                         enabled: true,
@@ -168,12 +182,26 @@ export class Prometheus extends pulumi.ComponentResource {
                             storageSpec: {
                                 volumeClaimTemplate: this.createVolumeClaimTemplate(),
                             },
+                            resources: {
+                                requests: { cpu: '500m', memory: '2Gi' },
+                                limits: { cpu: '2', memory: '4Gi' },
+                            },
                         },
                     },
-                    'prometheus-node-exporter': { affinity: this.nodes.getAffinity() },
+                    'prometheus-node-exporter': {
+                        affinity: this.nodes.getAffinity(),
+                        resources: {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                    },
                     prometheusOperator: {
                         enabled: true,
                         affinity: this.nodes.getAffinity(),
+                        resources: {
+                            requests: { cpu: '50m', memory: '128Mi' },
+                            limits: { cpu: '500m', memory: '256Mi' },
+                        },
                         tls: { enabled: false },
                     },
                 },

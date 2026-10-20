@@ -159,6 +159,10 @@ export class Traefik extends pulumi.ComponentResource {
                             experimentalChannel: true,
                         },
                     },
+                    resources: {
+                        requests: { cpu: '100m', memory: '256Mi' },
+                        limits: { cpu: '1', memory: '512Mi' },
+                    },
                     service: {
                         ipFamilyPolicy: 'PreferDualStack',
                     },
