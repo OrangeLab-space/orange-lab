@@ -27,8 +27,8 @@ export class N8n extends pulumi.ComponentResource {
             volumeMounts: [{ mountPath: '/home/node/.n8n' }],
             volumeOwnerUserId: 1000,
             resources: {
-                requests: { memory: '500Mi' },
-                limits: { memory: '1Gi' },
+                requests: { cpu: '100m', memory: '768Mi' },
+                limits: { cpu: '1', memory: '1Gi' },
             },
             env: {
                 CREDENTIALS_OVERWRITE_DATA: args.ollamaUrl

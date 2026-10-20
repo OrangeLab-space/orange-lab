@@ -61,8 +61,8 @@ export class Transmission extends pulumi.ComponentResource {
             },
             initContainers: [initVolumeContainer],
             resources: {
-                requests: { memory: '64Mi' },
-                limits: { memory: '256Mi' },
+                requests: { cpu: '50m', memory: '64Mi' },
+                limits: { cpu: '1', memory: '256Mi' },
             },
         });
     }

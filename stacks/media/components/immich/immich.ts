@@ -152,8 +152,8 @@ export class Immich extends pulumi.ComponentResource {
                 ...(waitForDb ? [waitForDb] : []),
             ],
             resources: {
-                requests: { memory: '512Mi' },
-                limits: { memory: '2Gi' },
+                requests: { cpu: '1', memory: '1Gi' },
+                limits: { cpu: '2', memory: '2Gi' },
             },
         });
     }
@@ -168,7 +168,8 @@ export class Immich extends pulumi.ComponentResource {
                 IMMICH_PORT: '3003',
             },
             resources: {
-                requests: { memory: '512Mi' },
+                requests: { cpu: '100m', memory: '1Gi' },
+                limits: { cpu: '2', memory: '2Gi' },
             },
         });
     }

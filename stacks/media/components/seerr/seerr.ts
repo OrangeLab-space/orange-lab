@@ -13,8 +13,8 @@ export class Seerr extends pulumi.ComponentResource {
         this.app = new Application(this, name).addStorage().addDeployment({
             ports: [{ name: 'http', port: 5055 }],
             resources: {
-                requests: { memory: '128Mi' },
-                limits: { memory: '512Mi' },
+                requests: { cpu: '50m', memory: '256Mi' },
+                limits: { cpu: '1', memory: '512Mi' },
             },
             volumeMounts: [{ mountPath: '/app/config' }],
             volumeOwnerUserId: 1000,

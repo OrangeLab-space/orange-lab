@@ -122,8 +122,8 @@ export class Headscale extends pulumi.ComponentResource {
                 { mountPath: '/var/lib/headscale' },
             ],
             resources: {
-                requests: { cpu: '50m', memory: '128Mi' },
-                limits: { memory: '512Mi' },
+                requests: { cpu: '250m', memory: '128Mi' },
+                limits: { cpu: '1', memory: '512Mi' },
             },
         });
 

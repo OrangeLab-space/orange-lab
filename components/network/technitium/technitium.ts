@@ -71,8 +71,8 @@ export class Technitium extends pulumi.ComponentResource {
                 DNS_SERVER_SSO_CLIENT_SECRET: this.app.oidc?.clientSecret,
             },
             resources: {
-                requests: { cpu: '50m', memory: '128Mi' },
-                limits: { memory: '512Mi' },
+                requests: { cpu: '50m', memory: '384Mi' },
+                limits: { cpu: '1', memory: '768Mi' },
             },
         });
 

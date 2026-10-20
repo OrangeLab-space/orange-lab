@@ -55,8 +55,8 @@ export class Caddy extends pulumi.ComponentResource {
             healthCheck: { httpGet: { path: '/' } },
             volumeMounts: [{ name: 'config', mountPath: '/etc/caddy', readOnly: true }],
             resources: {
-                requests: { cpu: '5m', memory: '32Mi' },
-                limits: { memory: '128Mi' },
+                requests: { cpu: '5m', memory: '64Mi' },
+                limits: { cpu: '1', memory: '128Mi' },
             },
         });
     }

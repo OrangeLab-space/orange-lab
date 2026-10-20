@@ -54,8 +54,8 @@ export class Zot extends pulumi.ComponentResource {
                 { mountPath: '/var/lib/registry' },
             ],
             resources: {
-                requests: { cpu: '500m', memory: '256Mi' },
-                limits: { memory: '2Gi' },
+                requests: { cpu: '600m', memory: '1Gi' },
+                limits: { cpu: '2', memory: '2Gi' },
             },
         });
     }

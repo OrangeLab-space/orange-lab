@@ -28,8 +28,8 @@ export class Pocket extends pulumi.ComponentResource {
             },
             volumeMounts: [{ mountPath: '/app/data' }],
             resources: {
-                requests: { cpu: '5m', memory: '50Mi' },
-                limits: { memory: '256Mi' },
+                requests: { cpu: '5m', memory: '128Mi' },
+                limits: { cpu: '1', memory: '256Mi' },
             },
         });
     }

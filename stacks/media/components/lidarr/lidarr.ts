@@ -46,8 +46,8 @@ export class Lidarr extends pulumi.ComponentResource {
                 PGID: '1000',
             },
             resources: {
-                requests: { memory: '128Mi' },
-                limits: { memory: '512Mi' },
+                requests: { cpu: '50m', memory: '256Mi' },
+                limits: { cpu: '1', memory: '512Mi' },
             },
         });
     }

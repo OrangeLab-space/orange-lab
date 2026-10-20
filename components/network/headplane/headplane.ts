@@ -83,8 +83,8 @@ export class Headplane extends pulumi.ComponentResource {
                 { mountPath: '/var/lib/headplane' },
             ],
             resources: {
-                requests: { cpu: '50m', memory: '128Mi' },
-                limits: { memory: '512Mi' },
+                requests: { cpu: '50m', memory: '256Mi' },
+                limits: { cpu: '1', memory: '512Mi' },
             },
         });
 
