@@ -72,6 +72,7 @@ Even if the change seems straightforward, these signals may indicate the current
 - **Applications** use the Application class for Kubernetes resources (including namespaces and storage for Helm charts).
 - **Never describe your infrastructure in committed docs.** No real hostnames, IPs, or machine names — use `example.com`, `<node>`.
 - **Writing TypeScript** (components, stacks, `@orangelab/pulumi` library): follow the `code-conventions` skill.
+- **Sizing container cpu/memory requests and limits** (or diagnosing OOMs, memory pressure, CPU throttling): follow the `resource-tuning` skill. Size from measured RSS, not working set.
 - **Writing docs** (component `<app>.md`, stack `README.md`): follow the `document-app` / `document-module` skills. Keep user-facing component pages short; put detailed failure behaviour and operational runbooks in `spec/*.md` and link to them.
 
 ## Specs
