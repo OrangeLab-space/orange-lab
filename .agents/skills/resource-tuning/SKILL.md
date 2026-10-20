@@ -272,17 +272,15 @@ them mid-update.
 
 ## Repo-specific gotchas
 
-- **Init containers get no resources at all.** `packages/pulumi/src/containers-init.ts`
-  emits only name/image/command/volumeMounts, so `wait-for-db`, `wait-for-redis`
-  and the injected `fix-volume-permissions` container are unbounded. They are
-  short-lived and low-memory, so this is rarely the cause — but it means "no
-  resources on the pod" can still be true for a pod whose main container is
-  tuned.
-- **Databases are hardcoded in the library.** `packages/pulumi/src/mariadb.ts`
-  (`100m`/`128Mi`, limit `1Gi`), `redis.ts` (`64Mi` request, `128Mi` limit) and
-  `postgres.ts` have fixed values with no override path. A database that needs
-  different sizing requires a **library change** — make them configurable rather
-  than working around it per app, then `npm run build` before deploying.
+- **The library owns the sizing of the containers it creates.** Main containers
+  take `resources` from the caller, but the library also creates init
+  containers (`wait-for-db`, `fix-volume-permissions`), database containers and
+  the database operator's metrics exporter. Those are sized from the constants
+  in `packages/pulumi/src/resources.ts` — `INIT_CONTAINER_RESOURCES`,
+  `DATABASE_RESOURCES`, `REDIS_RESOURCES`, `METRICS_EXPORTER_RESOURCES` — so
+  callers never specify them. Change the constant, not the app, and run
+  `npm run build` before deploying. The constants are exported from
+  `@orangelab/pulumi` for components that render their own metrics exporter.
 - **The Caddy proxy sidecar** that `addHostNetworkProxy()` injects carries its own
   defaults (`10m`/`32Mi` request, `64Mi` limit) in
   `packages/pulumi/src/application.ts`.
