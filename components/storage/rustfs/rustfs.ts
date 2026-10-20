@@ -69,6 +69,10 @@ export class Rustfs extends pulumi.ComponentResource {
             },
             commandArgs: ['/data'],
             volumeMounts: [{ name: 'data', mountPath: '/data' }],
+            resources: {
+                requests: { cpu: '1500m', memory: '4Gi' },
+                limits: { cpu: '4', memory: '12Gi' },
+            },
         });
     }
 

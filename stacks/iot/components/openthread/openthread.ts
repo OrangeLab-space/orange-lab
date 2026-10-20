@@ -31,6 +31,10 @@ export class OpenThreadBorderRouter extends pulumi.ComponentResource {
                 { mountPath: device, name: 'rcp' },
                 { mountPath: '/dev/net/tun', name: 'tun' },
             ],
+            resources: {
+                requests: { cpu: '10m', memory: '32Mi' },
+                limits: { cpu: '100m', memory: '64Mi' },
+            },
         });
 
     }

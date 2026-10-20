@@ -107,8 +107,8 @@ export class Frigate extends pulumi.ComponentResource {
                 { name: 'webrtc-udp', port: 8555, protocol: 'udp', private: true },
             ],
             resources: {
-                requests: { cpu: '500m', memory: '512Mi' },
-                limits: { memory: '4Gi' },
+                requests: { cpu: '800m', memory: '2Gi' },
+                limits: { cpu: '2000m', memory: '4Gi' },
             },
             volumeMounts: this.createVolumeMounts(name, coral, devices),
         });

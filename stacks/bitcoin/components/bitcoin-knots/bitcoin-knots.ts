@@ -77,8 +77,8 @@ export class BitcoinKnots extends pulumi.ComponentResource {
                 { name: 'p2p', port: 8333, protocol: 'tcp' },
             ],
             resources: {
-                requests: { cpu: '1000m', memory: '2Gi' },
-                limits: { cpu: '2000m', memory: '8Gi' },
+                requests: { cpu: '600m', memory: '4Gi' },
+                limits: { cpu: '2000m', memory: '12Gi' },
             },
             runAsUser,
             volumeMounts: [

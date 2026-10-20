@@ -139,6 +139,12 @@ export class Ollama extends pulumi.ComponentResource {
                         existingClaim: this.app.storage?.getClaimName(),
                     },
                     replicaCount: 1,
+                    resources: {
+                        requests: { cpu: '1', memory: '8Gi' },
+                        // No memory limit: the resident model determines the footprint
+                        // and the available models differ in size by more than 10x.
+                        limits: { cpu: '4' },
+                    },
                     securityContext:
                         gpu === 'amd' || gpu === 'intel'
                             ? { privileged: true }

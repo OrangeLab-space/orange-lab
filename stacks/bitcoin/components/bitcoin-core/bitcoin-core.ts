@@ -53,8 +53,8 @@ export class BitcoinCore extends pulumi.ComponentResource {
 
         this.app.addDeployment({
             resources: {
-                requests: { cpu: '100m', memory: '2Gi' },
-                limits: { cpu: '2000m', memory: '8Gi' },
+                requests: { cpu: '600m', memory: '4Gi' },
+                limits: { cpu: '2000m', memory: '12Gi' },
             },
             image,
             ports: [

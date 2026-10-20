@@ -47,6 +47,10 @@ export class MatterServer extends pulumi.ComponentResource {
                     ? [{ mountPath: '/run/dbus', name: 'dbus', readOnly: true }]
                     : []),
             ],
+            resources: {
+                requests: { cpu: '100m', memory: '384Mi' },
+                limits: { cpu: '1', memory: '768Mi' },
+            },
         });
 
         const clusterUrl = this.app.network.clusterEndpoints[name];
