@@ -93,9 +93,12 @@ config:
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     frigate:auth/allowedGroups: admin,frigate-admin
     # Pocket ID groups mapped to Frigate roles (Frigate role -> list of groups).
+    # The global admin group grants Frigate's admin role; frigate-admin delegates
+    # the same role without granting access to other apps.
     frigate:auth/groupMap:
         value:
             admin:
+                - admin
                 - frigate-admin
             # viewer:
             #     - viewers

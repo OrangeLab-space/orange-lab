@@ -171,12 +171,13 @@ groups (`X-Forwarded-User` / `X-Forwarded-Groups`), which Frigate maps to roles:
 - authenticated users matching no group get `frigate:auth/defaultRole` (default
   `viewer`; must be `admin` or `viewer`).
 
-`groupMap` defaults to `{admin: [frigate-admin]}` (membership in `frigate-admin`
-grants Frigate's `admin` role; other allowed users get `viewer`). Set the whole
-map to add a read-only role for the `viewers` group:
+`groupMap` defaults to `{admin: [admin, frigate-admin]}` (membership in the
+global `admin` group or the delegated `frigate-admin` group grants Frigate's
+`admin` role; other allowed users get `viewer`). Set the whole map to add a
+read-only role for the `viewers` group:
 
 ```sh
-pulumi config set frigate:auth/groupMap '{"admin":["admin"],"viewer":["viewers"]}'
+pulumi config set frigate:auth/groupMap '{"admin":["admin","frigate-admin"],"viewer":["viewers"]}'
 ```
 
 The value must be a JSON object string when set with `pulumi config set` (Pulumi
@@ -187,6 +188,7 @@ parses it as JSON). In `Pulumi.yaml` the same map is written as YAML under
 frigate:auth/groupMap:
     value:
         admin:
+            - admin
             - frigate-admin
         viewer:
             - viewers
@@ -198,8 +200,8 @@ access.
 
 Create the OIDC client from the iot stack directory and apply the printed
 commands. The groups must already exist (the scripts never create them). The
-client is restricted to `admin` and `frigate-admin`; `frigate-admin`
-members get the `admin` role and other allowed users get `viewer`:
+client is restricted to `admin` and `frigate-admin`; members of either group
+get the `admin` role and other allowed users get `viewer`:
 
 ```sh
 cd stacks/iot
