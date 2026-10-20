@@ -164,10 +164,10 @@ resources: {
 
 **Helm charts** (`app.addHelmChart`) — set `resources` in the chart `values`.
 Most charts take a top-level `resources`; `kube-prometheus-stack` takes
-per-component keys (`prometheusSpec.resources`, `grafana.resources`,
-`alertmanagerSpec.resources`).
+per-component keys. The exact path per chart is listed under
+[Chart resource keys](#chart-resource-keys) below.
 
-Two Helm-specific traps:
+Three Helm-specific traps:
 
 - A chart that ships `resources: {requests: {}, limits: {}}` — the default in
   most charts — leaves the pod **BestEffort**. Check the chart's `values.yaml`,
@@ -177,6 +177,72 @@ Two Helm-specific traps:
 - Charts that merge a GPU limit into `limits` (e.g. `ollama-helm` does
   `mergeOverwrite .Values.resources`) keep the GPU key when you set a partial
   `limits` object — verify in the rendered manifest rather than assuming.
+- **A Deployment with a ReadWriteOnce PVC deadlocks on `RollingUpdate`.** The
+  surge pod cannot attach the volume while the old pod still holds it, so the
+  new pod sits in `ContainerCreating` and the Helm release eventually fails with
+  `failed to become available within allocated timeout`. The pod event says
+  `FailedAttachVolume: Volume is already used by pod(s) ...`. Set the
+  deployment's strategy to `Recreate` (chart key: `deploymentStrategy` for
+  grafana, `nextcloud.strategy` for nextcloud, `strategy` for vaultwarden).
+  StatefulSets are not affected — they update one pod at a time.
+
+#### Chart resource keys
+
+Verify a key against the chart version that is deployed before using it — the
+path moves between chart majors. The values schema is in the chart's
+`values.yaml`; the authoritative check is which key the chart's **template**
+reads:
+
+```sh
+tar -xzf <chart>.tgz -O --wildcards '*/values.yaml' > values.yaml
+tar -xzf <chart>.tgz -O --wildcards '*/templates/*.yaml' | grep -rhoE '\.Values\.[a-zA-Z0-9_.-]*resources' | sort -u
+```
+
+Paths used by the charts in this repository:
+
+| Chart | Values path | Workload |
+| :--- | :--- | :--- |
+| `kube-prometheus-stack` | `prometheus.prometheusSpec.resources` | prometheus |
+| | `grafana.resources` | grafana |
+| | `alertmanager.alertmanagerSpec.resources` | alertmanager |
+| | `kube-state-metrics.resources` | kube-state-metrics |
+| | `prometheus-node-exporter.resources` | node-exporter |
+| | `prometheusOperator.resources` | prometheus-operator |
+| `longhorn` | `longhornManager.resources` | longhorn manager daemonset |
+| | `longhornGlobalManager.resources` | longhorn global manager |
+| | `defaultSettings.systemManagedCSIComponentsResourceLimits` | CSI components (a Longhorn **Setting**, not a pod spec — changing it restarts the CSI components) |
+| `cert-manager` | `resources`, `cainjector.resources`, `webhook.resources` | controller, cainjector, webhook |
+| `cloudnative-pg` | `resources` | operator manager |
+| `mariadb-operator` | `resources`, `webhook.resources`, `certController.resources` | controller, webhook, cert controller |
+| `traefik` | `resources` | traefik |
+| `home-assistant` | `resources` | home-assistant |
+| `vaultwarden` | `resources` | vaultwarden |
+| `nextcloud` | `resources`, `cronjob.cronjob.resources` | nextcloud, nextcloud-cron |
+| `node-feature-discovery` | `master/worker/gc/topologyUpdater.resources` | chart sets these already |
+
+Some workloads are **not reachable through chart values** — do not burn time on
+them: the grafana `grafana-sc-dashboard` / `grafana-sc-datasources` sidecar
+deployments and the GPU operator's device-plugin, node-labeller and
+workflow-controller have no `resources` key in their chart templates. The
+`config-reloader` sidecar that the prometheus-operator injects into the
+prometheus and alertmanager pods is likewise not tunable from the chart.
+
+**Subchart values are keyed by the subchart's own name, not by the parent's
+alias.** In `kube-prometheus-stack` the parent's `kubeStateMetrics.enabled` and
+`nodeExporter.enabled` only toggle the subcharts — the subchart's own values
+live under `kube-state-metrics` and `prometheus-node-exporter`. Putting
+`resources` under the aliased key previews fine and silently does nothing.
+
+**A `pulumi preview` of a Helm release shows the `values` diff, not the rendered
+manifest.** A wrong key path therefore previews as a harmless-looking values
+change and silently does nothing. Always confirm in the live cluster after the
+deploy:
+
+```sh
+kubectl -n <ns> get deploy,statefulset,daemonset -o json | jq -r '
+  .items[] | .metadata.name as $n | .spec.template.spec.containers |
+  map("\($n)/\(.name) req=\(.resources.requests.cpu // "-")/\(.resources.requests.memory // "-") lim=\(.resources.limits.cpu // "-")/\(.resources.limits.memory // "-")") | join(" | ")'
+```
 
 ### 6. Preview, deploy, verify
 
@@ -191,6 +257,18 @@ next run has to clear them — re-run it and confirm `pending_operations` is 0:
 ```sh
 pulumi stack export | jq -r '.deployment.pending_operations | length'
 ```
+
+A `pulumi up` that is **killed** (interrupted, not failed) leaves the stack
+showing an active update with no pending operations in state. Clear it with
+`pulumi cancel --yes`, then re-run the deploy:
+
+```sh
+pulumi cancel --yes
+pulumi up --yes
+```
+
+Run long deploys in the background so an interrupted tool call does not kill
+them mid-update.
 
 ## Repo-specific gotchas
 
@@ -225,6 +303,11 @@ pulumi stack export | jq -r '.deployment.pending_operations | length'
   is no `Pulumi.yaml` config surface for resources; if per-deployment
   tunability is wanted, the defaults belong in `Pulumi.yaml` and the code
   should read them with the `require*` accessors.
+- **Adding keys to a Helm `values` object can trip `sort-keys`.** The lint rule
+  is configured with `minKeys: 10`, so an object with fewer than ten keys is
+  never checked — and may already be in a non-alphabetical order. Adding the
+  tenth key activates the rule and the whole object then has to be sorted.
+  Reorder the object rather than working around the lint error.
 
 ## Verify
 
