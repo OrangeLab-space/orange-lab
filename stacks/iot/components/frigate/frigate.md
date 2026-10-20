@@ -59,6 +59,12 @@ frigate:config:
                       roles: [detect]
     record:
         enabled: true
+        alerts:
+            retain:
+                days: 30
+        detections:
+            retain:
+                days: 30
 ```
 
 To keep the credentials encrypted instead, store the same document as a secret:
@@ -69,6 +75,10 @@ pulumi config set --secret frigate:config "$(cat frigate.yml)"
 
 Point `detect` at a low-resolution sub stream and `record` at
 the main stream when the camera offers both.
+
+This keeps alert and detection recordings for 30 days. Continuous and motion
+recording stay off unless `record.continuous.days` / `record.motion.days` are
+set.
 
 The `detectors`, `mqtt` and `tls` sections are generated automatically from
 `frigate:coral`, `frigate:gpu` and the enabled Mosquitto broker — set them
