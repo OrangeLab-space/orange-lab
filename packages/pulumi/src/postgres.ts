@@ -3,9 +3,9 @@ import * as pulumi from '@pulumi/pulumi';
 import { config } from './config';
 import { Metadata } from './metadata';
 import { Nodes } from './nodes';
-import { DATABASE_RESOURCES } from './resources';
+import { DATABASE_RESOURCES, withResources } from './resources';
 import { createPassword } from './secrets';
-import { DatabaseConfig } from './types';
+import { ContainerResources, DatabaseConfig } from './types';
 
 export interface PostgresClusterArgs {
     name: string;
@@ -20,6 +20,8 @@ export interface PostgresClusterArgs {
     imageName?: string;
     postInitApplicationSQL?: string[];
     sharedPreloadLibraries?: string[];
+    /** Overrides the default cpu and memory requests and limits. */
+    resources?: ContainerResources;
 }
 
 export class PostgresCluster extends pulumi.ComponentResource {
@@ -95,7 +97,7 @@ export class PostgresCluster extends pulumi.ComponentResource {
                     postgresql: this.args.sharedPreloadLibraries
                         ? { shared_preload_libraries: this.args.sharedPreloadLibraries }
                         : undefined,
-                    resources: DATABASE_RESOURCES,
+                    resources: withResources(DATABASE_RESOURCES, this.args.resources),
                     storage: {
                         size: this.args.storageSize,
                         ...(this.args.fromVolume

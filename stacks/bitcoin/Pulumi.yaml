@@ -65,5 +65,8 @@ config:
     mempool:backend/hostname: mempool-backend
     mempool:backend/image: mempool/backend:v3.3.1
     mempool:db/storageSize: 1Gi
+    # Database cpu and memory requests and limits, overriding the library default.
+    # mempool:db/resources:
+    #     value: {requests: {memory: 1Gi}, limits: {memory: 2Gi}}
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     mempool:auth/allowedGroups: admin,mempool-users

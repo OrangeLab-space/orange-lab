@@ -36,6 +36,11 @@ config:
     nextcloud:hostname: nextcloud
     nextcloud:storageSize: 20Gi
     nextcloud:db/storageSize: 5Gi
+    # Database cpu and memory requests and limits, overriding the library default.
+    # nextcloud:db/resources:
+    #     value: {requests: {memory: 1Gi}, limits: {memory: 2Gi}}
+    # nextcloud:redis/resources:
+    #     value: {requests: {memory: 128Mi}, limits: {memory: 256Mi}}
     nextcloud:trustedProxies: '10.42.0.0/16,10.43.0.0/16,127.0.0.0/8'
     nextcloud:groupProvisioningWhitelist: '^nextcloud-.*$'
     # Pocket ID groups allowed to sign in; nextcloud-users is also provisioned as

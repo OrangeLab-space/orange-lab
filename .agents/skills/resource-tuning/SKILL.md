@@ -289,6 +289,19 @@ them mid-update.
   callers never specify them. Change the constant, not the app, and run
   `npm run build` before deploying. The constants are exported from
   `@orangelab/pulumi` for components that render their own metrics exporter.
+- **Database sizing has a per-app override.** `<app>:db/resources` and
+  `<app>:redis/resources` override the database defaults, merged field by
+  field — name only the values you want to change and the rest of the default
+  stands:
+
+  ```yaml
+  mempool:db/resources:
+      value: {requests: {memory: 2Gi}, limits: {memory: 4Gi}}
+  ```
+
+  A malformed value fails the deploy with the offending section
+  (`mempool:db/resources.limits must be an object with cpu and memory`) rather
+  than reaching the API server as an invalid ResourceRequirements.
 - **The Caddy proxy sidecar** that `addHostNetworkProxy()` injects carries its own
   defaults (`10m`/`32Mi` request, `64Mi` limit) in
   `packages/pulumi/src/application.ts`.

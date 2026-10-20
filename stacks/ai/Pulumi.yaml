@@ -107,5 +107,8 @@ config:
     n8n:storageSize: 1Gi
     n8n:db/storageSize: 1Gi
     n8n:db/instances: 1
+    # Database cpu and memory requests and limits, overriding the library default.
+    # n8n:db/resources:
+    #     value: {requests: {memory: 1Gi}, limits: {memory: 2Gi}}
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     n8n:auth/allowedGroups: admin,n8n-users

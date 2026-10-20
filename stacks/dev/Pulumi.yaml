@@ -24,6 +24,11 @@ config:
     forgejo:db/type: sqlite # sqlite | postgres
     forgejo:db/storageSize: 5Gi
     forgejo:redis/enabled: false
+    # Database cpu and memory requests and limits, overriding the library default.
+    # forgejo:db/resources:
+    #     value: {requests: {memory: 1Gi}, limits: {memory: 2Gi}}
+    # forgejo:redis/resources:
+    #     value: {requests: {memory: 128Mi}, limits: {memory: 256Mi}}
     forgejo:adminUsername: gitea_admin
     # forgejo:adminEmail: forgejo@example.com
     # forgejo:adminPassword:

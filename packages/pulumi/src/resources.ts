@@ -37,3 +37,62 @@ export const REDIS_RESOURCES: ContainerResources = {
     requests: { cpu: '50m', memory: '64Mi' },
     limits: { memory: '128Mi' },
 };
+
+/**
+ * Applies an override on top of a default. The override replaces the fields
+ * it names in each section and leaves the rest alone, so a caller can raise
+ * one value without restating the whole thing.
+ */
+export function withResources(
+    defaults: ContainerResources,
+    override?: ContainerResources,
+): ContainerResources {
+    if (!override) return defaults;
+    return {
+        requests: { ...defaults.requests, ...override.requests },
+        limits: { ...defaults.limits, ...override.limits },
+    };
+}
+
+/**
+ * Parses a resources override read from configuration. Rejects a malformed
+ * value here rather than letting it reach the API server as an invalid
+ * ResourceRequirements.
+ */
+export function parseResources(
+    value: unknown,
+    key: string,
+): ContainerResources | undefined {
+    if (value === undefined) return undefined;
+    if (!isRecord(value)) {
+        throw new Error(`${key} must be an object with requests and limits`);
+    }
+    const result: ContainerResources = {};
+    for (const section of ['requests', 'limits'] as const) {
+        const entries = value[section];
+        if (entries === undefined) continue;
+        if (!isResourceSection(entries)) {
+            throw new Error(`${key}.${section} must be an object with cpu and memory`);
+        }
+        result[section] = entries;
+    }
+    return result;
+}
+
+type ResourceSection = NonNullable<ContainerResources['requests']>;
+
+const RESOURCE_FIELDS: readonly string[] = ['cpu', 'memory'];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function isResourceSection(value: unknown): value is ResourceSection {
+    return (
+        isRecord(value) &&
+        Object.entries(value).every(
+            ([field, entry]) =>
+                RESOURCE_FIELDS.includes(field) && typeof entry === 'string',
+        )
+    );
+}

@@ -27,6 +27,11 @@ config:
     immich:db/image: ghcr.io/tensorchord/cloudnative-vectorchord:18.6
     immich:db/sharedPreloadLibraries: vchord.so
     immich:db/postInitApplicationSQL: CREATE EXTENSION IF NOT EXISTS earthdistance CASCADE,CREATE EXTENSION IF NOT EXISTS vchord CASCADE
+    # Database cpu and memory requests and limits, overriding the library default.
+    # immich:db/resources:
+    #     value: {requests: {memory: 1Gi}, limits: {memory: 2Gi}}
+    # immich:redis/resources:
+    #     value: {requests: {memory: 128Mi}, limits: {memory: 256Mi}}
     immich:smtp/enabled: false
     # immich:smtp/host: smtp.example.com
     # immich:smtp/from: noreply@example.com

@@ -4,9 +4,10 @@ import { MariaDbCluster } from './mariadb';
 import { Metadata } from './metadata';
 import { Nodes } from './nodes';
 import { PostgresCluster } from './postgres';
+import { parseResources } from './resources';
 import { Redis } from './redis';
 import { Storage } from './storage';
-import { DatabaseConfig, InitContainerSpec } from './types';
+import { ContainerResources, DatabaseConfig, InitContainerSpec } from './types';
 
 export class Databases {
     private databases: Record<
@@ -50,6 +51,7 @@ export class Databases {
                 metadata: this.args.metadata,
                 name,
                 password: config.getSecret(this.appName, `${name}/password`),
+                resources: this.getResources(name),
                 rootPassword: config.getSecret(this.appName, `${name}/rootPassword`),
                 storageClassName: existingVolume
                     ? this.args.storage.getStorageClass(name)
@@ -106,6 +108,7 @@ export class Databases {
                     this.appName,
                     `${name}/postInitApplicationSQL`,
                 ),
+                resources: this.getResources(name),
                 sharedPreloadLibraries: config.getCommaSeparated(
                     this.appName,
                     `${name}/sharedPreloadLibraries`,
@@ -137,9 +140,19 @@ export class Databases {
                 metadata: this.args.metadata,
                 nodes: this.args.nodes,
                 image,
+                resources: this.getResources(name),
             },
             this.opts,
         );
+    }
+
+    /**
+     * The cpu and memory requests and limits for a database, overriding the
+     * library default. Read from `<app>:<name>/resources`.
+     */
+    private getResources(name: string): ContainerResources | undefined {
+        const key = `${this.appName}:${name}/resources`;
+        return parseResources(config.getObject(this.appName, `${name}/resources`), key);
     }
 
     /**
