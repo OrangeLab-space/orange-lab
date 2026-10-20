@@ -1,4 +1,9 @@
-import { Application, config, requireOutput } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    INIT_CONTAINER_RESOURCES,
+    requireOutput,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export interface HomeAssistantDevice {
@@ -151,6 +156,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
             name: 'install-oidc-auth',
             image: 'alpine:3.21',
             command: ['/bin/sh', '-c'],
+            resources: INIT_CONTAINER_RESOURCES,
             env: [
                 { name: 'OIDC_REPO', value: config.require(name, 'oidcRepo') },
                 {
@@ -196,6 +202,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
             name: 'install-frigate-integration',
             image: 'alpine:3.21',
             command: ['/bin/sh', '-c'],
+            resources: INIT_CONTAINER_RESOURCES,
             env: [
                 { name: 'FRIGATE_REPO', value: config.require(name, 'frigateRepo') },
                 {
