@@ -129,11 +129,14 @@ export class Prometheus extends pulumi.ComponentResource {
                                           email_attribute_name: 'email:primary',
                                           enabled: 'true',
                                           name: 'Pocket ID',
+                                          // The global admin group and the
+                                          // app-specific admin group both grant
+                                          // Grafana's Admin role.
                                           role_attribute_path: pulumi
                                               .output(this.app.oidc.adminGroup)
                                               .apply(
                                                   adminGroup =>
-                                                      `contains(groups[*], '${adminGroup}') && 'Admin' || 'Viewer'`,
+                                                      `(contains(groups[*], 'admin') || contains(groups[*], '${adminGroup}')) && 'Admin' || 'Viewer'`,
                                               ),
                                           scopes: 'openid email profile groups',
                                           skip_org_role_sync: 'false',
