@@ -21,6 +21,10 @@ Required:
                                  Repeat for each node.
 
 Options:
+  --tcp-forward <listen>=<name>=<addr:port>
+                      Forward a public TCP port to an upstream, e.g.
+                      8333=bitcoin-p2p=100.64.0.3:18333. Repeat for each
+                      upstream on the same listener. Raw TCP only; no SNI.
   --ipv6              Also listen on IPv6 (requires a public IPv6 address)
   --template <path>   Config template (default: haproxy.cfg.template next to this script)
   --config <path>     Destination config (default: /etc/haproxy/haproxy.cfg)
@@ -40,6 +44,7 @@ EOF
 
 DOMAIN=""
 UPSTREAMS=()
+TCP_FORWARDS=()
 IPV6=false
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 TEMPLATE="${SCRIPT_DIR}/haproxy.cfg.template"
@@ -60,6 +65,11 @@ while (($# > 0)); do
         --upstream)
             [[ $# -ge 2 && -n "$2" ]] || { echo "Missing value for --upstream" >&2; exit 2; }
             UPSTREAMS+=("$2")
+            shift 2
+            ;;
+        --tcp-forward)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "Missing value for --tcp-forward" >&2; exit 2; }
+            TCP_FORWARDS+=("$2")
             shift 2
             ;;
         --ipv6)
@@ -173,6 +183,91 @@ for entry in "${UPSTREAMS[@]}"; do
 done
 
 #
+# TCP forwards
+#
+
+TCP_FRONTENDS=""
+if [[ ${#TCP_FORWARDS[@]} -gt 0 ]]; then
+    declare -A tcp_names=()
+    declare -A tcp_servers=()
+    declare -A tcp_counts=()
+    declare -A tcp_seen=()
+    tcp_order=()
+
+    for entry in "${TCP_FORWARDS[@]}"; do
+        if [[ "$entry" != *=*=* ]]; then
+            echo "Invalid --tcp-forward '$entry': expected listen-port=name=address:port." >&2
+            exit 2
+        fi
+        listen=${entry%%=*}
+        rest=${entry#*=}
+        name=${rest%%=*}
+        address=${rest#*=}
+
+        if [[ ! "$listen" =~ ^[0-9]+$ ]] || ((listen < 1 || listen > 65535)); then
+            echo "Invalid TCP listen port '$listen'." >&2
+            exit 2
+        fi
+        case "$listen" in
+            80|443|8404)
+                echo "TCP listen port $listen is reserved by the HTTP proxy or stats." >&2
+                exit 2
+                ;;
+        esac
+        if [[ ! "$name" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+            echo "Invalid TCP forward name '$name'." >&2
+            exit 2
+        fi
+        if [[ "$address" != *:* ]]; then
+            echo "Invalid TCP upstream address '$address': expected address:port." >&2
+            exit 2
+        fi
+        upstream_port=${address##*:}
+        if [[ ! "$upstream_port" =~ ^[0-9]+$ ]] ||
+            ((upstream_port < 1 || upstream_port > 65535)); then
+            echo "Invalid TCP upstream port '$upstream_port'." >&2
+            exit 2
+        fi
+        if [[ -n "${tcp_names[$listen]:-}" && "${tcp_names[$listen]}" != "$name" ]]; then
+            echo "TCP port $listen is assigned to both '${tcp_names[$listen]}' and '$name'." >&2
+            exit 2
+        fi
+        if [[ -z "${tcp_seen[$listen]:-}" ]]; then
+            tcp_names[$listen]=$name
+            tcp_counts[$listen]=0
+            tcp_seen[$listen]=1
+            tcp_order+=("$listen")
+        fi
+        tcp_counts[$listen]=$((${tcp_counts[$listen]} + 1))
+        server_name="${name}_${tcp_counts[$listen]}"
+        tcp_servers[$listen]+="    server ${server_name} ${address} check"$'\n'
+    done
+
+    for listen in "${tcp_order[@]}"; do
+        name=${tcp_names[$listen]}
+        if $IPV6; then
+            bind="[::]:${listen} v4v6"
+        else
+            bind=":${listen}"
+        fi
+        TCP_FRONTENDS+="# ${name}"$'\n'
+        TCP_FRONTENDS+="frontend tcp_in_${listen}"$'\n'
+        TCP_FRONTENDS+="    bind ${bind}"$'\n'
+        TCP_FRONTENDS+="    mode tcp"$'\n'
+        TCP_FRONTENDS+="    option tcplog"$'\n'
+        TCP_FRONTENDS+="    default_backend tcp_out_${listen}"$'\n'
+        TCP_FRONTENDS+=$'\n'
+        TCP_FRONTENDS+="backend tcp_out_${listen}"$'\n'
+        TCP_FRONTENDS+="    mode tcp"$'\n'
+        TCP_FRONTENDS+="    balance leastconn"$'\n'
+        TCP_FRONTENDS+="    option tcp-check"$'\n'
+        TCP_FRONTENDS+="    default-server inter 5s fall 3 rise 2"$'\n'
+        TCP_FRONTENDS+="${tcp_servers[$listen]}"
+        TCP_FRONTENDS+=$'\n'
+    done
+fi
+
+#
 # Render the configuration
 #
 
@@ -189,6 +284,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     line=${line//'${HTTPS_BIND}'/$HTTPS_BIND}
     if [[ "$line" == "__SERVERS__" ]]; then
         printf '%s' "$SERVERS"
+    elif [[ "$line" == "__TCP_FRONTENDS__" ]]; then
+        printf '%s' "$TCP_FRONTENDS"
     else
         printf '%s\n' "$line"
     fi
@@ -246,6 +343,7 @@ cat <<EOF
 
 Configured domain: ${DOMAIN}
 Upstreams: ${UPSTREAMS[*]}
+TCP forwards: ${TCP_FORWARDS[*]:-none}
 IPv6: $([[ "$HTTP_BIND" == *v4v6* ]] && echo "dual-stack (public AAAA records can be added)" || echo "IPv4 only")
 Stats: http://127.0.0.1:8404/stats (use an SSH tunnel)
 Next: sudo $SCRIPT_DIR/verify.sh --domain ${DOMAIN} --host <hostname>

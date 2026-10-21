@@ -11,9 +11,10 @@ set -euo pipefail
 
 usage() {
     cat <<EOF
-Usage: $0 [--ssh-port <port>]
+Usage: $0 [--ssh-port <port>] [--tcp-port <port> ...]
 
   --ssh-port <port>   SSH port to allow (default: from sshd -T, else 22)
+  --tcp-port <port>   Additional public TCP port to allow; repeat as needed
   -h, --help          Show this help
 EOF
 }
@@ -23,6 +24,7 @@ EOF
 #
 
 SSH_PORT=""
+TCP_PORTS=()
 
 #
 # Arguments
@@ -33,6 +35,11 @@ while (($# > 0)); do
         --ssh-port)
             [[ $# -ge 2 && -n "$2" ]] || { echo "Missing value for --ssh-port" >&2; exit 2; }
             SSH_PORT=$2
+            shift 2
+            ;;
+        --tcp-port)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "Missing value for --tcp-port" >&2; exit 2; }
+            TCP_PORTS+=("$2")
             shift 2
             ;;
         -h|--help)
@@ -91,6 +98,13 @@ if [[ ! "$SSH_PORT" =~ ^[0-9]+$ ]]; then
     exit 2
 fi
 
+for port in "${TCP_PORTS[@]}"; do
+    if [[ ! "$port" =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
+        echo "Invalid TCP port '$port'." >&2
+        exit 2
+    fi
+done
+
 #
 # Configure firewalld
 #
@@ -111,6 +125,9 @@ fi
 firewall-cmd --permanent --add-service=http
 firewall-cmd --permanent --add-service=https
 firewall-cmd --permanent --add-port="${SSH_PORT}/tcp"
+for port in "${TCP_PORTS[@]}"; do
+    firewall-cmd --permanent --add-port="${port}/tcp"
+done
 firewall-cmd --permanent --add-port=41641/udp
 # Permit the tailnet to reach the proxy and SSH. The exit-node interface is
 # added by exit-node.sh after the node joins, when tailscale0 exists.

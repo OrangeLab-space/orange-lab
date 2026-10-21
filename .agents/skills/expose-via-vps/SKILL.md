@@ -7,9 +7,9 @@ description: Use when the user wants to expose OrangeLab services through a clou
 
 Replaces a router port forward with a small VPS outside the cluster. The VPS
 joins the same tailnet as the cluster and forwards TLS to the Traefik public
-gateway by SNI. Certificates, routing, and the apex stay in the cluster; the
-VPS is disposable. The tailnet can use Headscale or Tailscale; the HAProxy and
-host layers are identical.
+gateway by SNI, plus any explicitly configured raw TCP ports. Certificates,
+routing, and the apex stay in the cluster; the VPS is disposable. The tailnet
+can use Headscale or Tailscale; the HAProxy and host layers are identical.
 
 Read [`docs/public-proxy.md`](/docs/public-proxy.md) for the user-facing guide
 and [`spec/public-proxy.md`](/spec/public-proxy.md) for invariants and failure
@@ -292,14 +292,15 @@ After the tailnet is up, you can offer to close public SSH and allow it only on
 the fallback if the tailnet or control plane is down.
 
 Before external verification and DNS handoff, have the user confirm that the
-provider's cloud firewall allows the SSH port, `80/tcp`, `443/tcp`, and
-`41641/udp`. If IPv6 is enabled, confirm the same `80`/`443` rules apply to
-IPv6; many providers have separate IPv4 and IPv6 firewall rules. This is
-separate from UFW and is normally a provider-dashboard action. Do not block the
-automated host preparation, package installation, tailnet join, or local
-verification while this handoff is pending. `41641/udp` improves direct
-tailnet connectivity; the control plane may use a relay when it is unavailable,
-but it should be opened before final verification.
+provider's cloud firewall allows the SSH port, `80/tcp`, `443/tcp`, every
+configured `--tcp-port`, and `41641/udp`. If IPv6 is enabled, confirm the same
+`80`/`443` and TCP rules apply to IPv6; many providers have separate IPv4 and
+IPv6 firewall rules. This is separate from UFW and is normally a
+provider-dashboard action. Do not block the automated host preparation, package
+installation, tailnet join, or local verification while this handoff is
+pending. `41641/udp` improves direct tailnet connectivity; the control plane may
+use a relay when it is unavailable, but it should be opened before final
+verification.
 
 ## 4. Join the tailnet
 
@@ -425,6 +426,25 @@ and default route. The script refuses the flag when it cannot find one. Without
 it, HAProxy stays IPv4 only. The upstreams remain IPv4 tailnet addresses either
 way.
 
+Raw TCP is separate from HTTP and SNI. Add one `--tcp-forward
+<listen-port>=<name>=<addr:port>` per upstream. The cluster side must publish
+the port at `<port> + 10000` when it is marked `public`:
+
+```sh
+ssh -p <port> <proxy-user>@<host> \
+  'sudo bash /tmp/public-proxy/configure-haproxy.sh \
+   --domain <domain> \
+   --upstream <node-a>=<tailnet-ip-a>:10443 \
+   --upstream <node-b>=<tailnet-ip-b>:10443 \
+   --tcp-forward 8333=bitcoin-p2p=<tailnet-ip-a>:18333 \
+   --tcp-forward 8333=bitcoin-p2p=<tailnet-ip-b>:18333'
+```
+
+Open the same listener with the firewall phase, for example
+`--tcp-port 8333`, and in the provider cloud firewall. There is no catch-all
+TCP listener; only add ports that are intentionally public. Never forward a
+database, RPC, admin, or metrics port.
+
 The script renders the config, validates it with `haproxy -c`, backs up the
 previous file, and reloads. Do not hand-edit the live config without keeping the
 template and script in sync.
@@ -482,6 +502,14 @@ curl -g -6 -sS -o /dev/null -w '%{http_code} %{remote_ip}\n' \
   --resolve <host>:443:[<vps-ipv6>] https://<host>/
 timeout 10 openssl s_client -connect [<vps-ipv6>]:443 -servername <host> </dev/null 2>/dev/null \
   | openssl x509 -noout -subject -issuer -ext subjectAltName
+```
+
+For each raw TCP forward, test the public listener and the upstream from the
+VPS:
+
+```sh
+nc -vz <vps-ip> <public-port>
+ssh <proxy-user>@<vps-ip> 'nc -vz <tailnet-ip> <port+10000>'
 ```
 
 Confirm:
@@ -658,6 +686,7 @@ Control plane:  <Headscale or Tailscale>
 Node:           <name> (tailnet <ip>, tags: tag:proxy[, tag:orangelab])
 Control pin:    <headscale-host> -> <home-ipv4> (Headscale only)
 HAProxy:        443 -> <upstream-a>, <upstream-b>
+TCP forwards:   <none | <public-port> -> <name>=<upstream-a>:<port+10000>, ...>
 IPv6:           <enabled/approved | disabled; provider has no IPv6>
 Stats:          ssh -L 8404:127.0.0.1:8404 <user>@<ip>
                 http://localhost:8404/stats
@@ -699,7 +728,7 @@ Stop and discuss when:
 ## Do not
 
 - terminate TLS at the VPS or copy certificates there;
-- add a catch-all SNI backend;
+- add a catch-all SNI backend or a catch-all TCP frontend;
 - expose HAProxy stats or the admin socket publicly;
 - expose plain DNS/53;
 - invent a personal owner for the proxy when a tagged `tag:proxy` key is

@@ -11,9 +11,10 @@ set -euo pipefail
 
 usage() {
     cat <<EOF
-Usage: $0 [--ssh-port <port>]
+Usage: $0 [--ssh-port <port>] [--tcp-port <port> ...]
 
   --ssh-port <port>   SSH port to allow (default: from sshd -T, else 22)
+  --tcp-port <port>   Additional public TCP port to allow; repeat as needed
   -h, --help          Show this help
 EOF
 }
@@ -23,6 +24,7 @@ EOF
 #
 
 SSH_PORT=""
+TCP_PORTS=()
 
 #
 # Arguments
@@ -33,6 +35,11 @@ while (($# > 0)); do
         --ssh-port)
             [[ $# -ge 2 && -n "$2" ]] || { echo "Missing value for --ssh-port" >&2; exit 2; }
             SSH_PORT=$2
+            shift 2
+            ;;
+        --tcp-port)
+            [[ $# -ge 2 && -n "$2" ]] || { echo "Missing value for --tcp-port" >&2; exit 2; }
+            TCP_PORTS+=("$2")
             shift 2
             ;;
         -h|--help)
@@ -91,6 +98,13 @@ if [[ ! "$SSH_PORT" =~ ^[0-9]+$ ]]; then
     exit 2
 fi
 
+for port in "${TCP_PORTS[@]}"; do
+    if [[ ! "$port" =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
+        echo "Invalid TCP port '$port'." >&2
+        exit 2
+    fi
+done
+
 #
 # Configure UFW
 #
@@ -105,6 +119,9 @@ ufw default allow outgoing
 ufw allow "${SSH_PORT}/tcp"
 ufw allow 80/tcp
 ufw allow 443/tcp
+for port in "${TCP_PORTS[@]}"; do
+    ufw allow "${port}/tcp"
+done
 ufw allow 41641/udp
 ufw allow from 100.64.0.0/10
 ufw allow in on tailscale0 2>/dev/null || true

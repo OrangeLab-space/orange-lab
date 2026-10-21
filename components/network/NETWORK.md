@@ -153,8 +153,8 @@ tailnet. What it does depends on the routing provider:
 
 ### TCP ports
 
-`network/public` covers HTTP only. A TCP or UDP port opts in separately, with
-`public: true` on the port, and only under Traefik:
+`network/public` is the application-level public gate. A TCP or UDP port also
+needs `public: true` on the port, and only under Traefik:
 
 ```ts
 ports: [{ name: 'ssh', port: 22, protocol: 'tcp', public: true }];
@@ -170,7 +170,9 @@ WAN 8333/udp → <node>:18333
 ```
 
 So every public port forms one forward band at or above 10000, and private ports
-are never forwarded.
+are never forwarded. A VPS public proxy can forward the same offset port instead
+of the router: configure HAProxy with `--tcp-forward <public-port>=<name>=<node>:<offset-port>`
+and open the public port on the VPS.
 
 Under Tailscale a TCP port is always private: Funnel serves HTTPS only, so
 marking one `public` fails the deploy instead of pretending to be reachable.

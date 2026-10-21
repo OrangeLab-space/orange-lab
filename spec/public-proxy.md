@@ -8,11 +8,13 @@ site-specific values from `pulumi config`, the cluster, and the user.
 
 A VPS **outside the cluster** joins the same tailnet as the cluster and
 forwards public HTTP(S) traffic to Traefik's public gateway on `10443`, routed
-by TLS SNI. The tailnet can use self-hosted Headscale or Tailscale SaaS.
+by TLS SNI. It can also forward explicitly configured raw TCP ports to a
+cluster ServiceLB. The tailnet can use self-hosted Headscale or Tailscale SaaS.
 HAProxy does not terminate TLS, hold certificates, or know about applications.
 
 ```
 Internet → VPS HAProxy :80/:443 → tailnet → Traefik public gateway :10443 → app
+Internet → VPS HAProxy :<tcp>  → tailnet → ServiceLB node :<port + 10000> → app
 ```
 
 This is the alternative to forwarding WAN `443` to a node on the user's router.
@@ -56,6 +58,14 @@ The ACL deliberately admits every subdomain of the configured domain; those
 are forwarded to Traefik, which returns `404` unless the hostname has a public
 route. Rejection applies to names **outside** the domain.
 
+**Raw TCP is explicit and port-scoped.** A raw TCP frontend is added only with
+`--tcp-forward <listen-port>=<name>=<addr:port>` and is admitted by port, not
+hostname. There is no catch-all TCP listener. Cluster-side, a port marked
+`public` is published at `<port> + 10000`; the proxy targets that offset. Open
+the listener with `--tcp-port` and in the provider firewall. Never forward a
+database, RPC, admin, or metrics port. TCP passthrough has no SNI, certificate,
+or host-based policy.
+
 **Two layers decide public access.** HAProxy admits the domain (apex plus
 subdomains). Traefik's public gateway still only admits routes from namespaces
 labelled `orangelab.space/public`. Keep both; do not widen the Traefik gateway
@@ -82,9 +92,9 @@ reports the tailnet address as `InternalIP`.
 **IPv6 is optional and provider-gated.** IPv4 is the default. Do not enable
 dual-stack, publish AAAA records, or approve `::/0` unless the VPS has a public
 IPv6 address and default route and the user opts in. When enabled,
-`configure-haproxy.sh --ipv6` binds `[::]:80`/`[::]:443` with `v4v6`; the tailnet upstream
-to Traefik can stay IPv4, so no Traefik change is needed. Without IPv6, keep the
-binds IPv4 only and remove stale AAAA records.
+`configure-haproxy.sh --ipv6` binds `[::]:80`/`[::]:443` and any configured TCP
+listeners with `v4v6`; the tailnet upstreams can stay IPv4, so no Traefik change
+is needed. Without IPv6, keep the binds IPv4 only and remove stale AAAA records.
 
 **Exit-node routes are approved in the control plane.** `tailscale set
 --advertise-exit-node` only advertises. Until an administrator approves
@@ -141,7 +151,8 @@ Tailscale deployment.
 
 **Home fallback is manual.** If the VPS fails, move the affected A/AAAA records
 back to the home addresses, wait for the 300-second TTL, and verify from
-outside. A second proxy is a valid fallback only if it already has its own
+outside. Raw TCP forwards do not follow DNS: move the public listener and any
+advertised external address (for example Bitcoin's `externalip`) back too. A second proxy is a valid fallback only if it already has its own
 independent control path. With Headscale, also keep the home `443` forward
 while its control hostname points at the VPS and update the `/etc/hosts` pin if
 the home IP changes. With Tailscale, the control path is independent of the
@@ -374,6 +385,12 @@ expire before judging normal DNS clients.
 **The stats tunnel returns `503`.** Open `/stats`, not `/`, at
 `http://localhost:8404/stats`. The root path is intentionally not configured.
 
+**A forwarded TCP port is unreachable.** Confirm the port has a `--tcp-forward`
+block, the cluster publishes it at `<port> + 10000`, the ServiceLB node accepts
+it over the tailnet, and both UFW/firewalld and the provider firewall allow the
+public port. Test the VPS listener with `nc -vz <vps-ip> <port>` from outside.
+Raw TCP has no SNI fallback, so a hostname cannot select a backend.
+
 **The VPS is logged out after the Headscale DNS cutover or a reboot.** This is
 Headscale-specific. `sudo tailscale debug prefs | jq -r .ControlURL` points at
 a hostname that resolves back to the VPS. `tailscaled` cannot fetch the
@@ -404,8 +421,8 @@ receives. This is the known limitation, not a misconfiguration.
   Traefik entrypoint configured with `proxyProtocol.trustedIPs`; or terminate
   TLS at the proxy and forward `X-Forwarded-For`. Both require a Traefik
   component change. Until then, Traefik and applications see the VPS tailnet IP.
-- **`3443/tcp`.** Add a frontend/backend pair; it is TLS passthrough like `443`.
-  Traefik's TLS listener on `3443` terminates and routes.
+- **`3443/tcp`.** Add it with `--tcp-forward 3443=traefik-tls=<node>:3443` when
+  a TLSRoute needs it. Traefik's TLS listener on `3443` terminates and routes.
 - **Encrypted DNS.** DoT `853/tcp` is a passthrough frontend to Technitium.
   DoH needs a dedicated hostname/SNI route. Plain `53` is out of scope.
 - **Fedora Server validation.** Fedora 44 Cloud Edition passed the full flow:

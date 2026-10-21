@@ -19,7 +19,7 @@ pulumi config set bitcoin-knots:image ghcr.io/retropex/bitcoin:29.3.knots2026050
 
 # Optional configuration
 pulumi config set bitcoin-knots:commandArgs "bitcoind -datadir=/data"
-# Set to external IP of your router. Port forwarding needs to be setup for port 8333
+# Advertised public IP; 8333/tcp must reach the node through your router or VPS proxy
 pulumi config set bitcoin-knots:externalip <public-ip>
 # Increase number of peer connections (default 20)
 pulumi config set bitcoin-knots:maxconnections 50
@@ -31,6 +31,24 @@ pulumi config set bitcoin-knots:commandArgs "bitcoind -datadir=/data -reindex"
 
 pulumi up
 ```
+
+## Public P2P
+
+The P2P port is already marked `public` in the component, so enabling the
+application's public exposure publishes a second LoadBalancer on port `18333`
+(`8333 + 10000`). RPC `8332` stays private:
+
+```sh
+pulumi config set bitcoin-knots:network/public true
+pulumi config set bitcoin-knots:externalip <public-entry-point-ip>
+pulumi up
+```
+
+With the router, forward `WAN 8333/tcp` to a ServiceLB node on `18333`. With a
+[VPS public proxy](../../../../docs/public-proxy.md), add
+`--tcp-forward 8333=bitcoin-p2p=<node-tailnet-ip>:18333` for each node and open
+`8333/tcp` with the proxy firewall phase. Set `externalip` to the VPS address
+only after that path is verified.
 
 ## Custom images
 

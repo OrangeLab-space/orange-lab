@@ -173,9 +173,11 @@ What this does depends on the routing provider:
   both inside and outside the tailnet. Requires a `funnel` node attribute in the
   tailnet policy, and only works on ports 443, 8443 and 10000 over HTTPS.
 
-`network/public` covers HTTP only. TCP and UDP ports opt in individually with
-`public: true` on the port, and Traefik publishes them at `<port> + 10000` — see
-[TCP ports](../components/network/NETWORK.md#tcp-ports).
+`network/public` is the application-level public gate. TCP and UDP ports also
+need `public: true` on the port, and Traefik publishes them at
+`<port> + 10000` — see [TCP ports](../components/network/NETWORK.md#tcp-ports). With a
+[VPS public proxy](./public-proxy.md), forward that offset port with HAProxy's
+`--tcp-forward` instead of opening it on the router.
 
 Turning it back off removes the public route; the private name is unaffected.
 

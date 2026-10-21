@@ -5,9 +5,11 @@
 #   <servers>  one "server ..." line per Traefik public-gateway node
 #   <HTTP_BIND>/<HTTPS_BIND>  :80 / :443 for IPv4-only, or
 #                             [::]:80 v4v6 / [::]:443 v4v6 for dual-stack
+#   __TCP_FRONTENDS__  one explicit frontend/backend pair per --tcp-forward
 #
 # TLS is passed through by SNI. HAProxy holds no certificates and does not
 # terminate TLS; Traefik still decides which hostnames have public routes.
+# Raw TCP ports are forwarded only when explicitly configured.
 
 global
     log stdout format raw local0
@@ -56,6 +58,10 @@ backend traefik_public
 __SERVERS__
 backend reject
     mode tcp
+
+# Optional raw TCP passthroughs. Each frontend is deliberately explicit; there
+# is no catch-all TCP listener.
+__TCP_FRONTENDS__
 
 # Read-only stats, reachable through an SSH tunnel only.
 frontend stats
