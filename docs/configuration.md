@@ -91,36 +91,36 @@ pulumi up
 
 The following settings are supported by most applications in OrangeLab:
 
-| Setting               | Description                                                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------- |
-| `enabled`             | Enable or disable the application                                                            |
-| `hostname`            | Hostname for the HTTPS endpoint, used with Tailscale for access                              |
-| `routingProvider`     | Override global routing provider (`tailscale` or `traefik`) for this application             |
-| `network/public`      | Expose this application to the public internet (see [Public exposure](#public-exposure))     |
-| `version`             | Lock Helm chart version to a specific release (uses latest if not specified)                 |
-| `storageOnly`         | Disable application but retain storage (useful for temporarily disabling while keeping data) |
-| `storageSize`         | Expand default storage size if needed (e.g., for large models)                               |
-| `fromVolume`          | Attach existing Longhorn volume instead of creating new one                                  |
-| `storageClass`        | Force specific storage class used by the application                                         |
-| `preferredNodeLabel`  | Deploy to node with specified label if exists (soft constraint)                              |
-| `requiredNodeLabel`   | Deploy only to node with specified label (hard constraint)                                   |
-| `excludeNodeLabel`    | Do not deploy to nodes with specified label (hard constraint)                                |
-| `requiredVolumeLabel` | Pin volume to specific node(s). Immutable - requires app redeploy to change                  |
-| `storage/snapshotEnabled` | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                |
-| `storage/snapshotCron` | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                     |
-| `storage/snapshotRetain` | Snapshot retention (defaults to `longhorn:snapshotRetain`)                                |
-| `storage/backupEnabled` | Enable/disable backup participation (unset inherits `longhorn:backupAllVolumes`)           |
-| `storage/backupCron` | Backup schedule (defaults to `longhorn:backupCron`)                                          |
-| `storage/backupRetain` | Backup retention (defaults to `longhorn:backupRetain`)                                      |
-| `storage/backupFullInterval` | Full-backup interval (defaults to `longhorn:backupFullInterval`)                       |
-| `auth`                | Enable OIDC authentication with the selected provider                                         |
-| `auth/clientId`       | OIDC client ID                                                                                |
-| `auth/clientSecret`   | OIDC client secret (not required by apps using a public/PKCE client)                        |
-| `auth/providerUrl`    | Override the OIDC discovery URL                                                               |
-| `auth/providerName`   | Name of the OIDC provider, used in the login button label                                     |
-| `auth/groupMap`       | App role -> Pocket ID groups, for apps with native role mapping (object)                      |
-| `auth/adminGroup`     | Pocket ID group granting the app's admin role (defaults to `<app>-admin`)                     |
-| `auth/allowedGroups`  | Comma-separated Pocket ID groups allowed to sign in; unset keeps the client unrestricted      |
+| Setting                      | Description                                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `enabled`                    | Enable or disable the application                                                            |
+| `hostname`                   | Hostname for the HTTPS endpoint, used with Tailscale for access                              |
+| `routingProvider`            | Override global routing provider (`tailscale` or `traefik`) for this application             |
+| `network/public`             | Expose this application to the public internet (see [Public exposure](#public-exposure))     |
+| `version`                    | Lock Helm chart version to a specific release (uses latest if not specified)                 |
+| `storageOnly`                | Disable application but retain storage (useful for temporarily disabling while keeping data) |
+| `storageSize`                | Expand default storage size if needed (e.g., for large models)                               |
+| `fromVolume`                 | Attach existing Longhorn volume instead of creating new one                                  |
+| `storageClass`               | Force specific storage class used by the application                                         |
+| `preferredNodeLabel`         | Deploy to node with specified label if exists (soft constraint)                              |
+| `requiredNodeLabel`          | Deploy only to node with specified label (hard constraint)                                   |
+| `excludeNodeLabel`           | Do not deploy to nodes with specified label (hard constraint)                                |
+| `requiredVolumeLabel`        | Pin volume to specific node(s). Immutable - requires app redeploy to change                  |
+| `storage/snapshotEnabled`    | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                    |
+| `storage/snapshotCron`       | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                      |
+| `storage/snapshotRetain`     | Snapshot retention (defaults to `longhorn:snapshotRetain`)                                   |
+| `storage/backupEnabled`      | Enable/disable backup participation (unset inherits `longhorn:backupAllVolumes`)             |
+| `storage/backupCron`         | Backup schedule (defaults to `longhorn:backupCron`)                                          |
+| `storage/backupRetain`       | Backup retention (defaults to `longhorn:backupRetain`)                                       |
+| `storage/backupFullInterval` | Full-backup interval (defaults to `longhorn:backupFullInterval`)                             |
+| `auth`                       | Enable OIDC authentication with the selected provider                                        |
+| `auth/clientId`              | OIDC client ID                                                                               |
+| `auth/clientSecret`          | OIDC client secret (not required by apps using a public/PKCE client)                         |
+| `auth/providerUrl`           | Override the OIDC discovery URL                                                              |
+| `auth/providerName`          | Name of the OIDC provider, used in the login button label                                    |
+| `auth/groupMap`              | App role -> Pocket ID groups, for apps with native role mapping (object)                     |
+| `auth/adminGroup`            | Pocket ID group granting the app's admin role (defaults to `<app>-admin`)                    |
+| `auth/allowedGroups`         | Comma-separated Pocket ID groups allowed to sign in; unset keeps the client unrestricted     |
 
 The `storage/*` keys can also be prefixed with a component/volume name, e.g.
 `nextcloud:data/storage/backupEnabled`. Component values override app-level
@@ -165,7 +165,8 @@ What this does depends on the routing provider:
 - **`traefik`** — the application gets a second route on Traefik's public gateway,
   and its namespace is labelled `orangelab.space/public` so the gateway admits
   the route. It stays reachable at its normal `<app>.<domain>` name. You also
-  need one router port forward (WAN 443 to a node on 10443).
+  need one router port forward (WAN 443 to a node on 10443), or a
+  [VPS proxy](./public-proxy.md) if you do not want to publish your home IP.
 - **`tailscale`** — enables [Tailscale Funnel](../components/network/tailscale/tailscale.md#public-exposure-with-funnel)
   on the ingress. This does **not** give the app a new name; it publishes the
   existing `<app>.<tailnet>.ts.net` name to the internet, so the app is reachable

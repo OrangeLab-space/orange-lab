@@ -10,7 +10,7 @@
     - ⚠️ SKIP for markdown/documentation changes - no need to run
 - Build `@orangelab/pulumi` after editing `packages/pulumi/src/`: `npm run build` (must be run before `pulumi up` or `pulumi preview`)
 - Never kill a running `pulumi up` to "unstick" it — it leaves pending operations and orphaned resources. Let it finish or fail on its own.
-- **Recovery from a killed `pulumi up`**: an update interrupted from the outside (rather than one that failed) leaves the stack showing an active update while its state has no pending operations. Clear it with `pulumi cancel --yes`, then re-run the deploy. A *failed* update is different: it leaves pending operations in state, and re-running the deploy clears them.
+- **Recovery from a killed `pulumi up`**: an update interrupted from the outside (rather than one that failed) leaves the stack showing an active update while its state has no pending operations. Clear it with `pulumi cancel --yes`, then re-run the deploy. A _failed_ update is different: it leaves pending operations in state, and re-running the deploy clears them.
 - Run long `pulumi up` commands in the background, so an interrupted tool call does not kill the update mid-flight.
 
 ## Architectural Principles
@@ -41,6 +41,8 @@ Follow these phases in order. Do NOT skip to implementation without completing t
 5. **Verify**: Confirm the changes work (preview, deploy, test). Report results and stop — let the user decide next steps.
 
 Stay within the requested scope. When you notice out-of-sync or broken things outside it, surface them as a list — don't silently fix them.
+
+- **Before reporting complete:** check `git status --short`; if related docs/specs/skills/scripts are split between staged and untracked, surface it instead of calling the change ready.
 
 ### Switching Back to Discussion Mode
 
@@ -84,15 +86,16 @@ Even if the change seems straightforward, these signals may indicate the current
 
 - **Pulumi stack files**: Never modify or read `Pulumi.*.yaml` files directly — they may contain secrets. Use `pulumi config set <key> <value>` / `pulumi config get <key>` (`--secret` for sensitive values). If a change to these files is needed, give the user the commands to run.
 - **Secrets stay local**: Prefer `pulumi config` (run in the stack folder) or `pulumi config --cwd <stack> --stack <name>` to read config. Note how Pulumi CLI handles secrets:
-  - `pulumi config get <key>` **always** prints the plaintext value, even for secrets (and does **not** accept a `--show-secrets` flag). Therefore, agents must **never** run `pulumi config get` on a secret key; give the user `pulumi config get <key>` to run in their own terminal.
-  - `pulumi config` (listing all entries) and `pulumi stack output` redact secrets unless `--show-secrets` is passed. Agents must never pass `--show-secrets`; when a secret value is needed by the user, give them `pulumi config get <key>` or `pulumi stack output --show-secrets` to run themselves so plaintext secrets never traverse the session. Reading non-secret config values (paths, sizes, flags) is fine via the agent.
+    - `pulumi config get <key>` **always** prints the plaintext value, even for secrets (and does **not** accept a `--show-secrets` flag). Therefore, agents must **never** run `pulumi config get` on a secret key; give the user `pulumi config get <key>` to run in their own terminal.
+    - `pulumi config` (listing all entries) and `pulumi stack output` redact secrets unless `--show-secrets` is passed. Agents must never pass `--show-secrets`; when a secret value is needed by the user, give them `pulumi config get <key>` or `pulumi stack output --show-secrets` to run themselves so plaintext secrets never traverse the session. Reading non-secret config values (paths, sizes, flags) is fine via the agent.
 - **Config defaults live in `Pulumi.yaml` only**, never duplicated in code. If a setting has a default there, read it with the `require*` accessor (`config.requireBoolean`, `config.requireNumber`, …) rather than `config.getBoolean(…) ?? false` — the `??` form leaves the same default in two places where it can drift. Reserve `get*` plus `??` for settings that have no default anywhere.
 - **Applications** use the Application class for Kubernetes resources (including namespaces and storage for Helm charts).
 - **Never describe your infrastructure in committed docs or commit messages.** No real hostnames, IPs, or machine names — use `example.com`, `<node>`. Commit messages are read by the same people as the docs.
 - **The library sizes the containers it creates.** A component sizes its own container with `resources`; the init containers, database containers and the database operator's metrics exporter are sized by the constants in `packages/pulumi/src/resources.ts`, so no component specifies them. A deployment can override the database sizing with `<app>:db/resources` and `<app>:redis/resources`.
-- **Writing TypeScript** (components, stacks, `@orangelab/pulumi` library): follow the `code-conventions` skill.
+- **Writing code** (TypeScript components/stacks/library, or shell scripts in `scripts/`): follow the `code-conventions` skill.
 - **Sizing container cpu/memory requests and limits** (or diagnosing OOMs, memory pressure, CPU throttling): follow the `resource-tuning` skill. Size from measured RSS, not working set.
 - **Writing docs** (component `<app>.md`, stack `README.md`): follow the `document-app` / `document-module` skills. Keep user-facing component pages short; put detailed failure behaviour and operational runbooks in `spec/*.md` and link to them.
+- **Formatting Markdown** (docs, specs, skills): run `npx prettier --write <files>` after editing and `npx prettier --check` on the touched set. If a file already fails, ask before including unrelated formatting churn. The repo config uses `printWidth: 90` and normalizes tables, but Prettier does not wrap long table cells — keep cell text short.
 
 ## Specs
 
@@ -101,3 +104,4 @@ Agent-facing operating notes. Read as needed:
 - [`spec/headscale.md`](spec/headscale.md) — control plane invariants, CLI gotchas, migration constraints
 - [`spec/longhorn.md`](spec/longhorn.md) — volume provisioning, failure behaviour, recovery
 - [`spec/pocket.md`](spec/pocket.md) — OIDC provider, group model, client scripts, onboarding new apps
+- [`spec/public-proxy.md`](spec/public-proxy.md) — VPS public proxy: passthrough invariants, OS support, DNS cutover, exit node, failure modes

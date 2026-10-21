@@ -195,6 +195,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 - [Installation - Zimaboard (ZimaOS)](./docs/install-linux-zima.md) - Node configuration for ZimaOS
 - [Installation - SSH configuration](./docs/install-ssh.md) - Configure SSH keys on nodes for easier access
 - [Installation - K3s cluster](./docs/install-k3s.md) - Install Kubernetes cluster and label nodes
+- [Public proxy on a VPS](./docs/public-proxy.md) - Expose public services through Headscale or Tailscale without router port forwarding (tested on Ubuntu, Debian and Fedora)
 - [Backup and Restore](./docs/backup.md) - Using Longhorn backups with S3 storage
 - [Configuration Guide](./docs/configuration.md) - Application configuration and deployment
 - [Migrating nodes to Headscale](./docs/headscale-migration.md) - Moving an existing cluster off Tailscale to a self-hosted control plane

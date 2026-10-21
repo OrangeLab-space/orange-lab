@@ -1,0 +1,66 @@
+# HAProxy public proxy for OrangeLab.
+#
+# Rendered by configure-haproxy.sh:
+#   <domain>   custom domain (apex + subdomains)
+#   <servers>  one "server ..." line per Traefik public-gateway node
+#   <HTTP_BIND>/<HTTPS_BIND>  :80 / :443 for IPv4-only, or
+#                             [::]:80 v4v6 / [::]:443 v4v6 for dual-stack
+#
+# TLS is passed through by SNI. HAProxy holds no certificates and does not
+# terminate TLS; Traefik still decides which hostnames have public routes.
+
+global
+    log stdout format raw local0
+    maxconn 4096
+    stats socket /run/haproxy/admin.sock mode 660 level admin
+    stats timeout 30s
+
+defaults
+    log global
+    mode tcp
+    option tcplog
+    timeout connect 5s
+    timeout client 1h
+    timeout server 1h
+    timeout check 2s
+
+# Plain HTTP only redirects. The cluster issues certificates through DNS-01,
+# so nothing needs port 80 for ACME.
+frontend http_in
+    bind ${HTTP_BIND}
+    mode http
+    option httplog
+    acl known_host req.hdr(host),field(1,:) -i ${DOMAIN}
+    acl known_host req.hdr(host),field(1,:) -i -m end .${DOMAIN}
+    http-request redirect scheme https code 301 if known_host
+    http-request return status 404
+
+# TLS passthrough. Wait for a ClientHello, then route by SNI. The default
+# backend has no servers, so an unknown SNI is closed rather than proxied.
+frontend https_in
+    bind ${HTTPS_BIND}
+    mode tcp
+    option tcplog
+    tcp-request inspect-delay 5s
+    tcp-request content accept if { req_ssl_hello_type 1 }
+    acl public_sni req_ssl_sni -i ${DOMAIN}
+    acl public_sni req_ssl_sni -i -m end .${DOMAIN}
+    use_backend traefik_public if public_sni
+    default_backend reject
+
+backend traefik_public
+    mode tcp
+    balance leastconn
+    option tcp-check
+    default-server inter 2s fall 3 rise 2
+__SERVERS__
+backend reject
+    mode tcp
+
+# Read-only stats, reachable through an SSH tunnel only.
+frontend stats
+    bind 127.0.0.1:8404
+    mode http
+    stats enable
+    stats uri /stats
+    stats refresh 10s

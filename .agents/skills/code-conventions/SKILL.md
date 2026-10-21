@@ -1,6 +1,6 @@
 ---
 name: code-conventions
-description: Use when creating or editing TypeScript code in the orange-lab repo — stacks, components (`stacks/<module>/components/`, `components/`), or the `@orangelab/pulumi` library (`packages/pulumi/src/`). Covers code style, component patterns, Pulumi config conventions, and secrets handling. Not needed for markdown/documentation-only changes.
+description: Use when creating or editing TypeScript code or shell scripts in the orange-lab repo — stacks, components (`stacks/<module>/components/`, `components/`), the `@orangelab/pulumi` library (`packages/pulumi/src/`), or `scripts/`. Covers code style, component patterns, shell script conventions, provider/control-plane behavior, Pulumi config conventions, and secrets handling. Not needed for markdown/documentation-only changes.
 ---
 
 # Code Conventions
@@ -43,6 +43,23 @@ When a value from `Application` (like `this.app.debug`) is needed during chained
 - App-specific knowledge (stack outputs, `auth/*` values, group/client names) stays in the per-app wrapper that calls the shared script, which passes explicit parameters. Example: `pocket-<app>.sh` reads its `<app>:auth/allowedGroups` (unset = unrestricted) and passes them as `--restrict-access "<groups>"`; `scripts/pocket-client.sh` only acts on the arguments it is given.
 - An existing group is reused, never modified, so members are not dropped.
 - If a shared tool needs something from another component's config to work, pass it as a parameter instead of reading it — and raise the new coupling for discussion first (see AGENTS.md).
+- Use `set -euo pipefail` at the top.
+- For scripts with distinct phases, use block section comments:
+
+    ```sh
+    #
+    # Validation
+    #
+    ```
+
+- After editing, run `shellcheck -x` on every changed script and `bash -n` for syntax; `npm test` does not cover shell.
+- When a shared script supports multiple providers or control planes, branch user-facing output. Never print Headscale approval commands for a Tailscale deployment; detect the control plane or print both paths.
+
+## Providers & Control Planes
+
+- Keep one shared implementation or guide with provider-specific sections instead of duplicating the whole thing.
+- Verify flags, tags, auth keys and approval steps against the current provider docs; do not infer one provider's behavior from the other.
+- Use **tailnet** as the generic term; reserve "mesh" for Headscale-specific prose.
 
 ## Configuration
 
@@ -62,7 +79,7 @@ These apply to `Pulumi.yaml` in the core stack and to every module's `Pulumi.yam
 
 - **One blank line between apps.** Each app's settings form a contiguous block; the next app starts after a blank line. Core also groups them under `### SECTION ###` headers (Network, Storage, Hardware, ...), with a blank line after each header.
 - **A commented-out key is a disabled setting, not a comment.** Treat it as part of the settings list — it needs no separator around it, and it never counts toward the comment length limit.
-- **Separate commented-out settings with a bare `#` line.** When several commented-out keys sit in a row and each carries its own comment, put a lone `#` between them so it is clear where one note ends and the next begins. A single one needs none. The separator goes *only* between two commented-out keys — never after a real setting, since a real setting is already the end of the previous entry and needs nothing after it. Neither does a run of real settings under one leading comment: `key, comment, key, key` reads fine as-is. Show one commented-out form per key; if a setting takes several shapes, describe the variants in prose instead of commenting the key out twice.
+- **Separate commented-out settings with a bare `#` line.** When several commented-out keys sit in a row and each carries its own comment, put a lone `#` between them so it is clear where one note ends and the next begins. A single one needs none. The separator goes _only_ between two commented-out keys — never after a real setting, since a real setting is already the end of the previous entry and needs nothing after it. Neither does a run of real settings under one leading comment: `key, comment, key, key` reads fine as-is. Show one commented-out form per key; if a setting takes several shapes, describe the variants in prose instead of commenting the key out twice.
 - **Comments are 1–2 lines, 3 maximum.** A comment says what the setting is and when it is required — nothing else. Anything longer belongs in the component's `<app>.md`, referenced by path. If the reason does not fit, the setting probably needs a better name or a code-level check instead of a prose explanation.
 - **A commented-out key is a placeholder, not a disabled default.** Show the shape (`# caddy:rootRedirect: https://example.com`) so users know what to type, and use generic example values.
 
@@ -71,9 +88,9 @@ These apply to `Pulumi.yaml` in the core stack and to every module's `Pulumi.yam
 Every module and stack exports the same two keys, so a caller learns one shape:
 
 - **`endpoints`** — addresses grouped by reach, via `mergeEndpointExports(...apps)`:
-  - `public` — reachable from the internet: HTTP endpoints when the app sets `network/public: true` (Traefik public gateway or Tailscale Funnel), and TCP endpoints whose port sets `public: true` alongside it
-  - `private` — the tailnet gateway only; every endpoint not explicitly opted in, including a publicly-exposed app's TCP ports
-  - `cluster` — in-cluster Service DNS, for app-to-app wiring
+    - `public` — reachable from the internet: HTTP endpoints when the app sets `network/public: true` (Traefik public gateway or Tailscale Funnel), and TCP endpoints whose port sets `public: true` alongside it
+    - `private` — the tailnet gateway only; every endpoint not explicitly opted in, including a publicly-exposed app's TCP ports
+    - `cluster` — in-cluster Service DNS, for app-to-app wiring
 - **`apps`** — app-specific values that are not addresses: `users`, passwords, tokens, `db`, and resolver addresses like Technitium's `resolverIp`
 
 Rules:

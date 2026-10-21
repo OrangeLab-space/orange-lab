@@ -145,8 +145,8 @@ tailnet. What it does depends on the routing provider:
 
 - **Traefik** — a second route on the public gateway, which only admits routes
   from namespaces labelled `orangelab.space/public`. The router needs one port
-  forward (WAN 443 → node 10443). The service is reachable at its regular
-  `<app>.example.com` name.
+  forward (WAN 443 → node 10443), or a [VPS proxy](#public-proxy-on-a-vps). The
+  service is reachable at its regular `<app>.example.com` name.
 - **Tailscale** — [Funnel](./tailscale/tailscale.md#public-exposure-with-funnel),
   which publishes the same `ts.net` name to the internet. Requires a `funnel`
   node attribute in the tailnet policy, and is limited to ports 443, 8443 and 10000.
@@ -157,12 +157,11 @@ tailnet. What it does depends on the routing provider:
 `public: true` on the port, and only under Traefik:
 
 ```ts
-ports: [{ name: 'ssh', port: 22, protocol: 'tcp', public: true }]
+ports: [{ name: 'ssh', port: 22, protocol: 'tcp', public: true }];
 ```
 
 The private LoadBalancer keeps the port's own number; a second LoadBalancer
-publishes the same port at `<port> + 10000` — 22 becomes 10022, 8333 becomes
-18333. That offset is what the router forwards to: the WAN port keeps its number,
+publishes the same port at `<port> + 10000` — 22 becomes 10022, 8333 becomes 18333. That offset is what the router forwards to: the WAN port keeps its number,
 only the node side moves.
 
 ```
@@ -176,6 +175,17 @@ are never forwarded.
 Under Tailscale a TCP port is always private: Funnel serves HTTPS only, so
 marking one `public` fails the deploy instead of pretending to be reachable.
 Public TLS ports are not wired up yet.
+
+### Public proxy on a VPS
+
+Instead of forwarding WAN `443` to a node, a small VPS outside the cluster can
+join the same Headscale or Tailscale tailnet and forward `443` to the public
+gateway. Public DNS points at the VPS, so the home IP is never published and
+changing providers is a DNS change. TLS is passed through, so certificates and
+the apex stay in the cluster.
+
+See [Public proxy on a VPS](../../docs/public-proxy.md) for setup, verification
+and the optional exit node.
 
 ## Quick Start
 

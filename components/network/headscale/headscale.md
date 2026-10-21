@@ -1,12 +1,12 @@
 # Headscale (self-hosted control plane)
 
-|                  |                                                                 |
-| ---------------- | --------------------------------------------------------------- |
-| Homepage         | https://headscale.net/                                         |
-| Documentation    | https://headscale.net/stable/                                  |
-| Source           | https://github.com/juanfont/headscale                          |
-| Migration guide  | [Migrating nodes to Headscale](../../../docs/headscale-migration.md) |
-| Web UI           | [Headplane](../headplane/headplane.md) — mesh-only admin UI |
+|                 |                                                                      |
+| --------------- | -------------------------------------------------------------------- |
+| Homepage        | https://headscale.net/                                               |
+| Documentation   | https://headscale.net/stable/                                        |
+| Source          | https://github.com/juanfont/headscale                                |
+| Migration guide | [Migrating nodes to Headscale](../../../docs/headscale-migration.md) |
+| Web UI          | [Headplane](../headplane/headplane.md) — mesh-only admin UI          |
 
 Self-hosted Tailscale control plane. Nodes and clients get their addresses, keys
 and policy from your own infrastructure, with no third-party coordination server
@@ -48,24 +48,24 @@ public path. No extra port forward is needed.
 
 ## Configuration
 
-| Key                            | Description                                                       |
-| ------------------------------ | ----------------------------------------------------------------- |
-| `headscale:hostname`           | Subdomain for the control plane, default `headscale`              |
-| `headscale:baseDomain`         | MagicDNS suffix for node names. Default `vpn.internal`         |
-| `headscale:storageSize`        | Volume for the SQLite database and noise key                      |
-| `headscale:image`              | Headscale version                                                 |
-| `headscale:network/public`     | Must be `true` — clients off-LAN need to reach the control plane  |
+| Key                            | Description                                                               |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `headscale:hostname`           | Subdomain for the control plane, default `headscale`                      |
+| `headscale:baseDomain`         | MagicDNS suffix for node names. Default `vpn.internal`                    |
+| `headscale:storageSize`        | Volume for the SQLite database and noise key                              |
+| `headscale:image`              | Headscale version                                                         |
+| `headscale:network/public`     | Must be `true` — clients off-LAN need to reach the control plane          |
 | `headscale:requiredNodeLabel`  | Node selector for the control plane, e.g. `kubernetes.io/hostname=<node>` |
-| `headscale:auth/*`             | Optional Pocket ID client — see [Signing in](#signing-in)          |
-| `headscale:auth/allowedGroups` | Restricts who may sign in. Default `admin,vpn-users`               |
-| `headscale:derp/enabled`       | Runs the built-in DERP relay. Default `false`                    |
-| `headscale:derp/stunPort`      | STUN port. Default `3478`, the WAN port to forward                |
-| `headscale:derp/regionId`      | Relay region ID. Default `900` — **must not be `0`**             |
-| `headscale:derp/regionCode`    | Region name shown in `tailscale status`. Default `headscale`     |
-| `headscale:derp/externalIp`    | Relay's public IPv4. Required when `derp/enabled`                |
-| `headscale:derp/fallback`      | Also load Tailscale's public DERP map. Default `true`            |
-| `headscale:overrideLocalDns`   | Push `nameservers` onto every client. Default `false`            |
-| `headscale:nameservers`        | Comma-separated resolvers, preferred first. Unset = none         |
+| `headscale:auth/*`             | Optional Pocket ID client — see [Signing in](#signing-in)                 |
+| `headscale:auth/allowedGroups` | Restricts who may sign in. Default `admin,vpn-users`                      |
+| `headscale:derp/enabled`       | Runs the built-in DERP relay. Default `false`                             |
+| `headscale:derp/stunPort`      | STUN port. Default `3478`, the WAN port to forward                        |
+| `headscale:derp/regionId`      | Relay region ID. Default `900` — **must not be `0`**                      |
+| `headscale:derp/regionCode`    | Region name shown in `tailscale status`. Default `headscale`              |
+| `headscale:derp/externalIp`    | Relay's public IPv4. Required when `derp/enabled`                         |
+| `headscale:derp/fallback`      | Also load Tailscale's public DERP map. Default `true`                     |
+| `headscale:overrideLocalDns`   | Push `nameservers` onto every client. Default `false`                     |
+| `headscale:nameservers`        | Comma-separated resolvers, preferred first. Unset = none                  |
 
 `baseDomain` is the **host** name suffix clients resolve (`<node>.vpn.internal`).
 Headscale refuses to start without it, so a default is supplied in `Pulumi.yaml`.
@@ -96,7 +96,7 @@ No identity provider, nothing extra to deploy:
 
 ```sh
 ./components/network/headscale/exec-headscale.sh users create <username>
-./components/network/headscale/exec-headscale.sh preauthkeys create --user <username> --reusable
+./components/network/headscale/exec-headscale.sh preauthkeys create --user <numeric-user-id> --reusable
 tailscale up --login-server https://headscale.example.com --authkey <key>
 ```
 
@@ -197,7 +197,7 @@ Headscale refuses to start without `stun_listen_addr` when the relay is on, so
 the component always emits it alongside `enabled: true` — an enabled relay with
 no forward fails at startup rather than silently serving nothing.
 
-Two settings are what make a relay actually get *used*, and both fail silently
+Two settings are what make a relay actually get _used_, and both fail silently
 when wrong:
 
 - **`derp/regionId` must not be `0`.** Headscale leaves it unset by default, and

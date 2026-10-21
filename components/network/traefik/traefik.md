@@ -82,6 +82,12 @@ The public path needs NAT loopback to be useful internally. With it, a single
 public A record serves both sides: internal clients resolve the WAN IP, hairpin
 through the router, and land on the same public listener.
 
+Instead of forwarding WAN `443` to a node, a VPS outside the cluster can join
+the tailnet and forward `443` to `10443`. Public DNS points at the
+VPS, so the home IP is not published, and no router NAT loopback is involved.
+TLS is passed through; certificates and routing stay here. See
+[Public proxy on a VPS](../../../docs/public-proxy.md).
+
 ## Uninstall
 
 To uninstall Traefik and clean up its custom resource definitions:
