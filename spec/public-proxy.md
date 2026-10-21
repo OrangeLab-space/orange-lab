@@ -177,6 +177,69 @@ VPS has IPv6 configured but the external IPv6 path has not been tested, move A
 records and leave AAAA records absent. Add AAAA records only after an
 IPv6-capable external check passes.
 
+## Verification
+
+Run these before DNS cutover. The public guide keeps the short path; this is the
+full matrix for diagnosing a failure.
+
+**Local listener and upstream.** On the VPS:
+
+```sh
+# HTTP/HTTPS through the local HAProxy
+# Add --ipv6 and --vps-ip6 <vps-ipv6> when dual-stack is enabled
+sudo bash /tmp/public-proxy/verify.sh \
+  --domain example.com \
+  --host app.example.com \
+  --host example.com
+```
+
+`verify.sh` checks the rendered config, HAProxy service, listeners, stats page,
+HTTP redirect, HTTPS response, and certificate. On failure, check
+`systemctl status haproxy` and `journalctl -u haproxy -n 50 --no-pager`. A `404`
+from Traefik means the app is not public or the route has not reconciled; a
+timeout means Tailscale, the ACL, a node firewall, or the upstream is wrong.
+
+**External IPv4.** Run from a network outside both the home and the VPS:
+
+```sh
+# Expect the VPS IP, a redirect to HTTPS, and the cluster wildcard certificate
+curl -sS -o /dev/null -w '%{http_code} %{remote_ip}\n' \
+  --resolve app.example.com:443:<vps-ip> https://app.example.com/
+curl -sSI --resolve app.example.com:80:<vps-ip> http://app.example.com/
+openssl s_client -connect <vps-ip>:443 -servername app.example.com </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -issuer -ext subjectAltName
+```
+
+Expect a permanent redirect from HTTP to HTTPS, the cluster wildcard
+certificate, and a `remote_ip` equal to the VPS. A name **outside** the
+configured domain must be rejected. An unconfigured subdomain inside the domain
+is forwarded to Traefik and gets its `404`. Traefik and the app see the VPS
+tailnet IP as the client; that is the current limitation, not a fault.
+
+**External IPv6.** Only after enabling IPv6, run from an IPv6-capable network:
+
+```sh
+curl -g -6 -sS -o /dev/null -w '%{http_code} %{remote_ip}\n' \
+  --resolve app.example.com:443:[<vps-ipv6>] https://app.example.com/
+openssl s_client -connect [<vps-ipv6>]:443 -servername app.example.com </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -issuer -ext subjectAltName
+```
+
+An external IPv6 check gates AAAA records only. The IPv4 A-record cutover does
+not depend on it; leave AAAA absent until this passes.
+
+**Raw TCP.** For each `--tcp-forward`, check the public listener and the
+cluster-side offset:
+
+```sh
+nc -vz <vps-ip> <public-port>
+ssh <proxy-user>@<vps-ip> 'nc -vz <tailnet-ip> <port+10000>'
+```
+
+HAProxy stats must show the backend `UP`, and HAProxy logs should show the
+frontend and backend names. A Bitcoin node should log
+`AddLocal(<vps-ip>:<public-port>,4)` when its `externalip` matches the proxy.
+
 ## OS support
 
 The scripts are split by phase and, where needed, by distribution. There is no
