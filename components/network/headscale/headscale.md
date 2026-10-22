@@ -10,8 +10,8 @@
 
 Self-hosted Tailscale control plane. Nodes and clients get their addresses, keys
 and policy from your own infrastructure, with no third-party coordination server
-in the path. Users sign in with [Pocket ID](../../security/pocket/pocket.md) or
-with Headscale's own local users.
+in the path. Users sign in with [Pocket ID](../../security/pocket/pocket.md),
+which this project pairs with Headscale.
 
 **Already running Tailscale?** Moving a node is a destructive per-node cutover,
 not a toggle. Read the [migration guide](../../../docs/headscale-migration.md)
@@ -44,7 +44,9 @@ pulumi up
 
 DNS needs an explicit `headscale.<customDomain>` A record pointing at the public
 IP, DNS-only — the wildcard points at a mesh address and does not cover the
-public path. No extra port forward is needed.
+public path. No extra port forward is needed. See
+[Public services](../../../docs/public-services.md) for the router-forward and
+VPS-proxy methods.
 
 ## Configuration
 
@@ -90,21 +92,7 @@ there is anything on it to migrate.
 
 ## Signing in
 
-### Local users
-
-No identity provider, nothing extra to deploy:
-
-```sh
-./components/network/headscale/exec-headscale.sh users create <username>
-./components/network/headscale/exec-headscale.sh preauthkeys create --user <numeric-user-id> --reusable
-tailscale up --login-server https://headscale.example.com --authkey <key>
-```
-
-Web authentication works too — `tailscale up` prints an auth ID an administrator
-approves with `auth register`. These users exist nowhere else in this project;
-losing them loses the tailnet's user list.
-
-### Pocket ID (OIDC, recommended)
+### Pocket ID (OIDC)
 
 Users are created by the provider on first sign-in, so nothing is created by
 hand. Run `pocket-headscale.sh` to create the client, then set `headscale:auth`.
@@ -117,8 +105,7 @@ is opened directly at its own URL.
 Access is restricted to `admin` and `vpn-users` by default
 (`headscale:auth/allowedGroups: admin,vpn-users`), because Headscale does no user
 or group provisioning of its own. Both groups must exist in Pocket ID before
-running `pocket-headscale.sh`. This applies to the OIDC client only; local users
-are not group-filtered.
+running `pocket-headscale.sh`.
 
 ## Administration
 
@@ -188,6 +175,9 @@ the node. The public port is the configured port plus 10000:
 ```
 WAN 3478/udp → <node>:13478    # WAN port must match headscale:derp/stunPort
 ```
+
+See [Public services](../../../docs/public-services.md#tcp-and-udp-ports) for
+the offset rule and the VPS-proxy alternative.
 
 ```sh
 pulumi config set headscale:derp/enabled true

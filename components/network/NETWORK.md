@@ -1,31 +1,84 @@
 # Network
 
-Network infrastructure including ingress, routing, DNS, and public exposure.
+Network infrastructure including ingress, routing, DNS, the mesh VPN control
+plane, and optional public access.
+
+## Quick start
+
+Start with Tailscale, or use Traefik for a custom domain. Headscale + Pocket ID
+builds on the Traefik block. The trade-offs are in
+[Choosing a setup](#choosing-a-setup).
+
+```sh
+# Tailscale (default): services at <app>.<tailnet>.ts.net
+pulumi config set orangelab:routingProvider tailscale
+pulumi config set tailscale:tailnet <tailnet>.ts.net
+pulumi config set tailscale:oauthClientId <oauth-client-id>
+pulumi config set tailscale:oauthClientSecret <oauth-client-secret> --secret
+pulumi config set tailscale:enabled true
+pulumi up
+
+# Traefik (custom domain): services at <app>.example.com
+pulumi config set orangelab:routingProvider traefik
+pulumi config set orangelab:customDomain example.com
+pulumi config set cert-manager:enabled true
+pulumi config set traefik:enabled true
+pulumi up
+
+# Headscale + Pocket ID: run the Traefik settings above, then:
+pulumi config set tailscale:enabled false
+pulumi config set pocket:enabled true
+pulumi config set pocket:hostname login
+pulumi config set pocket:network/public true
+pulumi config set pocket:encryptionKey "$(openssl rand -base64 32)" --secret
+pulumi up
+
+# headscale:baseDomain defaults to vpn.internal; keep it outside customDomain.
+pulumi config set headscale:enabled true
+pulumi config set headscale:network/public true
+pulumi up
+
+# After Headscale is up: create the Pocket ID client and wire it in.
+./components/network/headscale/pocket-headscale.sh
+pulumi config set headscale:auth pocket
+pulumi config set headscale:auth/clientId <client-id>
+pulumi config set headscale:auth/clientSecret <client-secret> --secret
+pulumi up
+```
+
+Both Pocket ID and Headscale are public services; add their DNS records and
+expose the gateway as described in
+[Public services](../../docs/public-services.md). See the
+[Headscale quick start](./headscale/headscale.md#quick-start) for prerequisites
+and signing in.
 
 ## Choosing a setup
 
 Two independent decisions: **`orangelab:routingProvider`** decides how a service
 is addressed, and **`<app>:network/public`** decides whether it is reachable from
-outside the tailnet. Mesh VPN control planes:
+outside the tailnet. Public access is optional: the recommended setups require
+it only for their control-plane and identity pieces, and applications stay
+private unless you opt in. Mesh VPN control planes:
 
 - [Tailscale](./tailscale/tailscale.md) - hosted, no administration
-- [Headscale](./headscale/headscale.md) - self-hosted, sign in with Pocket ID
-  instead of Google/Microsoft/GitHub, or with its own local users
+- [Headscale](./headscale/headscale.md) - self-hosted, paired with Pocket ID for
+  sign-in instead of Google/Microsoft/GitHub
 
-The combinations in practice:
+The main options are Tailscale and Headscale + Pocket ID. Tailscale + Pocket ID
+is the hybrid: Tailscale keeps the control plane, Pocket ID replaces its hosted
+login.
 
-| #   | Setup                           | Services at              | Public at             | Own domain             | Third-party dependencies           |
-| --- | ------------------------------- | ------------------------ | --------------------- | ---------------------- | ---------------------------------- |
-| 1   | Tailscale                       | `<app>.<tailnet>.ts.net` | same name, via Funnel | **no** — `ts.net` only | Tailscale + Google/GitHub login    |
-| 2   | Tailscale + Traefik             | `<app>.example.com`      | via Traefik           | yes                    | Tailscale (+ Google, or Pocket ID) |
-| 3   | Tailscale + Traefik + Pocket ID | `<app>.example.com`      | via Traefik           | yes                    | Tailscale only                     |
-| 4   | Headscale + Pocket ID           | `<app>.vpn.example.com`  | `<app>.example.com`   | yes                    | **none** (recommended default)     |
+| #   | Setup                 | Services at              | Public apps at        | Own domain             | Third-party dependencies        |
+| --- | --------------------- | ------------------------ | --------------------- | ---------------------- | ------------------------------- |
+| 1   | Tailscale             | `<app>.<tailnet>.ts.net` | same name, via Funnel | **no** — `ts.net` only | Tailscale + Google/GitHub login |
+| 2   | Tailscale + Pocket ID | `<app>.example.com`      | `<app>.example.com`   | yes                    | Tailscale                       |
+| 3   | Headscale + Pocket ID | `<app>.example.com`      | `<app>.example.com`   | yes                    | **none** (recommended default)  |
 
 The **Own domain** column is the one that decides most setups. Having no domain of
 your own costs you certificates, identity and your public name all at once —
 see option 1 below.
 
-### 1. Tailscale only — smallest, but you give up your domain
+### 1. Tailscale — smallest, but you give up your domain
 
 The Tailscale operator routes every service at `<app>.<tailnet>.ts.net`, and
 that is the only name it will ever serve.
@@ -38,41 +91,36 @@ that is the only name it will ever serve.
 - **Pro** — least to set up. No DNS records, no certificate issuance, no
   reverse proxy, no port forwards.
 - **Con** — dependency on Tailscale's control plane for names and reachability.
-- **Con** — logging in needs a Tailscale account, so on the free plan this is
-  Google, Microsoft or GitHub. No self-hosted identity option.
+- **Con** — logging in uses Tailscale's hosted login, which on the free plan is
+  Google, Microsoft or GitHub. For your own identity provider, use the hybrid
+  (option 2).
 - **Con** — public exposure via Funnel is limited to ports 443, 8443 and 10000,
-  HTTPS only, and relays through Tailscale. See [Funnel](#public-exposure).
+  HTTPS only, and relays through Tailscale. See
+  [Funnel](./tailscale/tailscale.md#public-exposure-with-funnel).
 
-### 2. Tailscale + Traefik — custom domain
+### 2. Tailscale + Pocket ID — hosted control plane, own identity
 
-Traefik routes services at `<app>.example.com` with cert-manager-issued
-certificates. The Tailscale client stays on every node for node-to-node traffic;
-it is just no longer what serves your applications.
+Tailscale still provides names and connectivity, but users sign in through
+[Pocket ID](../security/pocket/pocket.md) instead of Google, Microsoft or
+GitHub. This is the hybrid option: less to run than Headscale, without the
+hosted-login dependency.
+
+It needs Traefik and a custom domain, so services are served at
+`<app>.example.com` with cert-manager-issued certificates. Pocket ID must be
+public at `pocket.example.com`; Tailscale verifies your domain by fetching
+WebFinger at `example.com`, so the apex has to be public too. See
+[Caddy](./caddy/caddy.md).
 
 - **Pro** — real domain you control. A wildcard certificate covers any new app
   without touching DNS, so adding services is a config change.
 - **Pro** — works with any router. No MagicDNS involvement, so nothing depends on
   a client-side resolver.
-- **Con** — needs an A record per service hostname pointing at a node that can
-  reach the public gateway, plus a port forward. Tailscale remains a dependency
-  for the cluster's own connectivity.
-- **Con** — still Tailscale login unless you add Pocket ID (option 3).
-
-### 3. Tailscale + Traefik + Pocket ID
-
-Identical to option 2, with [Pocket ID](../security/pocket/pocket.md) as the
-identity provider instead of Tailscale's hosted login.
-
-Pocket ID must be enabled **and** made public at `pocket.example.com` — Tailscale
-verifies your domain by fetching WebFinger at `example.com`, which only works if
-the apex is publicly reachable. See [Caddy](./caddy/caddy.md).
-
 - **Pro** — your own identity provider. Accounts, groups and passkeys are yours.
-- **Con** — one more moving part, and the apex has to be public so Tailscale
-  can verify the domain.
+- **Con** — one more moving part than plain Tailscale, and the apex has to be
+  public so Tailscale can verify the domain.
 - **Con** — still depends on Tailscale's control plane for connectivity.
 
-### 4. Headscale + Pocket ID — no external dependencies
+### 3. Headscale + Pocket ID — no external dependencies
 
 Self-hosted control plane. Set `headscale:baseDomain` and Headscale hands out
 **host** names under it, `<node>.vpn.example.com`. No per-app configuration.
@@ -90,26 +138,25 @@ control plane at `headscale.example.com` and the identity provider at
 
 ### Recommendation
 
-**Headscale + Pocket ID (option 4)** is the right default in general. It removes
+**Headscale + Pocket ID (option 3)** is the right default in general. It removes
 every vendor from the critical path: names, reachability and identity are all
 yours, and the only external requirement is DNS you already own.
 
 The cost is that **both Headscale and Pocket ID have to be exposed publicly** —
 the control plane and the OIDC provider — which puts an identity provider and an
 SSH access path on the internet. Both need care. See
-[Migrating nodes](./headscale/headscale.md#migrating-nodes) before planning a
-move.
+[Public services](../../docs/public-services.md) for exposing them, and
+[Migrating nodes](../../docs/headscale-migration.md) before planning a move.
 
-**Tailscale + Traefik + Pocket ID (option 3)** is the right choice when you
-already use Tailscale, or want the VPN control plane to be managed for you. It
-keeps a vendor dependency for connectivity, but Pocket ID still removes the
-Google/Microsoft/GitHub login — which is usually the part people actually care
-about. Real domains, automatic certificates, and no migration.
+**Tailscale + Pocket ID (option 2)** is the hybrid: keep Tailscale's hosted
+control plane when you do not want to run one, but replace the
+Google/Microsoft/GitHub login with Pocket ID. It needs Traefik, a custom domain
+and a public apex for WebFinger, but it avoids the control-plane migration.
 
-**Tailscale only (option 1)** only if you have no custom domain and want the
-smallest possible setup. You give up your own domain entirely — names,
-certificates and identity all sit with Tailscale — and take a Google or GitHub
-account dependency.
+**Tailscale (option 1)** only if you have no custom domain and want the smallest
+possible setup. You give up your own domain entirely — names, certificates and
+identity all sit with Tailscale — and take a Google or GitHub account
+dependency.
 
 ## Routing provider
 
@@ -121,12 +168,14 @@ orangelab:
 - `tailscale` — serves `<app>.<tailnet>.ts.net`. Needs `tailscale:tailnet`, no
   domain of your own.
 - `traefik` — serves `<app>.example.com`. Needs `orangelab:customDomain`,
-  `cert-manager` and a DNS record per service.
+  `cert-manager` and a wildcard DNS record for the domain; public names need
+  explicit records.
 
 Only Traefik can serve your own domain names. That single limitation is why
-options 2–4 all require it, and it is what decides between option 1 and the
+options 2 and 3 require it, and it is what decides between option 1 and the
 rest. Both providers also expose TCP endpoints as a LoadBalancer, private by
-default; only Traefik can publish them publicly — see [TCP ports](#tcp-ports).
+default; only Traefik can publish them publicly — see
+[TCP and UDP ports](../../docs/public-services.md#tcp-and-udp-ports).
 
 Per-application override:
 
@@ -134,76 +183,28 @@ Per-application override:
 pulumi config set <app>:routingProvider tailscale
 ```
 
-## Public exposure
+## Public services
 
-```yaml
-<app>:network/public: true
-```
+Public access is optional. Applications are private by default; set
+`<app>:network/public: true` only when one must be reachable from the internet.
 
-Private by default — without this, nothing is reachable from outside the
-tailnet. What it does depends on the routing provider:
+The recommended setups need public access only for their control-plane, identity
+and domain-verification pieces; plain Tailscale needs none.
 
-- **Traefik** — a second route on the public gateway, which only admits routes
-  from namespaces labelled `orangelab.space/public`. The router needs one port
-  forward (WAN 443 → node 10443), or a [VPS proxy](#public-proxy-on-a-vps). The
-  service is reachable at its regular `<app>.example.com` name.
-- **Tailscale** — [Funnel](./tailscale/tailscale.md#public-exposure-with-funnel),
-  which publishes the same `ts.net` name to the internet. Requires a `funnel`
-  node attribute in the tailnet policy, and is limited to ports 443, 8443 and 10000.
+- **Headscale** — clients that are not on the LAN yet must reach the control
+  plane to join.
+- **Pocket ID** — sign-in redirects the browser to it, so it must be reachable
+  from outside.
+- **Caddy** — with Tailscale + Pocket ID, the apex serves the WebFinger document
+  that proves domain ownership.
 
-### TCP ports
+Under **Traefik**, public routes use the public gateway, which you expose with a
+router port forward or a VPS proxy. Under **Tailscale**, `network/public` enables
+[Funnel](./tailscale/tailscale.md#public-exposure-with-funnel) on the existing
+`ts.net` name instead.
 
-`network/public` is the application-level public gate. A TCP or UDP port also
-needs `public: true` on the port, and only under Traefik:
-
-```ts
-ports: [{ name: 'ssh', port: 22, protocol: 'tcp', public: true }];
-```
-
-The private LoadBalancer keeps the port's own number; a second LoadBalancer
-publishes the same port at `<port> + 10000` — 22 becomes 10022, 8333 becomes 18333. That offset is what the router forwards to: the WAN port keeps its number,
-only the node side moves.
-
-```
-WAN 22/tcp   → <node>:10022
-WAN 8333/udp → <node>:18333
-```
-
-So every public port forms one forward band at or above 10000, and private ports
-are never forwarded. A VPS public proxy can forward the same offset port instead
-of the router: configure HAProxy with `--tcp-forward <public-port>=<name>=<node>:<offset-port>`
-and open the public port on the VPS.
-
-Under Tailscale a TCP port is always private: Funnel serves HTTPS only, so
-marking one `public` fails the deploy instead of pretending to be reachable.
-Public TLS ports are not wired up yet.
-
-### Public proxy on a VPS
-
-Instead of forwarding WAN `443` to a node, a small VPS outside the cluster can
-join the same Headscale or Tailscale tailnet and forward `443` to the public
-gateway. Public DNS points at the VPS, so the home IP is never published and
-changing providers is a DNS change. TLS is passed through, so certificates and
-the apex stay in the cluster.
-
-See [Public proxy on a VPS](../../docs/public-proxy.md) for setup, verification
-and the optional exit node.
-
-## Quick Start
-
-```sh
-# Tailscale (default)
-pulumi config set orangelab:routingProvider tailscale
-pulumi config set tailscale:tailnet <tailnet>.ts.net
-pulumi config set tailscale:enabled true
-pulumi up
-
-# Traefik (custom domain)
-pulumi config set orangelab:routingProvider traefik
-pulumi config set orangelab:customDomain example.com
-pulumi config set cert-manager:enabled true
-pulumi config set traefik:enabled true
-```
+See [Public services](../../docs/public-services.md) for publishing
+applications, both gateway methods, DNS records and the TCP/UDP port offset.
 
 ## ServiceLB Configuration
 

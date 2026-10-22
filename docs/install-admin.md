@@ -94,7 +94,7 @@ to add cluster nodes to this tailnet.
 
 Self-hosted control plane, so no third-party coordination server or identity
 provider is in the path. Sign in with
-[Pocket ID](../components/security/pocket/pocket.md) or with its own local users.
+[Pocket ID](../components/security/pocket/pocket.md).
 
 Deploy it and make it reachable from outside the LAN, since clients off-LAN
 complete sign-in through it:
@@ -109,7 +109,8 @@ pulumi up
 
 It also needs an explicit `headscale.<customDomain>` DNS record pointing at the
 public IP. See [Headscale](../components/network/headscale/headscale.md) for
-prerequisites and signing in.
+prerequisites and signing in, and [Public services](./public-services.md) for
+exposing the gateway with a router forward or a VPS proxy.
 
 Nodes register with a reusable preauth key rather than an interactive login,
 since a headless server has no browser:

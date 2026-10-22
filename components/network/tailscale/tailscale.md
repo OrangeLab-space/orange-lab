@@ -68,6 +68,9 @@ When custom domain is configured, Traefik replaces Tailscale for application end
 
 ## Public exposure with Funnel
 
+Public exposure is optional; see [Public services](../../../docs/public-services.md)
+for when it is required and the Traefik alternatives.
+
 When Tailscale is the routing provider, `<app>:network/public: true` enables
 [Tailscale Funnel](https://tailscale.com/kb/1223/tailscale-funnel) on that app's
 ingress by adding the `tailscale.com/funnel: "true"` annotation.

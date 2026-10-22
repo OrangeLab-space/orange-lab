@@ -96,7 +96,7 @@ The following settings are supported by most applications in OrangeLab:
 | `enabled`                    | Enable or disable the application                                                            |
 | `hostname`                   | Hostname for the HTTPS endpoint, used with Tailscale for access                              |
 | `routingProvider`            | Override global routing provider (`tailscale` or `traefik`) for this application             |
-| `network/public`             | Expose this application to the public internet (see [Public exposure](#public-exposure))     |
+| `network/public`             | Expose this application to the public internet (see [Public services](./public-services.md)) |
 | `version`                    | Lock Helm chart version to a specific release (uses latest if not specified)                 |
 | `storageOnly`                | Disable application but retain storage (useful for temporarily disabling while keeping data) |
 | `storageSize`                | Expand default storage size if needed (e.g., for large models)                               |
@@ -160,26 +160,17 @@ pulumi config set <app>:network/public true
 pulumi up
 ```
 
-What this does depends on the routing provider:
+Under **Traefik**, this adds a second route under the application's normal
+`<app>.<domain>` name; under **Tailscale**, it enables
+[Tailscale Funnel](../components/network/tailscale/tailscale.md#public-exposure-with-funnel)
+on the existing `<app>.<tailnet>.ts.net` name. Turning it off removes the public
+route; the private name is unaffected.
 
-- **`traefik`** — the application gets a second route on Traefik's public gateway,
-  and its namespace is labelled `orangelab.space/public` so the gateway admits
-  the route. It stays reachable at its normal `<app>.<domain>` name. You also
-  need one router port forward (WAN 443 to a node on 10443), or a
-  [VPS proxy](./public-proxy.md) if you do not want to publish your home IP.
-- **`tailscale`** — enables [Tailscale Funnel](../components/network/tailscale/tailscale.md#public-exposure-with-funnel)
-  on the ingress. This does **not** give the app a new name; it publishes the
-  existing `<app>.<tailnet>.ts.net` name to the internet, so the app is reachable
-  both inside and outside the tailnet. Requires a `funnel` node attribute in the
-  tailnet policy, and only works on ports 443, 8443 and 10000 over HTTPS.
-
-`network/public` is the application-level public gate. TCP and UDP ports also
-need `public: true` on the port, and Traefik publishes them at
-`<port> + 10000` — see [TCP ports](../components/network/NETWORK.md#tcp-ports). With a
-[VPS public proxy](./public-proxy.md), forward that offset port with HAProxy's
-`--tcp-forward` instead of opening it on the router.
-
-Turning it back off removes the public route; the private name is unaffected.
+Public exposure is optional. The recommended setups require it only for
+Headscale, Pocket ID and, with Tailscale + Pocket ID, Caddy's WebFinger endpoint.
+TCP and UDP ports marked `public: true` are published at `<port> + 10000`. See
+[Public services](./public-services.md) for both gateway methods, DNS, and port
+forwarding.
 
 See [Network module](../components/network/NETWORK.md) for choosing between
 routing providers and mesh VPN control planes.

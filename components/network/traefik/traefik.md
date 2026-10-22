@@ -62,9 +62,9 @@ the private route untouched. Removing the setting reverses all three.
 
 Three layers keep public and private apart:
 
-1. **Ports.** Public terminates on `10443`, private on `443`. Forward your
-   router's WAN `443` to the node running ServiceLB at port `10443`, so a fault
-   on the public listener is not reachable through the private one.
+1. **Ports.** Public terminates on `10443`, private on `443`. Expose the public
+   listener with a router port forward or a VPS proxy — see
+   [Public services](../../../docs/public-services.md).
 2. **Gateway listener.** `traefik-gateway-public` only accepts routes from
    namespaces labelled `orangelab.space/public`, so an app cannot become public
    by accident.
@@ -73,22 +73,9 @@ Three layers keep public and private apart:
    exposure cannot disturb internal routing.
 
 TCP and UDP follow the same split. A port marked `public` in a publicly exposed
-application gets a second LoadBalancer publishing it at `<port> + 10000`, and the
-router forward targets that offset port — `WAN 22/tcp → <node>:10022`, mirroring
-`WAN 443 → 10443`. So every public port forms one forward band at or above 10000
-while private ports are never forwarded. A
-[VPS public proxy](../../../docs/public-proxy.md) can forward the same offset
-port instead of the router.
-
-The public path needs NAT loopback to be useful internally. With it, a single
-public A record serves both sides: internal clients resolve the WAN IP, hairpin
-through the router, and land on the same public listener.
-
-Instead of forwarding WAN `443` to a node, a VPS outside the cluster can join
-the tailnet and forward `443` to `10443`. Public DNS points at the
-VPS, so the home IP is not published, and no router NAT loopback is involved.
-TLS is passed through; certificates and routing stay here. See
-[Public proxy on a VPS](../../../docs/public-proxy.md).
+application gets a second LoadBalancer publishing it at `<port> + 10000`; see
+[TCP and UDP ports](../../../docs/public-services.md#tcp-and-udp-ports) for the
+forward band and the VPS alternative.
 
 ## Uninstall
 

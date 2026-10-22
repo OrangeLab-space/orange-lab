@@ -59,7 +59,8 @@ export class Headscale extends pulumi.ComponentResource {
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
 
         // Without an identity provider Headscale falls back to its own local
-        // users, created with `headscale users create`. See headscale.md.
+        // users, created with `headscale users create`; the documented setup
+        // uses Pocket ID.
         this.oidc = this.app.oidc;
 
         this.app.addConfigVolume({

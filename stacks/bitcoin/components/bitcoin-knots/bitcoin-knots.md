@@ -44,8 +44,9 @@ pulumi config set bitcoin-knots:externalip <public-entry-point-ip>
 pulumi up
 ```
 
-With the router, forward `WAN 8333/tcp` to a ServiceLB node on `18333`. With a
-[VPS public proxy](../../../../docs/public-proxy.md), add
+With the router, forward `WAN 8333/tcp` to a ServiceLB node on `18333`. See
+[Public services](../../../../docs/public-services.md#tcp-and-udp-ports) for
+the forwarding details and the VPS alternative. With a VPS proxy, add
 `--tcp-forward 8333=bitcoin-p2p=<node-tailnet-ip>:18333` for each node and open
 `8333/tcp` with the proxy firewall phase. Set `externalip` to the VPS address
 only after that path is verified.

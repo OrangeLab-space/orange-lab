@@ -82,7 +82,7 @@ Configure **Pulumi** then install **Tailscale** and **K3S** on each node you wan
 
 After setting up the Kubernetes cluster, deploy the required core modules:
 
-1. [Network](./components/network/NETWORK.md) - Routing provider (Tailscale or **Traefik**), public exposure, mesh VPN choice (Tailscale/Headscale)
+1. [Network](./components/network/NETWORK.md) - Routing provider (Tailscale or **Traefik**), public exposure, mesh VPN choice (Tailscale/**Headscale**)
 2. [Storage](./components/storage/STORAGE.md) - Distributed storage (**Longhorn**) and optionally backups (S3)
 3. [Hardware](./components/hardware/HARDWARE.md) - (Optional) **GPU** support
 4. [Data](./components/data/DATA.md) - (Optional) **Databases**
@@ -195,6 +195,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 - [Installation - Zimaboard (ZimaOS)](./docs/install-linux-zima.md) - Node configuration for ZimaOS
 - [Installation - SSH configuration](./docs/install-ssh.md) - Configure SSH keys on nodes for easier access
 - [Installation - K3s cluster](./docs/install-k3s.md) - Install Kubernetes cluster and label nodes
+- [Public services](./docs/public-services.md) - Publish applications and expose the Traefik public gateway with a router forward or VPS proxy
 - [Public proxy on a VPS](./docs/public-proxy.md) - Expose public services through Headscale or Tailscale without router port forwarding (tested on Ubuntu, Debian and Fedora)
 - [Backup and Restore](./docs/backup.md) - Using Longhorn backups with S3 storage
 - [Configuration Guide](./docs/configuration.md) - Application configuration and deployment

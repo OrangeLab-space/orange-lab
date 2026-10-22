@@ -3,6 +3,9 @@
 This page is the operator overview. The setup itself is handled by your
 agent's public-proxy workflow.
 
+This is the VPS method. For the router port-forward alternative and when public
+access is required, see [Public services](./public-services.md).
+
 Start here:
 
 ```sh

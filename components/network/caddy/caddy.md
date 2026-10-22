@@ -56,9 +56,8 @@ the `resource` query parameter and no need to echo it.
 
 ## Installation
 
-The apex only works if it is publicly reachable, so this needs both the Traefik
-public gateway and a port forward to it. See
-[Public exposure](../traefik/traefik.md#public-exposure) for the network side.
+The apex only works if it is publicly reachable, so it needs the Traefik public
+gateway and one of the [public access methods](../../../docs/public-services.md).
 
 ```sh
 # Required settings
