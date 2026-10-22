@@ -48,7 +48,14 @@ export class Headscale extends pulumi.ComponentResource {
         super('orangelab:network:Headscale', name, args, opts);
         config.requireEnabled(name, 'traefik');
 
-        this.app = new Application(this, name, { oidc: args.oidc }).addStorage();
+        this.app = new Application(this, name, {
+            oidc: args.oidc,
+            // Traefik sanitizes X-Forwarded-* and X-Real-IP from untrusted
+            // peers but forwards True-Client-IP untouched, and Headscale reads
+            // that header first. Removing it forces the client address to come
+            // from a header the proxy controls.
+            routeRequestHeaders: { 'True-Client-IP': '' },
+        }).addStorage();
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
 
         // Without an identity provider Headscale falls back to its own local

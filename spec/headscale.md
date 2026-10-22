@@ -57,7 +57,15 @@ the app being broken rather than the provider being unreachable.
 at public resolvers and breaks internal name resolution cluster-wide.
 
 **`trusted_proxies` must cover the cluster CIDR**, or every client is logged
-with the proxy's address rather than its own.
+with the proxy's address rather than its own. Traefik's pods are ephemeral, so
+the pod network is the only stable range to name; trusting it is broader than
+trusting the proxy alone, which is acceptable because the resolved address only
+feeds request logs. Traefik sanitizes `X-Real-IP` and `X-Forwarded-For` from
+untrusted peers but forwards `True-Client-IP` untouched, and Headscale reads
+that header first — the application route removes it so the address can only
+come from a header the proxy controls. A public proxy in front of Traefik is
+still logged as the client; HAProxy passes TCP through and cannot add an
+address header, as described in [`public-proxy.md`](public-proxy.md).
 
 **The volume is irreplaceable.** Two files on it cannot be regenerated:
 the noise key (its loss forces every node to re-authenticate) and the database
@@ -254,6 +262,11 @@ to the node's `13478`. Headscale still advertises `3478`, which is why the WAN p
 must match `stun_listen_addr`. It refuses to start without `stun_listen_addr`
 whenever the relay is enabled, so the component always emits it alongside
 `enabled: true`.
+
+The relay admits only node keys registered with this control plane. The
+generated config sets `verify_clients: true` explicitly rather than relying on
+Headscale's default, and verification fails closed, so an image bump that
+changed the default cannot silently turn the relay into an open one.
 
 Two things worth being precise about: the relay carries only opaque,
 end-to-end-encrypted WireGuard packets between two of your own nodes, so

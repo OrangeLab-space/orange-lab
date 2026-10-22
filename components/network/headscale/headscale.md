@@ -197,6 +197,10 @@ Headscale refuses to start without `stun_listen_addr` when the relay is on, so
 the component always emits it alongside `enabled: true` — an enabled relay with
 no forward fails at startup rather than silently serving nothing.
 
+Only node keys registered with this control plane may use the relay.
+`verify_clients` is set explicitly rather than left to Headscale's default, and
+verification fails closed.
+
 Two settings are what make a relay actually get _used_, and both fail silently
 when wrong:
 

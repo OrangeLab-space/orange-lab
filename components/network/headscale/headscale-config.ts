@@ -76,9 +76,10 @@ listen_addr: 0.0.0.0:8080`;
 }
 
 function createTrustedProxiesSection(trustedProxyCidr: string): string {
-    return `# Only the routing provider forwards requests here, so only its address range may
-# have its X-Forwarded-For believed. Without this every client is logged as the
-# proxy's address.
+    return `# Only peers in the cluster network may supply client address headers.
+# Traefik's pods live there; without this every client is logged as the proxy's
+# address. Real addresses come from X-Real-IP or X-Forwarded-For, which Traefik
+# sanitizes. True-Client-IP is stripped on the route because Traefik does not.
 trusted_proxies:
   - ${trustedProxyCidr}`;
 }
@@ -120,6 +121,10 @@ ${externalIpLine}    # On the volume, so a restart does not present a new key an
     # client treat the relay as a different one.
     private_key_path: /var/lib/headscale/derp_server_private.key
     automatically_add_embedded_derp_region: true
+    # Refuse relay access to node keys this control plane does not know.
+    # Headscale defaults to true; set it so an image bump cannot silently
+    # open the relay.
+    verify_clients: true
 ${urls}`;
 }
 
