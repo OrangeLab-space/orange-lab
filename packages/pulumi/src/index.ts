@@ -16,10 +16,6 @@ export { createPassword } from './secrets';
 export { Smtp } from './smtp';
 export { requireOutput } from './utils';
 export {
-    createTraefikOidcMiddleware,
-    traefikOidcMiddlewareName,
-} from './oidc-auth';
-export {
     ConfigVolumeSpec,
     ContainerResources,
     ContainerSpec,
@@ -35,6 +31,7 @@ export {
     PersistentVolumeSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
+    RoutingProviderArgs,
     S3Provisioner,
     ServicePort,
     SmtpSecurity,

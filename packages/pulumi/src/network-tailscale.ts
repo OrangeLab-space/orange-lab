@@ -3,13 +3,13 @@ import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
 import { config } from './config';
 import { coreStack, resolveInherited } from './core-stack';
-import { Metadata } from './metadata';
 import {
     HttpEndpointInfo,
     HttpRedirectSpec,
     HttpRouteSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
+    RoutingProviderArgs,
     ServicePort,
 } from './types';
 
@@ -20,9 +20,22 @@ export class TailscaleNetwork implements RoutingProvider {
 
     constructor(
         private appName: string,
-        private args: { metadata: Metadata },
+        private args: RoutingProviderArgs,
         private opts?: pulumi.ComponentResourceOptions,
     ) {
+        if (args.oidc !== undefined) {
+            throw new Error(
+                `${this.appName}: OIDC-protected routes are not implemented by the Tailscale routing provider.`,
+            );
+        }
+        if (
+            args.routeRequestHeaders !== undefined &&
+            Object.keys(args.routeRequestHeaders).length > 0
+        ) {
+            throw new Error(
+                `${this.appName}: route request headers are not implemented by the Tailscale routing provider.`,
+            );
+        }
         this.tailnetDomain = this.resolveTailnet();
     }
 
@@ -72,7 +85,7 @@ export class TailscaleNetwork implements RoutingProvider {
     ): void {
         assert(
             false,
-            `${this.appName}: OIDC-protected routes require the Traefik routing provider.`,
+            `${this.appName}: OIDC-protected routes are not implemented by the Tailscale routing provider.`,
         );
     }
 
@@ -82,7 +95,7 @@ export class TailscaleNetwork implements RoutingProvider {
     ): void {
         assert(
             false,
-            `${this.appName}: redirects require the Traefik routing provider.`,
+            `${this.appName}: redirects are not implemented by the Tailscale routing provider.`,
         );
     }
 
@@ -97,12 +110,8 @@ export class TailscaleNetwork implements RoutingProvider {
         apexDomain?: boolean;
     }): void {
         assert(
-            !params.middlewareName,
-            `${this.appName}: OIDC-protected routes require the Traefik routing provider.`,
-        );
-        assert(
             !params.apexDomain,
-            `${this.appName}: apexDomain requires the Traefik routing provider — the tailnet apex is not the same concept.`,
+            `${this.appName}: apexDomain is not implemented by the Tailscale routing provider — the tailnet apex is not the same concept.`,
         );
         params.httpPorts.forEach(httpPort => {
             const httpEndpointInfo = this.getHttpEndpointInfo(

@@ -2,15 +2,16 @@ import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { config } from './config';
 import { coreStack, resolveInherited } from './core-stack';
-import { Metadata } from './metadata';
 import {
     HttpEndpointInfo,
     HttpRedirectSpec,
     HttpRouteSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
+    RoutingProviderArgs,
     ServicePort,
 } from './types';
+import { createRouteMiddleware } from './traefik-middlewares';
 
 /**
  * Public LoadBalancer ports are published at `<port> + publicPortOffset`, so a
@@ -36,13 +37,25 @@ export class TraefikNetwork implements RoutingProvider {
     privateEndpoints: Record<string, pulumi.Input<string>> = {};
     publicEndpoints: Record<string, pulumi.Input<string>> = {};
     customDomain: pulumi.Input<string>;
+    readonly routeMiddlewareName?: string;
 
     constructor(
         private appName: string,
-        private args: { metadata: Metadata },
+        private args: RoutingProviderArgs,
         private opts?: pulumi.ComponentResourceOptions,
     ) {
         this.customDomain = this.resolveCustomDomain();
+        this.routeMiddlewareName = createRouteMiddleware(
+            {
+                appName: this.appName,
+                namespace: this.args.metadata.namespace,
+                oidc: this.args.oidc
+                    ? { config: this.args.oidc, pluginSecret: this.args.pluginSecret }
+                    : undefined,
+                requestHeaders: this.args.routeRequestHeaders,
+            },
+            { parent: this.opts?.parent },
+        )?.name;
     }
 
     getHttpEndpointInfo(hostname: string): HttpEndpointInfo {

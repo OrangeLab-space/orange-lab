@@ -50,6 +50,11 @@ export class Application {
             existingNamespace?: string;
             /** OIDC provider settings; route protection is opt-in for edge-only applications. */
             oidc?: OidcProviderSettings;
+            /**
+             * Request headers set on the application's own HTTP route. An empty
+             * value removes a header the client sent.
+             */
+            routeRequestHeaders?: Record<string, string>;
         },
     ) {
         this.processDeprecated();
@@ -74,6 +79,7 @@ export class Application {
             {
                 metadata: this.metadata,
                 oidc: routeOidc,
+                routeRequestHeaders: args?.routeRequestHeaders,
                 pluginSecret: routeOidc
                     ? config.getSecret(appName, 'auth/pluginSecret') ??
                       createPassword(this.scope, `${appName}-oidc-secret`)
@@ -294,7 +300,7 @@ export class Application {
                     hostname: endpoint.hostname,
                     serviceName: args.httpRoute.serviceName,
                     servicePort: args.httpRoute.servicePort,
-                    middlewareName: this.network.oidcMiddlewareName,
+                    middlewareName: this.network.routeMiddlewareName,
                 },
                 { parent: this.scope, dependsOn: [chart] },
             );

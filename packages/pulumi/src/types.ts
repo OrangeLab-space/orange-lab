@@ -1,5 +1,7 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
+import type { OidcAuthConfig } from './auth';
+import type { Metadata } from './metadata';
 import type { EndpointExports } from './network';
 
 export type GpuType = 'amd' | 'nvidia' | 'intel';
@@ -401,6 +403,19 @@ export interface PublicTcpServiceConfig {
 }
 
 /**
+ * Constructor arguments shared by the routing providers and `Network`: the
+ * settings a provider acts on, alongside the metadata it creates objects in.
+ */
+export interface RoutingProviderArgs {
+    metadata: Metadata;
+    /** Route protection requested for the application's own routes. */
+    oidc?: OidcAuthConfig;
+    pluginSecret?: pulumi.Input<string>;
+    /** Request headers the application's routes set, or remove when empty. */
+    routeRequestHeaders?: Record<string, string>;
+}
+
+/**
  * Represents a routing provider that creates HTTP and TCP endpoints.
  */
 export interface RoutingProvider {
@@ -410,6 +425,8 @@ export interface RoutingProvider {
     /** Endpoints reachable from the public internet. */
     publicEndpoints: Record<string, pulumi.Input<string>>;
     getHttpEndpointInfo: (hostname: string) => HttpEndpointInfo;
+    /** Middleware the application's own routes attach, if the provider has one. */
+    readonly routeMiddlewareName?: string;
     createHttpRoute: (
         spec: HttpRouteSpec,
         opts?: pulumi.CustomResourceOptions,

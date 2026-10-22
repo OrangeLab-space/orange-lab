@@ -32,7 +32,7 @@ export class Longhorn extends pulumi.ComponentResource {
         });
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
 
-        const middlewareName = this.app.network.oidcMiddlewareName;
+        const routeProtected = this.app.network.routeProtected;
         const backupEnabled = config.getBoolean(name, 'backupEnabled') ?? false;
         let backupTarget: string | undefined = undefined;
         let backupTargetCredentialSecret: pulumi.Output<string> | undefined = undefined;
@@ -45,7 +45,7 @@ export class Longhorn extends pulumi.ComponentResource {
 
         this.chart = this.createHelmRelease({
             httpEndpointInfo,
-            middlewareName,
+            routeProtected,
             backupTarget,
             backupTargetCredentialSecret,
         });
@@ -69,12 +69,12 @@ export class Longhorn extends pulumi.ComponentResource {
 
     private createHelmRelease({
         httpEndpointInfo,
-        middlewareName,
+        routeProtected,
         backupTarget,
         backupTargetCredentialSecret,
     }: {
         httpEndpointInfo: HttpEndpointInfo;
-        middlewareName?: string;
+        routeProtected: boolean;
         backupTarget?: string;
         backupTargetCredentialSecret?: pulumi.Output<string>;
     }) {
@@ -171,7 +171,7 @@ export class Longhorn extends pulumi.ComponentResource {
                 },
                 // Unauthenticated chart routing is disabled when OIDC auth
                 // protects the UI (the shared route helper adds the route).
-                ...(middlewareName
+                ...(routeProtected
                     ? {}
                     : httpEndpointInfo.gatewayRef
                       ? {
@@ -233,7 +233,7 @@ export class Longhorn extends pulumi.ComponentResource {
                     defaultDataLocality: config.require('longhorn', 'dataLocality'),
                 },
             },
-            httpRoute: middlewareName
+            httpRoute: routeProtected
                 ? {
                       componentName: this.name,
                       serviceName: 'longhorn-frontend',

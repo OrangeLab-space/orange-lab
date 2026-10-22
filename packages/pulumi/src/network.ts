@@ -1,9 +1,6 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import { OidcAuthConfig } from './auth';
 import { config } from './config';
-import { Metadata } from './metadata';
-import { createTraefikOidcMiddleware, traefikOidcMiddlewareName } from './oidc-auth';
 import { TailscaleNetwork } from './network-tailscale';
 import { TraefikNetwork } from './network-traefik';
 import {
@@ -13,6 +10,7 @@ import {
     HttpRouteSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
+    RoutingProviderArgs,
     ServicePort,
 } from './types';
 
@@ -70,52 +68,38 @@ export class Network {
 
     constructor(
         private appName: string,
-        private args: {
-            metadata: Metadata;
-            pluginSecret?: pulumi.Input<string>;
-            oidc?: OidcAuthConfig;
-        },
+        private args: RoutingProviderArgs,
         private opts?: pulumi.ComponentResourceOptions,
     ) {
         this.publiclyExposed = config.getBoolean(this.appName, 'network/public') ?? false;
+        this.provider = this.createProvider();
+    }
+
+    private createProvider(): RoutingProvider {
         const routingProvider =
             config.get(this.appName, 'routingProvider') ??
             config.get('orangelab', 'routingProvider');
         switch (routingProvider) {
             case 'traefik':
-                this.provider = new TraefikNetwork(appName, args, opts);
-                break;
+                return new TraefikNetwork(this.appName, this.args, this.opts);
             case 'tailscale':
-                this.provider = new TailscaleNetwork(appName, args, opts);
-                break;
+                return new TailscaleNetwork(this.appName, this.args, this.opts);
             default:
                 throw new Error(
                     `Unknown orangelab:routingProvider: ${routingProvider ?? 'undefined'}. Must be 'traefik' or 'tailscale'.`,
                 );
         }
-        if (args.oidc !== undefined) {
-            if (routingProvider !== 'traefik') {
-                throw new Error(
-                    `${appName}: OIDC-protected routes require the Traefik routing provider.`,
-                );
-            }
-            if (args.pluginSecret === undefined) {
-                throw new Error(`${appName}: OIDC plugin secret is not configured.`);
-            }
-            this.oidcMiddlewareName = traefikOidcMiddlewareName(appName);
-            createTraefikOidcMiddleware(
-                {
-                    appName,
-                    namespace: args.metadata.namespace,
-                    oidc: args.oidc,
-                    pluginSecret: args.pluginSecret,
-                },
-                { parent: opts?.parent },
-            );
-        }
     }
 
-    readonly oidcMiddlewareName?: string;
+    /** Middleware the application's own routes attach, if the provider has one. */
+    get routeMiddlewareName(): string | undefined {
+        return this.provider.routeMiddlewareName;
+    }
+
+    /** Whether the application's own routes are protected by OIDC. */
+    get routeProtected(): boolean {
+        return this.args.oidc !== undefined;
+    }
 
     public getHttpEndpointInfo(
         hostname: string = config.require(this.appName, 'hostname'),
@@ -170,47 +154,70 @@ export class Network {
             clusterIP: spec.clusterIP,
         });
         this.exportClusterEndpoints({ service, component: spec.name, ports });
-
-        const publicPorts = ports.filter(p => !p.private);
-        if (publicPorts.length > 0) {
-            const hostname = spec.hostname ?? this.getHostname(spec.name);
-            const httpPorts = publicPorts.filter(
-                p => !p.protocol || p.protocol === 'http',
-            );
-            if (httpPorts.length > 0) {
-                this.provider.createHttpEndpoints({
-                    serviceName: service.metadata.name,
-                    httpPorts,
-                    component: spec.name,
-                    hostname,
-                    middlewareName: this.oidcMiddlewareName,
-                    public: this.publiclyExposed,
-                    apexDomain: spec.apexDomain,
-                });
-            }
-            const tcpPorts = publicPorts.filter(
-                p => p.protocol === 'tcp' || p.protocol === 'tls' || p.protocol === 'udp',
-            );
-            if (tcpPorts.length > 0 && !spec.hostNetwork) {
-                if (spec.apexDomain) {
-                    throw new Error(
-                        `${this.appName}: apexDomain serves the bare custom domain, which supports HTTP only.`,
-                    );
-                }
-                const loadBalancer = this.provider.createTcpEndpoints({
-                    serviceName: service.metadata.name,
-                    tcpPorts,
-                    component: spec.name,
-                    hostname,
-                    externalTrafficPolicy: spec.externalTrafficPolicy,
-                    public: this.publiclyExposed,
-                });
-                if (loadBalancer) this.tcpLoadBalancer = loadBalancer;
-            }
-        }
+        this.createPublicEndpoints(spec, service, ports);
 
         Object.assign(this.privateEndpoints, this.provider.privateEndpoints);
         Object.assign(this.publicEndpoints, this.provider.publicEndpoints);
+    }
+
+    private createPublicEndpoints(
+        spec: ContainerSpec,
+        service: kubernetes.core.v1.Service,
+        ports: ServicePort[],
+    ) {
+        const publicPorts = ports.filter(p => !p.private);
+        if (publicPorts.length === 0) return;
+
+        const hostname = spec.hostname ?? this.getHostname(spec.name);
+        this.createHttpEndpoints(spec, service, publicPorts, hostname);
+        this.createTcpEndpoints(spec, service, publicPorts, hostname);
+    }
+
+    private createHttpEndpoints(
+        spec: ContainerSpec,
+        service: kubernetes.core.v1.Service,
+        publicPorts: ServicePort[],
+        hostname: string,
+    ) {
+        const httpPorts = publicPorts.filter(p => !p.protocol || p.protocol === 'http');
+        if (httpPorts.length === 0) return;
+
+        this.provider.createHttpEndpoints({
+            serviceName: service.metadata.name,
+            httpPorts,
+            component: spec.name,
+            hostname,
+            middlewareName: this.routeMiddlewareName,
+            public: this.publiclyExposed,
+            apexDomain: spec.apexDomain,
+        });
+    }
+
+    private createTcpEndpoints(
+        spec: ContainerSpec,
+        service: kubernetes.core.v1.Service,
+        publicPorts: ServicePort[],
+        hostname: string,
+    ) {
+        const tcpPorts = publicPorts.filter(
+            p => p.protocol === 'tcp' || p.protocol === 'tls' || p.protocol === 'udp',
+        );
+        if (tcpPorts.length === 0 || spec.hostNetwork) return;
+
+        if (spec.apexDomain) {
+            throw new Error(
+                `${this.appName}: apexDomain serves the bare custom domain, which supports HTTP only.`,
+            );
+        }
+        const loadBalancer = this.provider.createTcpEndpoints({
+            serviceName: service.metadata.name,
+            tcpPorts,
+            component: spec.name,
+            hostname,
+            externalTrafficPolicy: spec.externalTrafficPolicy,
+            public: this.publiclyExposed,
+        });
+        if (loadBalancer) this.tcpLoadBalancer = loadBalancer;
     }
 
     /**
