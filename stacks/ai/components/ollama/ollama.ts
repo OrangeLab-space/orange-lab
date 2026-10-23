@@ -111,7 +111,6 @@ export class Ollama extends pulumi.ComponentResource {
                         tls: [
                             {
                                 hosts: [httpEndpointInfo.hostname],
-                                secretName: httpEndpointInfo.tlsSecretName,
                             },
                         ],
                     },

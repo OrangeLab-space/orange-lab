@@ -71,7 +71,8 @@ export class Nextcloud extends pulumi.ComponentResource {
                         sidecar: {
                             resources: {
                                 requests: { cpu: '50m', memory: '128Mi' },
-                                limits: { cpu: '500m', memory: '256Mi' },
+                                // Above PHP's 512M memory_limit.
+                                limits: { cpu: '500m', memory: '768Mi' },
                             },
                         },
                     },
@@ -100,11 +101,17 @@ export class Nextcloud extends pulumi.ComponentResource {
                         tls: [
                             {
                                 hosts: [args.httpEndpointInfo.hostname],
-                                secretName: args.httpEndpointInfo.tlsSecretName,
                             },
                         ],
                     },
                     internalDatabase: { enabled: false },
+                    lifecycle: {
+                        preStopCommand: [
+                            '/bin/sh',
+                            '-c',
+                            'apache2ctl graceful-stop 2>/dev/null || kill -TERM 1',
+                        ],
+                    },
                     livenessProbe: { enabled: true },
                     metrics: {
                         enabled: true,
@@ -133,13 +140,23 @@ export class Nextcloud extends pulumi.ComponentResource {
                         enabled: args.httpEndpointInfo.tls,
                         protocol: args.httpEndpointInfo.tls ? 'https' : 'http',
                     },
-                    readinessProbe: { enabled: true },
+                    readinessProbe: {
+                        enabled: true,
+                        initialDelaySeconds: 5,
+                        periodSeconds: 5,
+                    },
                     replicaCount: 1,
                     resources: {
                         requests: { cpu: '50m', memory: '384Mi' },
-                        limits: { cpu: '500m', memory: '768Mi' },
+                        // No CPU limit: 500m throttled preview bursts, piling up
+                        // Apache workers and DB connections.
+                        limits: { memory: '1.5Gi' },
                     },
-                    startupProbe: { enabled: true },
+                    startupProbe: {
+                        enabled: true,
+                        initialDelaySeconds: 5,
+                        periodSeconds: 5,
+                    },
                 },
             },
             { parent: this },

@@ -65,7 +65,6 @@ export class TraefikNetwork implements RoutingProvider {
             hostname: pulumi.interpolate`${hostname}.${this.customDomain}`,
             url: pulumi.interpolate`https://${hostname}.${this.customDomain}`,
             tls: true,
-            tlsSecretName: `${hostname}-tls-secret`,
             domain: this.customDomain,
             gatewayRef: privateGatewayRef,
         };

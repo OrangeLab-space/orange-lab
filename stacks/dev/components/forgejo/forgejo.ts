@@ -212,7 +212,6 @@ export class Forgejo extends pulumi.ComponentResource {
                         tls: [
                             {
                                 hosts: [args.httpEndpointInfo.hostname],
-                                secretName: args.httpEndpointInfo.tlsSecretName,
                             },
                         ],
                     },

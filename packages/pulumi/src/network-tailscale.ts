@@ -158,7 +158,6 @@ export class TailscaleNetwork implements RoutingProvider {
                     tls: [
                         {
                             hosts: [params.httpEndpointInfo.hostname],
-                            secretName: params.httpEndpointInfo.tlsSecretName,
                         },
                     ],
                     rules: [

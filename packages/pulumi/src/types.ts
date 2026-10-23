@@ -274,7 +274,6 @@ export interface HttpEndpointInfo {
     hostname: pulumi.Input<string>;
     url: pulumi.Input<string>;
     tls: boolean;
-    tlsSecretName?: string;
     domain: pulumi.Input<string>;
     gatewayRef?: {
         name: string;
