@@ -9,6 +9,8 @@ import {
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 
+import { resolveTechnitiumTor } from './technitium-tor';
+
 function serializeGroupMap(groupMap: Record<string, string[]>): string {
     return Object.entries(groupMap)
         .flatMap(([role, groups]) => groups.map(group => `${group}:${role}`))
@@ -36,6 +38,8 @@ export class Technitium extends pulumi.ComponentResource {
     ) {
         super('orangelab:network:Technitium', name, args, opts);
 
+        const tor = resolveTechnitiumTor(name);
+
         this.app = new Application(this, name, {
             oidc: args.oidc,
         }).addStorage();
@@ -48,13 +52,18 @@ export class Technitium extends pulumi.ComponentResource {
 
         const env: Record<string, pulumi.Input<string> | undefined> = {
             DNS_SERVER_DOMAIN: httpEndpointInfo.hostname,
-            DNS_SERVER_FORWARDERS: config.require(name, 'DNS_SERVER_FORWARDERS'),
-            DNS_SERVER_FORWARDER_PROTOCOL: config.require(
-                name,
-                'DNS_SERVER_FORWARDER_PROTOCOL',
-            ),
+            DNS_SERVER_FORWARDERS:
+                tor?.forwarders ?? config.require(name, 'DNS_SERVER_FORWARDERS'),
+            DNS_SERVER_FORWARDER_PROTOCOL:
+                tor?.forwarderProtocol ??
+                config.require(name, 'DNS_SERVER_FORWARDER_PROTOCOL'),
         };
         if (this.app.oidc) this.addSsoEnvironment(env, this.app.oidc);
+
+        if (tor) {
+            this.app.addConfigVolume(tor.configVolume);
+            for (const volume of tor.volumes) this.app.addEmptyVolume(volume);
+        }
 
         this.app.addDeployment({
             clusterIP: Technitium.clusterIP,
@@ -70,10 +79,12 @@ export class Technitium extends pulumi.ComponentResource {
                 DNS_SERVER_ADMIN_PASSWORD: this.users.admin,
                 DNS_SERVER_SSO_CLIENT_SECRET: this.app.oidc?.clientSecret,
             },
+            initContainers: tor?.initContainers,
             resources: {
                 requests: { cpu: '50m', memory: '384Mi' },
                 limits: { cpu: '1', memory: '768Mi' },
             },
+            sidecars: tor?.sidecars,
         });
 
         this.resolverIp = this.app.network.getTcpLoadBalancerIp();

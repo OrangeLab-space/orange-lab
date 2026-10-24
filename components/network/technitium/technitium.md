@@ -16,6 +16,7 @@ Technitium DNS Server is an open source authoritative as well as recursive DNS s
 - Authoritative and recursive DNS server
 - Built-in ad blocking (similar to Pi-hole)
 - DNS-over-TLS (DoT) and DNS-over-HTTPS (DoH) support
+- Optional upstream DNS over Tor
 - Web-based management interface
 - Custom DNS zones and conditional forwarding
 
@@ -92,6 +93,75 @@ Settings in the UI (use after initial deployment):
 - Logging -> Enable Logging To -> Both File and Console (output logs to Kubernetes as well, check with `./scripts/logs.sh technitium`)
 - Settings -> General -> Enable DNSSEC validation (disable when errors show up in the logs)
 - Administration -> SSO Providers (same as [SSO](#sso) below)
+
+## Tor DNS
+
+`technitium:network/tor` sends Technitium's upstream DNS through a Tor DNS resolver. Clients still query Technitium normally, so local zones, caching, and blocking keep working.
+
+The resolver and protocol are configurable and default to Cloudflare's [hidden resolver](https://developers.cloudflare.com/1.1.1.1/additional-options/dns-over-tor/) over DNS-over-HTTPS. DNS-over-TLS is not usable for the onion address because Cloudflare's DoT certificate does not cover the `.onion` name.
+
+```sh
+pulumi config set technitium:network/tor true
+# Defaults; change these only when using another onion resolver.
+pulumi config set technitium:torResolver https://dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion/dns-query
+pulumi config set technitium:torResolverProtocol Https
+pulumi up
+```
+
+Technitium reaches the resolver through its global SOCKS5 proxy. The proxy is stored in Technitium's config and has no Pulumi setting, so configure it once in **Settings -> Proxy & Forwarders**:
+
+```text
+Proxy Type:      Socks5
+Proxy Address:   127.0.0.1
+Proxy Port:      9050
+Forwarders:      https://dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion/dns-query
+Protocol:        Https
+```
+
+On a fresh volume, the forwarder and protocol come from the environment; upstream DNS fails until the proxy is set. On an existing volume, environment variables are ignored: set the proxy and forwarder in the UI. When disabling Tor, clear the proxy, remove the fallback, and restore the previous forwarder.
+
+### Clearnet fallback
+
+To keep DNS working when Tor fails, add a clearnet fallback after the onion:
+
+```text
+Forwarders:
+  1. https://dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion/dns-query
+  2. https://dns.nextdns.io/<nextdns_id>
+
+Protocol:                     Https
+Enable Concurrent Forwarding: off
+Client Timeout:               10000 ms
+Forwarder Timeout:            5000 ms
+Forwarder Retries:            1
+Proxy Bypass:                 dns.nextdns.io
+```
+
+Keep the onion first. With concurrent forwarding off, the fallback is queried only when the onion fails. Bypassing the fallback makes it leave Tor, so the fallback provider sees the client IP and queries when used; without the bypass it also stays on Tor but cannot help when Tor itself is down. Add only the fallback hostname to the bypass list, not the onion.
+
+Client Timeout lives in **Settings -> General -> Advanced Options**. The default 2000 ms is shorter than a cold Tor/DoH lookup, so clients can receive SERVFAIL before the first answer is cached. Keep Client Timeout above Forwarder Timeout, and lower Forwarder Retries so the fallback can answer within the client timeout.
+
+The fallback URL uses the NextDNS profile ID, not the DoT hostname. For example, a DoT endpoint of `<prefix>-<nextdns_id>.dns.nextdns.io` uses `https://dns.nextdns.io/<nextdns_id>` for DoH.
+
+The fallback, bypass, and forwarding options live in Technitium's config and are set in the UI; Pulumi sets only the primary resolver and protocol on a fresh volume.
+
+The proxy is global. Blocklist downloads and SSO metadata/token requests also go through Tor unless their hosts are in the bypass list. For SSO, add `login.<domain>` if needed.
+
+Unset `technitium:podNameservers` for strict Tor DNS. Those resolvers are a clearnet fallback that CoreDNS uses when Technitium is unavailable. Without a resolver fallback or `podNameservers`, DNS fails when Tor is unavailable.
+
+Cloudflare's hidden resolver is experimental and adds latency.
+
+The Tor image defaults to `orangelab:tor/image`; override it for this app with:
+
+```sh
+pulumi config set technitium:tor/image docker.io/dockurr/tor:0.4.9.14
+```
+
+Check the Tor client with:
+
+```sh
+kubectl -n technitium logs deploy/technitium -c tor
+```
 
 ## SSO
 

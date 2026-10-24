@@ -123,6 +123,12 @@ config:
     # set to empty to use root servers recursion
     technitium:DNS_SERVER_FORWARDERS: '1.1.1.1'
     technitium:DNS_SERVER_FORWARDER_PROTOCOL: 'Udp' # Udp, Tcp, Tls, Https, HttpsJson
+    # Route upstream DNS through a Tor DNS resolver.
+    # Set the SOCKS5 proxy 127.0.0.1:9050 (and forwarder on existing volumes) in the UI.
+    technitium:network/tor: false
+    # Tor DNS resolver and protocol. Defaults to Cloudflare's hidden resolver.
+    technitium:torResolver: 'https://dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion/dns-query'
+    technitium:torResolverProtocol: 'Https'
     # technitium:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     technitium:auth/allowedGroups: admin,technitium-admin
