@@ -39,23 +39,29 @@ export class BitcoinCore extends pulumi.ComponentResource {
                     debug: this.app.debug,
                     debugExclude,
                     externalIp: networking.conf.externalIp,
+                    i2pAcceptIncoming: networking.conf.i2pAcceptIncoming,
+                    i2pSam: networking.conf.i2pSam,
                     listen: networking.conf.listen,
                     listenOnion: networking.conf.listenOnion,
                     maxConnections,
+                    onlynet: networking.conf.onlynet,
                     prune: this.prune,
                     rpcUsers: this.args.rpcUsers,
-                    torOnly: networking.conf.torOnly,
                     torProxy: networking.conf.torProxy,
                     useRpcAuthFile: false,
                 }),
                 ...(networking.torSidecar ? { torrc: networking.torSidecar.torrc } : {}),
+                ...(networking.i2pSidecar
+                    ? { 'i2pd.conf': networking.i2pSidecar.i2pdConf }
+                    : {}),
             },
         });
 
-        if (networking.torSidecar) {
-            for (const volume of networking.torSidecar.volumes) {
-                this.app.addEmptyVolume(volume);
-            }
+        for (const volume of [
+            ...(networking.torSidecar?.volumes ?? []),
+            ...(networking.i2pSidecar?.volumes ?? []),
+        ]) {
+            this.app.addEmptyVolume(volume);
         }
 
         this.createDeployment(networking);
@@ -74,11 +80,16 @@ export class BitcoinCore extends pulumi.ComponentResource {
             ports.push({
                 name: 'p2p',
                 port: 8333,
-                private: networking.conf.torOnly,
+                private: networking.conf.privateP2p,
                 protocol: 'tcp',
                 public: true,
             });
         }
+
+        const sidecars = [
+            ...(networking.torSidecar ? [networking.torSidecar.sidecar] : []),
+            ...(networking.i2pSidecar ? [networking.i2pSidecar.sidecar] : []),
+        ];
 
         this.app.addDeployment({
             command: command ? command.split(' ') : undefined,
@@ -98,6 +109,7 @@ export class BitcoinCore extends pulumi.ComponentResource {
                     ],
                 },
                 ...(networking.torSidecar?.initContainers ?? []),
+                ...(networking.i2pSidecar?.initContainers ?? []),
             ],
             ports,
             resources: {
@@ -105,7 +117,7 @@ export class BitcoinCore extends pulumi.ComponentResource {
                 limits: { cpu: '2000m', memory: '12Gi' },
             },
             runAsUser,
-            sidecars: networking.torSidecar ? [networking.torSidecar.sidecar] : undefined,
+            sidecars: sidecars.length > 0 ? sidecars : undefined,
             volumeMounts: [
                 { mountPath: volumePath },
                 ...(networking.torSidecar?.mainVolumeMounts ?? []),

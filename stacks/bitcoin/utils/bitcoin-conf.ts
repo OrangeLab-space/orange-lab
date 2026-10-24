@@ -25,8 +25,10 @@ function create({
     useRpcAuthFile,
     listen,
     listenOnion,
-    torOnly,
     torProxy,
+    i2pSam,
+    i2pAcceptIncoming,
+    onlynet,
 }: {
     prune: number;
     debug?: boolean;
@@ -37,14 +39,19 @@ function create({
     useRpcAuthFile: boolean;
     listen: boolean;
     listenOnion: boolean;
-    torOnly: boolean;
     torProxy?: string;
+    i2pSam?: string;
+    i2pAcceptIncoming: boolean;
+    onlynet: string[];
 }): pulumi.Output<string> {
     if (listenOnion && !listen) {
         throw new Error('listenonion requires listen=true');
     }
-    if (torOnly && !torProxy) {
-        throw new Error('tor-only mode requires a Tor SOCKS proxy');
+    if (onlynet.includes('onion') && !torProxy) {
+        throw new Error('onion-only networking requires a Tor SOCKS proxy');
+    }
+    if (onlynet.includes('i2p') && !i2pSam) {
+        throw new Error('I2P-only networking requires an I2P SAM proxy');
     }
 
     const debugExcludeLines = debugExclude
@@ -60,15 +67,18 @@ function create({
         ? pulumi.output('rpcauthfile=/conf/rpc.conf')
         : createRpc(rpcUsers, useRpcAuthFile);
 
-    const proxy = torProxy ?? '127.0.0.1:9050';
-    const torLines = [
+    const privacyLines = [
         `listenonion=${listenOnion ? '1' : '0'}`,
         ...(listenOnion ? ['torcontrol=127.0.0.1:9051'] : []),
-        ...(torOnly
-            ? [`proxy=${proxy}`, 'onlynet=onion']
-            : torProxy
-              ? [`onion=${torProxy}`]
-              : []),
+        ...(torProxy
+            ? onlynet.length > 0
+                ? [`proxy=${torProxy}`]
+                : [`onion=${torProxy}`]
+            : []),
+        ...(i2pSam
+            ? [`i2psam=${i2pSam}`, `i2pacceptincoming=${i2pAcceptIncoming ? '1' : '0'}`]
+            : []),
+        ...onlynet.map(network => `onlynet=${network}`),
     ].join('\n');
 
     return pulumi.interpolate`
@@ -78,7 +88,7 @@ ${debug ? 'debug=all' : ''}
 ${debugExcludeLines}
 disablewallet=1
 listen=${listen ? '1' : '0'}
-${torLines}
+${privacyLines}
 maxconnections=${maxConnections.toString()}
 nodebuglogfile=1
 printtoconsole=1

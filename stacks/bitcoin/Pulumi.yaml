@@ -14,6 +14,8 @@ config:
     # longhorn:backupAllVolumes: false # read from the core stack by default
     # Global Tor sidecar image - apps can override with <app>:tor/image
     orangelab:tor/image: docker.io/dockurr/tor:0.4.9.14
+    # Global I2P sidecar image - apps can override with <app>:i2p/image
+    orangelab:i2p/image: docker.io/purplei2p/i2pd:release-3.0.0.1
 
     # Default RPC users that will be created (comma-separated)
     bitcoin:rpcUsers: admin,electrs,mempool
@@ -27,6 +29,8 @@ config:
     bitcoin-core:listen: true
     # Tor sidecar: onion P2P. Requires listen=true and runAsUser. See bitcoin-core.md.
     bitcoin-core:network/tor: false
+    # I2P sidecar: I2P P2P. Requires listen=true for inbound. See bitcoin-core.md.
+    bitcoin-core:network/i2p: false
     # Required when network/public=true, ignored otherwise. Must be an IP, not .onion.
     # bitcoin-core:externalip: <public-ip>
     bitcoin-core:maxconnections: 20
@@ -52,6 +56,8 @@ config:
     bitcoin-knots:listen: true
     # Tor sidecar: onion P2P. Requires listen=true and runAsUser. See bitcoin-knots.md.
     bitcoin-knots:network/tor: false
+    # I2P sidecar: I2P P2P. Requires listen=true for inbound. See bitcoin-knots.md.
+    bitcoin-knots:network/i2p: false
     # Required when network/public=true, ignored otherwise. Must be an IP, not .onion.
     # bitcoin-knots:externalip: <public-ip>
     bitcoin-knots:maxconnections: 20

@@ -13,13 +13,9 @@ export {
     REDIS_RESOURCES,
 } from './resources';
 export { createPassword } from './secrets';
+export { createI2pSidecar, getI2pImage, I2pSidecar, I2pSidecarArgs } from './i2p';
 export { Smtp } from './smtp';
-export {
-    createTorSidecar,
-    getTorImage,
-    TorSidecar,
-    TorSidecarArgs,
-} from './tor';
+export { createTorSidecar, getTorImage, TorSidecar, TorSidecarArgs } from './tor';
 export { requireOutput } from './utils';
 export {
     ConfigVolumeSpec,

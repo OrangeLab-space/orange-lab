@@ -37,7 +37,7 @@ if [[ -z "$POD" ]]; then
     exit 1
 fi
 
-# The main container is first; the Tor sidecar, when present, is second.
+# The main container is first; anonymity sidecars (Tor/I2P) follow.
 DATADIR=$(kubectl -n "$APP" get pod "$POD" \
     -o jsonpath='{.spec.containers[0].env[?(@.name=="BITCOIN_DATA")].value}' 2>/dev/null || true)
 DATADIR="${DATADIR:-/data}"
