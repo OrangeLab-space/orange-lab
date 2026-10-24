@@ -16,7 +16,7 @@ pulumi config set bitcoin-core:image btcpayserver/bitcoin:29.2
 
 # Optional configuration
 pulumi config set bitcoin-core:commandArgs "bitcoind -datadir=/data -maxuploadtarget=500"
-# Set to external IP of your router. Port forwarding needs to be setup for port 8333
+# Required only with network/public=true. Port forwarding needs to be setup for port 8333.
 pulumi config set bitcoin-core:externalip <public-ip>
 # Increase number of peer connections (default 20)
 pulumi config set bitcoin-core:maxconnections 50
@@ -27,6 +27,84 @@ pulumi config set bitcoin-core:prune 1000  # Prune mode (MB), 0 for full node wi
 pulumi config set bitcoin-core:commandArgs "bitcoind -datadir=/data -reindex"
 
 pulumi up
+```
+
+## P2P exposure
+
+`listen=true` is the default: the node accepts inbound P2P. Electrs and Mempool
+need it. Four combinations are supported:
+
+| Case             | Settings                                                                            | Result                                            |
+| ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Clearnet private | `listen=true`, `network/public=false`, `network/tor=false`                          | Default. Clearnet sync; private P2P LB; no onion. |
+| Clearnet public  | `listen=true`, `network/public=true`, `network/tor=false`, `externalip=<public-ip>` | Public P2P on `18333`; no onion.                  |
+| Clearnet + Tor   | `listen=true`, `network/public=true`, `network/tor=true`, `externalip=<public-ip>`  | Public clearnet + onion; `.onion` via Tor.        |
+| Tor-only         | `listen=true`, `network/public=false`, `network/tor=true`, `runAsUser=<uid>`        | Onion inbound; Tor-only outbound; no P2P LB.      |
+
+`externalip` is required only with `network/public=true`, and must be a
+clearnet IPv4/IPv6 address. It is ignored otherwise. The onion address is added
+automatically by Bitcoin; never set `externalip` to the onion.
+
+For the public cases, publish the P2P port and set `externalip` to the address
+peers use. See
+[Public services](../../../../docs/public-services.md#tcp-and-udp-ports) for
+router and VPS forwarding.
+
+### Tor-only
+
+Tor-only assumes the node already synced on clearnet and has onion peers in
+`peers.dat`. With `onlynet=onion`, Bitcoin disables DNS seeding because the
+built-in seeds are clearnet, so a fresh node cannot bootstrap in Tor-only mode.
+
+Recommended sequence:
+
+1. Sync on clearnet (the default private case).
+2. Switch to Tor-only:
+
+```sh
+pulumi config set bitcoin-core:listen true
+pulumi config set bitcoin-core:network/public false
+pulumi config set bitcoin-core:network/tor true
+# Use the UID that owns /data and keep volumeOwnerUserId in sync.
+pulumi config set bitcoin-core:runAsUser 999
+pulumi config set bitcoin-core:volumeOwnerUserId 999
+pulumi up
+```
+
+With `network/tor=true`, the node creates an onion service for P2P
+(`listenonion=1`), sends outbound traffic through `proxy=127.0.0.1:9050`, and
+restricts automatic outbound connections to `.onion` peers with
+`onlynet=onion`. The P2P port stays on the ClusterIP for Electrs, without a
+LoadBalancer.
+
+Read the onion address after the first Tor deployment:
+
+```sh
+cd stacks/bitcoin
+./scripts/bitcoin-cli.sh getnetworkinfo
+```
+
+The address is in `localaddresses`. Bitcoin stores the private key in
+`/data/onion_v3_private_key`; back up `/data` to keep the same address.
+
+`runAsUser` is required with `network/tor=true`: Bitcoin and the Tor sidecar
+must share the UID so Bitcoin can read the Tor control cookie. Use the same UID
+as `volumeOwnerUserId`. If `/data` is already owned by another UID, use that
+UID or set `fixVolumePermissions: '-R'` for the first deployment so the volume
+is chowned recursively.
+
+`listen=false` is an advanced outbound-only override. It cannot be combined
+with `network/tor=true` and is incompatible with Electrs/Mempool.
+
+### Tor image
+
+The sidecar uses `orangelab:tor/image` from `Pulumi.yaml`. Override it for the
+stack, or per node:
+
+```sh
+pulumi config set orangelab:tor/image docker.io/dockurr/tor:0.4.9.14
+# or
+pulumi config set bitcoin-core:tor/image docker.io/dockurr/tor:0.4.9.14
 ```
 
 ## Custom images

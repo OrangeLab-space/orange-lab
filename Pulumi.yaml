@@ -32,6 +32,9 @@ config:
 
     ### Network ###
 
+    # Global Tor sidecar image - apps can override with <app>:tor/image
+    orangelab:tor/image: docker.io/dockurr/tor:0.4.9.14
+
     tailscale:enabled: false
     # tailscale:tailnet: <*.ts.net>
     # tailscale:oauthClientId: OAUTH_CLIENT_ID

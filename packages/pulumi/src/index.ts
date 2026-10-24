@@ -14,6 +14,12 @@ export {
 } from './resources';
 export { createPassword } from './secrets';
 export { Smtp } from './smtp';
+export {
+    createTorSidecar,
+    getTorImage,
+    TorSidecar,
+    TorSidecarArgs,
+} from './tor';
 export { requireOutput } from './utils';
 export {
     ConfigVolumeSpec,
@@ -34,6 +40,7 @@ export {
     RoutingProviderArgs,
     S3Provisioner,
     ServicePort,
+    SidecarSpec,
     SmtpSecurity,
     SmtpSettings,
     SmtpSettingsDisabled,

@@ -1,6 +1,10 @@
-import { Application, config } from '@orangelab/pulumi';
+import { Application, config, ServicePort } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { BitcoinConf } from '../../utils/bitcoin-conf';
+import {
+    BitcoinNetworking,
+    resolveBitcoinNetworking,
+} from '../../utils/bitcoin-networking';
 import { RpcUser } from '../../utils/rpc-user';
 
 export interface BitcoinCoreArgs {
@@ -20,30 +24,44 @@ export class BitcoinCore extends pulumi.ComponentResource {
 
         this.prune = config.requireNumber(name, 'prune');
         const debugExclude = config.require(name, 'debugexclude');
-        const externalIp = config.get(name, 'externalip');
         const maxConnections = config.requireNumber(name, 'maxconnections');
 
         this.app = new Application(this, name);
+        const networking = resolveBitcoinNetworking(
+            name,
+            this.app.network.publiclyExposed,
+        );
 
         this.app.addStorage().addConfigVolume({
             name: 'config',
             files: {
                 'bitcoin.conf': BitcoinConf.create({
-                    prune: this.prune,
                     debug: this.app.debug,
                     debugExclude,
-                    externalIp,
+                    externalIp: networking.conf.externalIp,
+                    listen: networking.conf.listen,
+                    listenOnion: networking.conf.listenOnion,
                     maxConnections,
+                    prune: this.prune,
                     rpcUsers: this.args.rpcUsers,
+                    torOnly: networking.conf.torOnly,
+                    torProxy: networking.conf.torProxy,
                     useRpcAuthFile: false,
                 }),
+                ...(networking.torSidecar ? { torrc: networking.torSidecar.torrc } : {}),
             },
         });
 
-        this.createDeployment();
+        if (networking.torSidecar) {
+            for (const volume of networking.torSidecar.volumes) {
+                this.app.addEmptyVolume(volume);
+            }
+        }
+
+        this.createDeployment(networking);
     }
 
-    private createDeployment() {
+    private createDeployment(networking: BitcoinNetworking) {
         const command = config.get(this.name, 'command');
         const commandArgs = config.get(this.name, 'commandArgs') ?? '';
         const image = config.require(this.name, 'image');
@@ -51,18 +69,21 @@ export class BitcoinCore extends pulumi.ComponentResource {
         const volumeOwnerUserId = config.getNumber(this.name, 'volumeOwnerUserId');
         const volumePath = config.require(this.name, 'volumePath');
 
+        const ports: ServicePort[] = [{ name: 'rpc', port: 8332, protocol: 'tcp' }];
+        if (networking.conf.listen) {
+            ports.push({
+                name: 'p2p',
+                port: 8333,
+                private: networking.conf.torOnly,
+                protocol: 'tcp',
+                public: true,
+            });
+        }
+
         this.app.addDeployment({
-            resources: {
-                requests: { cpu: '600m', memory: '4Gi' },
-                limits: { cpu: '2000m', memory: '12Gi' },
-            },
-            image,
-            ports: [
-                { name: 'rpc', port: 8332, protocol: 'tcp' },
-                { name: 'p2p', port: 8333, protocol: 'tcp' },
-            ],
             command: command ? command.split(' ') : undefined,
             commandArgs: commandArgs.split(' ').filter(Boolean),
+            image,
             initContainers: [
                 {
                     name: 'copy-config',
@@ -76,10 +97,20 @@ export class BitcoinCore extends pulumi.ComponentResource {
                         { mountPath: volumePath },
                     ],
                 },
+                ...(networking.torSidecar?.initContainers ?? []),
             ],
+            ports,
+            resources: {
+                requests: { cpu: '600m', memory: '4Gi' },
+                limits: { cpu: '2000m', memory: '12Gi' },
+            },
             runAsUser,
+            sidecars: networking.torSidecar ? [networking.torSidecar.sidecar] : undefined,
+            volumeMounts: [
+                { mountPath: volumePath },
+                ...(networking.torSidecar?.mainVolumeMounts ?? []),
+            ],
             volumeOwnerUserId,
-            volumeMounts: [{ mountPath: volumePath }],
         });
     }
 }

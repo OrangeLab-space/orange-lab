@@ -23,6 +23,10 @@ function create({
     maxConnections,
     rpcUsers,
     useRpcAuthFile,
+    listen,
+    listenOnion,
+    torOnly,
+    torProxy,
 }: {
     prune: number;
     debug?: boolean;
@@ -31,7 +35,18 @@ function create({
     maxConnections: number;
     rpcUsers: Record<string, RpcUser>;
     useRpcAuthFile: boolean;
+    listen: boolean;
+    listenOnion: boolean;
+    torOnly: boolean;
+    torProxy?: string;
 }): pulumi.Output<string> {
+    if (listenOnion && !listen) {
+        throw new Error('listenonion requires listen=true');
+    }
+    if (torOnly && !torProxy) {
+        throw new Error('tor-only mode requires a Tor SOCKS proxy');
+    }
+
     const debugExcludeLines = debugExclude
         .split(',')
         .map(value => value.trim())
@@ -45,14 +60,25 @@ function create({
         ? pulumi.output('rpcauthfile=/conf/rpc.conf')
         : createRpc(rpcUsers, useRpcAuthFile);
 
+    const proxy = torProxy ?? '127.0.0.1:9050';
+    const torLines = [
+        `listenonion=${listenOnion ? '1' : '0'}`,
+        ...(listenOnion ? ['torcontrol=127.0.0.1:9051'] : []),
+        ...(torOnly
+            ? [`proxy=${proxy}`, 'onlynet=onion']
+            : torProxy
+              ? [`onion=${torProxy}`]
+              : []),
+    ].join('\n');
+
     return pulumi.interpolate`
 ${prune > 0 ? `prune=${prune.toString()}` : 'txindex=1'}
 ${externalIp ? `externalip=${externalIp}` : ''}
 ${debug ? 'debug=all' : ''}
 ${debugExcludeLines}
 disablewallet=1
-listen=1
-listenonion=0
+listen=${listen ? '1' : '0'}
+${torLines}
 maxconnections=${maxConnections.toString()}
 nodebuglogfile=1
 printtoconsole=1

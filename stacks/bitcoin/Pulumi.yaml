@@ -12,6 +12,8 @@ config:
     mariadb-operator:enabled: false
     cloudnative-pg:enabled: false
     # longhorn:backupAllVolumes: false # read from the core stack by default
+    # Global Tor sidecar image - apps can override with <app>:tor/image
+    orangelab:tor/image: docker.io/dockurr/tor:0.4.9.14
 
     # Default RPC users that will be created (comma-separated)
     bitcoin:rpcUsers: admin,electrs,mempool
@@ -21,6 +23,11 @@ config:
     bitcoin-core:hostname: bitcoin
     bitcoin-core:storageSize: 1000Gi
     bitcoin-core:storageClass: longhorn-large
+    # Inbound P2P. Keep true when Electrs/Mempool are enabled.
+    bitcoin-core:listen: true
+    # Tor sidecar: onion P2P. Requires listen=true and runAsUser. See bitcoin-core.md.
+    bitcoin-core:network/tor: false
+    # Required when network/public=true, ignored otherwise. Must be an IP, not .onion.
     # bitcoin-core:externalip: <public-ip>
     bitcoin-core:maxconnections: 20
     bitcoin-core:prune: 0
@@ -30,6 +37,7 @@ config:
     bitcoin-core:commandArgs: bitcoind -datadir=/data
     bitcoin-core:volumePath: /data
     # (Optional) Override image ENTRYPOINT and set container user; required for non-btcpayserver images
+    # Required (non-root) when bitcoin-core:network/tor=true, so Bitcoin and Tor share the control cookie.
     # bitcoin-core:command: bitcoind
     # bitcoin-core:runAsUser: 1000
     # bitcoin-core:volumeOwnerUserId: 1000
@@ -40,6 +48,11 @@ config:
     bitcoin-knots:storageSize: 1000Gi
     bitcoin-knots:storageClass: longhorn-large
     bitcoin-knots:prune: 0
+    # Inbound P2P. Keep true when Electrs/Mempool are enabled.
+    bitcoin-knots:listen: true
+    # Tor sidecar: onion P2P. Requires listen=true and runAsUser. See bitcoin-knots.md.
+    bitcoin-knots:network/tor: false
+    # Required when network/public=true, ignored otherwise. Must be an IP, not .onion.
     # bitcoin-knots:externalip: <public-ip>
     bitcoin-knots:maxconnections: 20
     bitcoin-knots:debug: false
@@ -48,6 +61,7 @@ config:
     bitcoin-knots:commandArgs: -datadir=/data
     bitcoin-knots:volumePath: /data
     # (Optional) Override image ENTRYPOINT and container user
+    # Required (non-root) when bitcoin-knots:network/tor=true, so Bitcoin and Tor share the control cookie.
     # bitcoin-knots:command: bitcoind
     # bitcoin-knots:runAsUser: 999
     # bitcoin-knots:volumeOwnerUserId: 999

@@ -11,6 +11,7 @@ import {
     GpuType,
     HealthCheck,
     ServicePort,
+    SidecarSpec,
     VolumeMount,
 } from './types';
 
@@ -45,9 +46,14 @@ export class Containers {
             (spec.name
                 ? config.require(this.appName, `${spec.name}/image`)
                 : config.require(this.appName, 'image'));
+        const sidecars = spec.sidecars ?? [];
         const volumeMounts = this.createVolumeMounts(spec.volumeMounts, gpu);
+        const sidecarVolumeMounts = sidecars.flatMap(sidecar =>
+            this.createVolumeMounts(sidecar.volumeMounts),
+        );
         const volumeNames = [
             ...volumeMounts.map(mount => mount.name),
+            ...sidecarVolumeMounts.map(mount => mount.name),
             ...this.initContainers.getVolumeNames(spec),
         ];
         const volumes = this.createVolumes(volumeNames, gpu);
@@ -83,6 +89,7 @@ export class Containers {
                         }),
                         volumeMounts,
                     },
+                    ...sidecars.map(sidecar => this.createSidecarContainer(sidecar)),
                 ],
                 dnsPolicy: spec.hostNetwork ? 'ClusterFirstWithHostNet' : undefined,
                 hostNetwork: spec.hostNetwork,
@@ -116,6 +123,51 @@ export class Containers {
             context.runAsGroup = runAsUser;
         }
         return Object.keys(context).length ? context : undefined;
+    }
+
+    private createSidecarContainer(
+        sidecar: SidecarSpec,
+    ): kubernetes.types.input.core.v1.Container {
+        return {
+            name: sidecar.name,
+            image: sidecar.image,
+            command: sidecar.command,
+            args: sidecar.commandArgs
+                ? pulumi
+                      .output(sidecar.commandArgs)
+                      .apply(args => args.filter(Boolean))
+                : undefined,
+            env: this.createSidecarEnv(sidecar.env),
+            envFrom: this.createEnvSecret({
+                containerName: sidecar.name,
+                secretData: sidecar.envSecret,
+            }),
+            resources: sidecar.resources,
+            securityContext: this.createSidecarSecurityContext(
+                sidecar.runAsUser,
+                sidecar.runAsGroup,
+            ),
+            volumeMounts: this.createVolumeMounts(sidecar.volumeMounts),
+        };
+    }
+
+    private createSidecarEnv(
+        env?: Record<string, pulumi.Input<string> | undefined>,
+    ): { name: string; value: pulumi.Input<string> }[] | undefined {
+        if (!env) return undefined;
+        const entries: { name: string; value: pulumi.Input<string> }[] = [];
+        for (const [name, value] of Object.entries(env)) {
+            if (value !== undefined) entries.push({ name, value });
+        }
+        return entries.length ? entries : undefined;
+    }
+
+    private createSidecarSecurityContext(
+        runAsUser?: number,
+        runAsGroup?: number,
+    ): kubernetes.types.input.core.v1.SecurityContext | undefined {
+        if (runAsUser === undefined) return undefined;
+        return { runAsUser, runAsGroup: runAsGroup ?? runAsUser };
     }
 
     private createPorts(ports: ServicePort[] = []) {

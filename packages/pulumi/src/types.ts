@@ -128,6 +128,30 @@ export interface ContainerSpec {
     runAsUser?: number;
     volumeOwnerUserId?: number;
     restartPolicy?: string;
+    /**
+     * Additional containers that share the pod's network namespace. They are
+     * not given a Service, so they are only reachable from the main container
+     * or from outside through a port they expose themselves.
+     */
+    sidecars?: SidecarSpec[];
+}
+
+/**
+ * A container running alongside the application container in the same pod.
+ * Use it for helpers that must reach the application over localhost, such as a
+ * Tor client that terminates onion connections to the app.
+ */
+export interface SidecarSpec {
+    name: string;
+    image: pulumi.Input<string>;
+    command?: pulumi.Input<string[]>;
+    commandArgs?: pulumi.Input<string[]>;
+    env?: Record<string, pulumi.Input<string> | undefined>;
+    envSecret?: Record<string, pulumi.Input<string> | undefined>;
+    volumeMounts?: VolumeMount[];
+    resources?: ContainerResources;
+    runAsUser?: number;
+    runAsGroup?: number;
 }
 
 /**
