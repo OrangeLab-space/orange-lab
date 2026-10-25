@@ -312,6 +312,17 @@ export class Longhorn extends pulumi.ComponentResource {
             bucket: bucketName,
         });
         const secretName = `${this.name}-${s3Provisioner.instanceName}-backup`;
+        // `data` rather than `stringData`: stringData is write-only (merged into
+        // `data` on write, never returned on read), so the provider cannot
+        // verify it and a credential change would need a replacement.
+        const data = pulumi.all([accessKey, secretKey, s3EndpointUrl]).apply(
+            ([accessKey, secretKey, endpoint]) => ({
+                AWS_ACCESS_KEY_ID: Buffer.from(accessKey).toString('base64'),
+                AWS_SECRET_ACCESS_KEY: Buffer.from(secretKey).toString('base64'),
+                AWS_ENDPOINTS: Buffer.from(endpoint).toString('base64'),
+                VIRTUAL_HOSTED_STYLE: Buffer.from('false').toString('base64'),
+            }),
+        );
         return new kubernetes.core.v1.Secret(
             `${secretName}-secret`,
             {
@@ -319,14 +330,9 @@ export class Longhorn extends pulumi.ComponentResource {
                     name: secretName,
                     namespace: this.app.metadata.namespace,
                 },
-                stringData: {
-                    AWS_ACCESS_KEY_ID: accessKey,
-                    AWS_SECRET_ACCESS_KEY: secretKey,
-                    AWS_ENDPOINTS: s3EndpointUrl,
-                    VIRTUAL_HOSTED_STYLE: 'false',
-                },
+                data,
             },
-            { parent: this },
+            { parent: this, deleteBeforeReplace: true },
         );
     }
 
