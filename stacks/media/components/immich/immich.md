@@ -90,7 +90,7 @@ pulumi config set immich:smtp/enabled true
 pulumi config set immich:smtp/host smtp.example.com
 pulumi config set immich:smtp/port 587
 pulumi config set immich:smtp/secure starttls # none | starttls | smtps
-pulumi config set immich:smtp/from "OrangeLab Immich <admin@orangelab.space>"
+pulumi config set immich:smtp/from "OrangeLab Immich <admin@example.com>"
 pulumi config set immich:smtp/username admin@example.com
 pulumi config set immich:smtp/password <smtp-password> --secret
 pulumi up

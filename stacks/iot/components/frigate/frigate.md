@@ -53,9 +53,9 @@ frigate:config:
         front_door:
             ffmpeg:
                 inputs:
-                    - path: rtsp://viewer:cam-password@10.0.10.10:554/main
+                    - path: rtsp://viewer:cam-password@<camera-ip>:554/main
                       roles: [record, audio]
-                    - path: rtsp://viewer:cam-password@10.0.10.10:554/sub
+                    - path: rtsp://viewer:cam-password@<camera-ip>:554/sub
                       roles: [detect]
     record:
         enabled: true

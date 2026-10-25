@@ -23,7 +23,7 @@ pulumi config set electrs:image getumbrel/electrs:v0.11.1
 pulumi up
 ```
 
-Once indexing finishes, use `electrs:50001` (Tailscale) or `tls://electrs.orangelab.space:3443` (Traefik) to connect your wallets.
+Once indexing finishes, use `electrs:50001` (Tailscale) or `tls://electrs.<domain>:3443` (Traefik) to connect your wallets.
 
 ---
 

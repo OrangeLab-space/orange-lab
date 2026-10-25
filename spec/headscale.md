@@ -109,8 +109,8 @@ running the script.
 
 **`baseDomain` defaults to `vpn.internal`, and must stay outside
 `customDomain`.** The mesh namespace and the app namespace have to be disjoint.
-When `baseDomain` sits *inside* the app domain — `vpn.orangelab.space` under a
-`*.orangelab.space` wildcard — that one wildcard answers for every node name and
+When `baseDomain` sits *inside* the app domain — `vpn.<domain>` under a
+`*.<domain>` wildcard — that one wildcard answers for every node name and
 every pod DNS lookup, because kubelet resolves short names against the search
 domain first (`options ndots:5`). Symptoms are silent: `ssh` lands on the
 address the wildcard returns, and pods resolve public names to an internal
