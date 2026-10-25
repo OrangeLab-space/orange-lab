@@ -36,16 +36,21 @@ Open project in VSCode. It will install the required dependencies and recommende
 
 ### Backend
 
-Pulumi backend is used to store current state of your infrastructure. The easiest option is to create _Pulumi Cloud_ account (free).
+The backend stores stack state, history and encrypted secrets. Three options are
+supported — see [Pulumi backend and state](./pulumi.md) for setup, failure modes
+and migrating between them:
 
-More info at https://www.pulumi.com/docs/iac/concepts/state-and-backends/
+| Backend          | Depends on               | Notes                                              |
+| ---------------- | ------------------------ | -------------------------------------------------- |
+| Pulumi Cloud     | Pulumi account, internet | Default, easiest; no backups to manage             |
+| Local filesystem | nothing                  | No external dependency; you must back up the state |
+| RustFS (S3)      | the cluster              | No Pulumi dependency; only once RustFS is deployed |
 
-Once you have an account, create access token at https://app.pulumi.com/account/tokens
-
-Next step is to login:
+Pulumi Cloud is the quickest start. Create an account (free) and an access token
+at https://app.pulumi.com/account/tokens, then log in:
 
 ```sh
-# Login to Pulumi cloud. Used to store stack state.
+# Login to Pulumi Cloud. Used to store stack state.
 pulumi login
 ```
 

@@ -19,16 +19,17 @@ Configure it in each module stack before deploying applications that depend on
 core outputs:
 
 ```sh
-# From the core stack directory, list the stack and its Pulumi Cloud URL
+# From the core stack directory, print the fully-qualified stack name
 cd /
-pulumi stack ls
-# Use the organization/project/stack path from the URL column
-# Example URL: https://app.pulumi.com/example-org/orangelab/lab
+pulumi stack ls -Q
+# Pulumi Cloud: example-org/orangelab/lab
+# local or RustFS: organization/orangelab/lab
+# Ignore the trailing * that marks the current stack
 
 cd stacks/<module>
 
 # Use the value printed above
-pulumi config set orangelab:coreStackRef example-org/orangelab/lab
+pulumi config set orangelab:coreStackRef <stack-ref>
 ```
 
 The referenced core stack must be deployed first. For example, applications
