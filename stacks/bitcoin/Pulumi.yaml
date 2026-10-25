@@ -33,7 +33,7 @@ config:
     bitcoin-core:network/i2p: false
     # Required when network/public=true, ignored otherwise. Must be an IP, not .onion.
     # bitcoin-core:externalip: <public-ip>
-    bitcoin-core:maxconnections: 20
+    bitcoin-core:maxconnections: 50
     bitcoin-core:prune: 0
     bitcoin-core:debug: false
     bitcoin-core:debugexclude: addrman,bench,estimatefee,leveldb,libevent,mempool,net,txpackages,validation
@@ -60,7 +60,7 @@ config:
     bitcoin-knots:network/i2p: false
     # Required when network/public=true, ignored otherwise. Must be an IP, not .onion.
     # bitcoin-knots:externalip: <public-ip>
-    bitcoin-knots:maxconnections: 20
+    bitcoin-knots:maxconnections: 50
     bitcoin-knots:debug: false
     bitcoin-knots:debugexclude: addrman,bench,estimatefee,leveldb,libevent,mempool,net,txpackages,validation
     bitcoin-knots:image: ghcr.io/retropex/bitcoin:29.3.knots20260507@sha256:366a8d1a939b002291a134aee6e03d1a10379f8dead646f8d30b296b88ee8380
