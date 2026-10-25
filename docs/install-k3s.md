@@ -35,6 +35,11 @@ The server should also create two files:
 - `/var/lib/rancher/k3s/server/token` - server token, needed by agents to connect
 - `/etc/rancher/k3s/k3s.yaml` - kubeconfig file, copy to your `~/.kube/config`
 
+> **Headscale**: before the first reboot, install the boot guard on the server —
+> `./scripts/k3s-node-ip-guard-install.sh k3s` — and paste the output there. Use
+> `k3s-agent` on agent nodes. Not needed with Tailscale's coordination server.
+> See [Headscale](../components/network/headscale/headscale.md#server-reboots).
+
 ## Save server configuration
 
 Add the tailscale IP of the server to Pulumi configuration:

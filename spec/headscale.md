@@ -79,14 +79,14 @@ offline. Note the trade: pinning means the control plane cannot be recovered
 from the node it is pinned to, so make sure that node is the most stable one
 available.
 
-**K3s must be able to start without a netmap.** The control-plane node runs k3s
-with `--node-ip` on the mesh interface, but tailscaled only assigns that address
-after Headscale answers — and Headscale runs in the cluster k3s starts.
-`scripts/k3s-server-headscale.sh` installs a systemd drop-in that supplies the
-address before every k3s start. The base k3s installer does not, because a
-cluster using Tailscale's coordination server gets its address back on its own.
-See [Boot order](#boot-order), including the second startup dependency that
-hides behind it.
+**K3s must be able to start without a netmap.** Nodes run k3s with `--node-ip` on
+the mesh interface, but tailscaled only assigns that address after Headscale
+answers — and Headscale runs in the cluster k3s starts.
+`scripts/k3s-node-ip-guard-install.sh k3s` installs a systemd drop-in that
+supplies the address before every k3s start; use `k3s-agent` on the other nodes.
+The base installers do not, because a cluster using Tailscale's coordination
+server gets its address back on its own. See [Boot order](#boot-order), including
+the second startup dependency that hides behind it.
 
 ## Configuration that shapes generated config
 
@@ -180,10 +180,11 @@ systemctl restart k3s
 ```
 
 Tailscaled adopts the same address when the netmap arrives, leaving one address
-on the interface rather than two. `scripts/k3s-server-headscale.sh` installs a
-systemd drop-in that does this before every k3s start; the base k3s installer
-deliberately does not, because only a self-hosted control plane blocks its own
-boot. A node without the drop-in needs it added after the recovery above.
+on the interface rather than two. `scripts/k3s-node-ip-guard-install.sh k3s`
+installs a systemd drop-in that does this before every k3s start (`k3s-agent` on
+the other nodes); the base installers deliberately do not, because only a
+self-hosted control plane blocks its own boot. A node without the drop-in needs
+it added after the recovery above.
 
 **A second startup dependency hides behind the first.** With `headscale:auth`
 configured, Headscale reads the issuer's discovery document before it serves

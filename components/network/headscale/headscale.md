@@ -123,12 +123,12 @@ mesh-only, on its own hostname.
 
 ## Server reboots
 
-The node running Headscale has to start K3s before the mesh exists, while the
-mesh address K3s needs only arrives once Headscale answers — which needs K3s.
-Run `./scripts/k3s-server-headscale.sh` where Pulumi is configured and paste the
-output on that node: it installs a systemd drop-in that adds the address before
-every K3s start. With Tailscale's coordination server this is not needed — the
-address is back before the cluster starts.
+The K3s server has to start before Headscale can be scheduled, while the mesh
+address K3s needs only arrives once Headscale answers — which needs K3s. Run
+`./scripts/k3s-node-ip-guard-install.sh k3s` from the repo and paste the output
+on the server (`k3s-agent` on other nodes): it installs a systemd drop-in that
+adds the address before every K3s start. With Tailscale's coordination server
+this is not needed — the address is back before the cluster starts.
 
 Recover a boot that is already stuck with:
 
