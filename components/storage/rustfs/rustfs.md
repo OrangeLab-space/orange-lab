@@ -7,7 +7,7 @@
 | Documentation     | https://docs.rustfs.com/en/security-compliance/oidc                            |
 | Docker image      | https://hub.docker.com/r/rustfs/rustfs                                         |
 | Docker image (rc) | https://hub.docker.com/r/rustfs/rc                                             |
-| Endpoints         | `https://rustfs.<domain>/` (console) <br> `https://rustfs-api.<domain>/` (api) |
+| Endpoints         | `https://rustfs.<domain>/` (console) <br> `https://s3.<domain>/` (api) |
 
 Rustfs is a distributed object storage system compatible with Amazon S3, implemented in Rust.
 
@@ -53,11 +53,11 @@ pulumi config set rustfs:fixVolumePermissions "-Rv"
 RustFS provides the `rc` CLI tool for S3 operations:
 
 ```sh
-# Create "rustfs" alias pointing to Rustfs server
+# Create "rustfs" alias pointing at the S3 API (port 9000), not the console
 export ACCESS_KEY=$(pulumi config get rustfs:rootUser)
 export SECRET_KEY=$(pulumi stack output system --show-secrets | jq .storage.apps.rustfs.users.admin -r)
 
-rc alias set rustfs https://rustfs.<domain> $ACCESS_KEY $SECRET_KEY
+rc alias set rustfs https://s3.<domain> $ACCESS_KEY $SECRET_KEY
 
 # Test connection
 rc ls rustfs

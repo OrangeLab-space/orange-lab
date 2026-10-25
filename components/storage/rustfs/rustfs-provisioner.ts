@@ -7,6 +7,9 @@ export interface RustfsProvisionerArgs {
     metadata: Metadata;
     rootUser: pulumi.Input<string>;
     rootPassword: pulumi.Input<string>;
+    /** Console endpoint: serves the admin API used to create users, buckets and policies. */
+    adminEndpointUrl: pulumi.Input<string>;
+    /** S3 API endpoint: handed to consumers such as Longhorn, not used by the job itself. */
     s3EndpointUrl: pulumi.Input<string>;
 }
 
@@ -129,7 +132,7 @@ export class RustfsProvisioner extends pulumi.ComponentResource implements S3Pro
 
     private createScript(username: string, bucket: string): pulumi.Output<string> {
         const policyName = `${username}-policy`;
-        const connectCmd = pulumi.interpolate`rc alias set ${this.name} "${this.args.s3EndpointUrl}" "${this.args.rootUser}" "$ROOT_PASSWORD" --insecure`;
+        const connectCmd = pulumi.interpolate`rc alias set ${this.name} "${this.args.adminEndpointUrl}" "${this.args.rootUser}" "$ROOT_PASSWORD" --insecure`;
 
         const commands = [
             `rc admin user add ${this.name} ${username} "$USER_PASSWORD"`,

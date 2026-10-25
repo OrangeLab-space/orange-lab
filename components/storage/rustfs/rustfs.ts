@@ -45,7 +45,8 @@ export class Rustfs extends pulumi.ComponentResource {
                 metadata: this.app.metadata,
                 rootUser: this.rootUser,
                 rootPassword: this.users[this.rootUser],
-                s3EndpointUrl: this.app.network.clusterEndpoints[`${this.name}-console`],
+                adminEndpointUrl: this.app.network.clusterEndpoints[`${this.name}-console`],
+                s3EndpointUrl: this.app.network.clusterEndpoints[`${this.name}-api`],
             },
             { parent: this },
         );

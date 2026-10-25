@@ -224,7 +224,7 @@ config:
 
     rustfs:enabled: false
     rustfs:hostname: rustfs
-    rustfs:hostname-api: rustfs-api
+    rustfs:hostname-api: s3
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     rustfs:auth/allowedGroups: admin,rustfs-admin,rustfs-users
     # rustfs:dataPath: /mnt/my-drive/rustfs-data
