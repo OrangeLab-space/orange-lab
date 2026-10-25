@@ -63,6 +63,19 @@ rc alias set rustfs https://rustfs.<domain> $ACCESS_KEY $SECRET_KEY
 rc ls rustfs
 ```
 
+## Buckets and users
+
+`scripts/rustfs-provision.sh` creates a bucket, a user and a policy that lets
+the user manage that bucket. Run it with a root `rc` alias; it writes the
+credentials to a 600 env file and leaves existing resources alone:
+
+```sh
+./scripts/rustfs-provision.sh --user my-app --bucket my-bucket
+```
+
+Use `--check` to verify an existing bucket, user, policy and attachment without
+changing anything.
+
 ## OpenID Connect (Pocket ID)
 
 OIDC is optional. Console SSO matches users by email (`preferred_username`/`email`). Root login stays as fallback.

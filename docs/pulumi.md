@@ -206,58 +206,35 @@ is the only option with no Pulumi or other third-party dependency.
 ### Prerequisites
 
 - RustFS deployed and reachable from the admin node over the tailnet
-  (`https://rustfs-api.<domain>`, S3 port 9000). The API is not published to the
+  (`https://s3.<domain>`, S3 port 9000). The API is not published to the
   internet while `rustfs:network/public` stays unset.
 - A dedicated bucket and S3 user for Pulumi state.
 - The same passphrase setup as the [local backend](#passphrase).
 
 ### One-time setup
 
-Use `rc` with the RustFS root credentials, against the API endpoint (bucket and
-object operations are not served by the console hostname):
+Use `rc` with the RustFS root credentials against the S3 API endpoint (not the
+console hostname). Then let the repository's provisioning script create the
+bucket, user and a bucket-scoped policy; it writes the credentials to a 600
+file and does not print the password.
 
 ```sh
-# One-time alias with the root credentials
-rc alias set rustfs-api https://rustfs-api.<domain> <root-user> <root-password>
+# One-time root alias (skip if it already exists)
+rc alias set rustfs https://s3.<domain> <root-user> <root-password>
 
-# Store the generated password in your password manager
-PASSWORD=$(openssl rand -base64 32)
-rc bucket create rustfs-api/pulumi-state
-rc admin user add rustfs-api pulumi-state "$PASSWORD"
+./scripts/rustfs-provision.sh --user pulumi --bucket pulumi-state \
+  --output ~/.config/pulumi/state.env
 
-cat > /tmp/pulumi-policy.json <<'EOF'
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": ["s3:ListBucket"],
-            "Resource": ["arn:aws:s3:::pulumi-state"]
-        },
-        {
-            "Effect": "Allow",
-            "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-            "Resource": ["arn:aws:s3:::pulumi-state/*"]
-        }
-    ]
-}
-EOF
+# For the current shell; add the same source line to ~/.bashrc.d/pulumi
+. ~/.config/pulumi/state.env
 
-rc admin policy create rustfs-api pulumi-state-policy /tmp/pulumi-policy.json
-rc admin policy attach rustfs-api pulumi-state-policy --user pulumi-state
+pulumi login 's3://pulumi-state?endpoint=s3.<domain>&s3ForcePathStyle=true&region=us-east-1'
 ```
 
-The CLI talks to the S3 API with those credentials (keep them out of the repo):
-
-```sh
-export AWS_ACCESS_KEY_ID=pulumi-state
-export AWS_SECRET_ACCESS_KEY=<generated password>
-
-pulumi login 's3://pulumi-state?endpoint=rustfs-api.<domain>&s3ForcePathStyle=true&region=us-east-1'
-```
-
-The CLI creates the `.pulumi/` prefix on first use; stacks, history and locks
-live under it.
+The script creates bucket `pulumi-state`, user `pulumi` and policy
+`pulumi-policy`. The env file is a secret: keep it out of the repo, back it up
+in your password manager, and do not commit it. The CLI creates the `.pulumi/`
+prefix on first use; stacks, history and locks live under it.
 
 ### Chicken-and-egg
 
@@ -460,39 +437,19 @@ dotfiles). The archive itself is safe to store off-machine.
 Create a dedicated bucket and user, separate from the state bucket:
 
 ```sh
-BACKUP_PASSWORD=$(openssl rand -base64 32)   # store in your password manager
-rc bucket create rustfs-api/pulumi-backup
-rc admin user add rustfs-api pulumi-backup "$BACKUP_PASSWORD"
+./scripts/rustfs-provision.sh --user pulumi-backup --bucket pulumi-backup \
+  --output ~/.config/rustfs/pulumi-backup.env
 
-cat > /tmp/pulumi-backup-policy.json <<'EOF'
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": ["s3:ListBucket"],
-            "Resource": ["arn:aws:s3:::pulumi-backup"]
-        },
-        {
-            "Effect": "Allow",
-            "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-            "Resource": ["arn:aws:s3:::pulumi-backup/*"]
-        }
-    ]
-}
-EOF
-
-rc admin policy create rustfs-api pulumi-backup-policy /tmp/pulumi-backup-policy.json
-rc admin policy attach rustfs-api pulumi-backup-policy --user pulumi-backup
-
+. ~/.config/rustfs/pulumi-backup.env
 # Alias the backup script uses; it stores this credential in the rc config
-rc alias set pulumi-backup https://rustfs-api.<domain> pulumi-backup "$BACKUP_PASSWORD"
+rc alias set pulumi-backup https://s3.<domain> \
+  "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY"
 ```
 
 Schedule it from cron (non-interactive, so pass the environment explicitly):
 
 ```sh
-0 3 * * * cd "$HOME/dev/orange-lab" && PULUMI_CONFIG_PASSPHRASE_FILE="$HOME/.config/pulumi/passphrase" ./scripts/pulumi-state-backup.sh >>"$HOME/pulumi-state-backup.log" 2>&1
+0 3 * * * cd "$HOME/dev/orange-lab" && . "$HOME/.config/pulumi/state.env" && PULUMI_CONFIG_PASSPHRASE_FILE="$HOME/.config/pulumi/passphrase" ./scripts/pulumi-state-backup.sh >>"$HOME/pulumi-state-backup.log" 2>&1
 ```
 
 One archive is about 1 MB. Prune old ones with `rc object remove` (or a bucket
