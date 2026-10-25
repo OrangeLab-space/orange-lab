@@ -37,8 +37,16 @@ export class Longhorn extends pulumi.ComponentResource {
         let backupTarget: string | undefined = undefined;
         let backupTargetCredentialSecret: pulumi.Output<string> | undefined = undefined;
         if (backupEnabled && args.s3Provisioner) {
-            const bucketName = config.require(name, 'backupBucket');
-            backupTarget = `s3://${bucketName}@lab/`;
+            backupTarget = config.require(name, 'backupTarget');
+            // Longhorn's URL is s3://<bucket>@<region>/[<path>/]; the bucket is
+            // also what the provisioner creates and grants the user access to.
+            const bucketMatch = /^s3:\/\/([^@/]+)@/.exec(backupTarget);
+            if (!bucketMatch) {
+                throw new Error(
+                    `Longhorn: invalid longhorn:backupTarget '${backupTarget}'. Expected s3://<bucket>@<region>/[<path>/].`,
+                );
+            }
+            const bucketName = bucketMatch[1];
             const backupSecret = this.createBackupSecret(bucketName, args.s3Provisioner);
             backupTargetCredentialSecret = backupSecret.metadata.name;
         }
@@ -100,6 +108,10 @@ export class Longhorn extends pulumi.ComponentResource {
                     autoCleanupSnapshotWhenDeleteBackup: 'true',
                     autoCleanupSystemGeneratedSnapshot: 'true',
                     backupConcurrentLimit: '2',
+                    backupExecutionTimeout: config.require(
+                        this.name,
+                        'backupExecutionTimeout',
+                    ),
                     concurrentReplicaRebuildPerNodeLimit: config.require(
                         'longhorn',
                         'concurrentReplicaRebuildPerNodeLimit',

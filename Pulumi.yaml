@@ -207,13 +207,16 @@ config:
     longhorn:trimEnabled: true
     longhorn:trimCron: '0 0 * * 0' # once a week on Sunday at midnight
     longhorn:backupEnabled: false
-    longhorn:backupBucket: backup-longhorn
+    # Longhorn backup target: s3://<bucket>@<region>/[<path>/]
+    longhorn:backupTarget: s3://backup-longhorn@lab/
     longhorn:backupCron: '15 0 * * *' # daily at 0:15
-    longhorn:backupRetain: 10
+    longhorn:backupRetain: 7
+    # Minutes Longhorn allows the system-backup listing to take
+    longhorn:backupExecutionTimeout: '10'
     # Enable backups for all volumes. Apps opt in/out with <app>:storage/backupEnabled: true/false.
     longhorn:backupAllVolumes: false
     # Full backup every x incremental backups, use 0 for incremental only
-    longhorn:backupFullInterval: '14'
+    longhorn:backupFullInterval: '7'
     # Set to "least-effort" or "best-effort" to move replicas when nodes become unavailable
     longhorn:replicaAutoBalance: disabled
     # Set to "best-effort" to create a local replica on the pod's node

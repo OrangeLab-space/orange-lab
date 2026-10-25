@@ -6,7 +6,7 @@ Longhorn jobs:
 
 - **Snapshots**: Taken hourly for all volumes (configurable with `longhorn:snapshotCron`)
 - **Incremental Backups**: Run daily at 00:15 (configurable with `longhorn:backupCron`)
-- **Retention**: `longhorn:snapshotRetain` and `longhorn:backupRetain` (default 10)
+- **Retention**: `longhorn:snapshotRetain` and `longhorn:backupRetain` (default 7)
 - If a volume has no changes since the last backup, no data is transferred
 
 **Note:** Snapshots are disabled by default to save storage space. You can enable them with `longhorn:snapshotEnabled` to be able to revert storage to previous state. It's recommneded however to enable daily backups instead as a snapshot is also taked during backup operation.
@@ -16,8 +16,10 @@ Longhorn jobs:
 Make sure RustFS is installed and functioning before enabling backups. See [RustFS installation instructions](/components/storage/rustfs/rustfs.md) for details.
 
 ```sh
-# S3 bucket that will be used for backups. Default: backup-longhorn
-pulumi config set longhorn:backupBucket backup-longhorn
+# Backup target: s3://<bucket>@<region>/[<path>/]. Default:
+# s3://backup-longhorn@lab/. The bucket is created by the RustFS provisioner
+# together with the user and policy.
+pulumi config set longhorn:backupTarget 's3://backup-longhorn@lab/v2/'
 
 # Enable backup functionality in Longhorn. RustFS has to be running.
 pulumi config set longhorn:backupEnabled true

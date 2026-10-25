@@ -132,9 +132,9 @@ class Config {
         if (this.get('longhorn', 'backupAccessKeySecret')) {
             console.warn('longhorn:backupAccessKeySecret is deprecated.');
         }
-        if (this.get('longhorn', 'backupTarget')) {
+        if (this.get('longhorn', 'backupBucket')) {
             console.warn(
-                'longhorn:backupTarget is deprecated. Use longhorn:backupBucket instead.',
+                'longhorn:backupBucket is deprecated. Use longhorn:backupTarget instead.',
             );
         }
         if (this.get('longhorn', 'backupBucketCreate')) {
