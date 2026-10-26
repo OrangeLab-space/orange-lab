@@ -161,14 +161,13 @@ export class Prometheus extends pulumi.ComponentResource {
                         },
                     },
                     kubeApiServer: { enabled: true },
-                    kubeControllerManager: {
-                        enabled: true,
-                        serviceMonitor: { https: false },
-                    },
+                    // k3s runs the control plane in-process and binds these
+                    // metrics to localhost, so the scrape targets never exist.
+                    kubeControllerManager: { enabled: false },
                     kubeDns: { enabled: false },
                     kubeEtcd: { enabled: false },
-                    kubeProxy: { enabled: true, serviceMonitor: { https: false } },
-                    kubeScheduler: { serviceMonitor: { https: false } },
+                    kubeProxy: { enabled: false },
+                    kubeScheduler: { enabled: false },
                     kubeStateMetrics: { enabled: true },
                     kubelet: {
                         enabled: true,
@@ -185,8 +184,6 @@ export class Prometheus extends pulumi.ComponentResource {
                         },
                         prometheusSpec: {
                             affinity: this.nodes.getAffinity(),
-                            hostNetwork: true,
-                            dnsPolicy: 'ClusterFirstWithHostNet',
                             podMonitorSelectorNilUsesHelmValues: false,
                             probeSelectorNilUsesHelmValues: false,
                             ruleSelectorNilUsesHelmValues: false,
