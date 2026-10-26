@@ -7,6 +7,7 @@ import {
 } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
+import { createAlertmanagerEmail } from './alertmanager-email';
 
 export interface PrometheusArgs {
     oidc?: OidcProviderSettings;
@@ -60,6 +61,10 @@ export class Prometheus extends pulumi.ComponentResource {
                     alertmanager: {
                         enabled: true,
                         alertmanagerSpec: {
+                            // Otherwise the operator scopes AlertmanagerConfig
+                            // routes to their namespace, so the catch-all email
+                            // route would miss cluster-wide alerts.
+                            alertmanagerConfigMatcherStrategy: { type: 'None' },
                             affinity: this.nodes.getAffinity(),
                             resources: {
                                 requests: { cpu: '50m', memory: '128Mi' },
@@ -92,7 +97,8 @@ export class Prometheus extends pulumi.ComponentResource {
                         ...(this.app.oidc
                             ? {
                                   envRenderSecret: {
-                                      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: this.app.oidc.clientSecret,
+                                      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+                                          this.app.oidc.clientSecret,
                                   },
                               }
                             : {}),
@@ -121,9 +127,9 @@ export class Prometheus extends pulumi.ComponentResource {
                                       },
                                       'auth.generic_oauth': {
                                           allow_sign_up: 'true',
-                                           api_url: pulumi.interpolate`${oidcIssuer}/api/oidc/userinfo`,
-                                           auth_url: pulumi.interpolate`${oidcIssuer}/authorize`,
-                                           client_id: this.app.oidc.clientId,
+                                          api_url: pulumi.interpolate`${oidcIssuer}/api/oidc/userinfo`,
+                                          auth_url: pulumi.interpolate`${oidcIssuer}/authorize`,
+                                          client_id: this.app.oidc.clientId,
                                           client_secret:
                                               '$__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}',
                                           email_attribute_name: 'email:primary',
@@ -140,7 +146,7 @@ export class Prometheus extends pulumi.ComponentResource {
                                               ),
                                           scopes: 'openid email profile groups',
                                           skip_org_role_sync: 'false',
-                                           token_url: pulumi.interpolate`${oidcIssuer}/api/oidc/token`,
+                                          token_url: pulumi.interpolate`${oidcIssuer}/api/oidc/token`,
                                           use_pkce: 'true',
                                       },
                                   }
@@ -215,6 +221,17 @@ export class Prometheus extends pulumi.ComponentResource {
             { dependsOn: this.app.storage },
         );
 
+        if (config.getBoolean(name, 'smtp/enabled') ?? false) {
+            const smtp = this.app.smtp.getSettings();
+            assert(smtp.enabled);
+            createAlertmanagerEmail({
+                name,
+                namespace: this.app.metadata.namespace,
+                parent: this,
+                smtp,
+            });
+        }
+
         // The chart brings its own Ingress objects, so the automatic port
         // handling never sees these three hostnames.
         this.app.network.addEndpoint('alertmanager', alertManagerHttpEndpoint.url);
@@ -230,13 +247,16 @@ export class Prometheus extends pulumi.ComponentResource {
         return {
             spec: {
                 storageClassName: storage.getStorageClass(componentName),
-                resources: { requests: { storage: storage.getStorageSize(componentName) } },
+                resources: {
+                    requests: { storage: storage.getStorageSize(componentName) },
+                },
                 ...(!isDynamic
                     ? {
                           selector: {
                               matchLabels: {
                                   'app.kubernetes.io/name': 'prometheus',
-                                  'app.kubernetes.io/component': componentName ?? 'default',
+                                  'app.kubernetes.io/component':
+                                      componentName ?? 'default',
                               },
                           },
                       }

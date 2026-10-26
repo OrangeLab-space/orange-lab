@@ -266,6 +266,15 @@ config:
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     prometheus:auth/allowedGroups: admin,prometheus-admin
     prometheus:alertmanager/hostname: alertmanager
+    # Email alerts, disabled until smtp/enabled is true. Port 465 uses
+    # implicit TLS; otherwise secure is none or starttls.
+    # prometheus:smtp/enabled: true
+    # prometheus:smtp/host: smtp.example.com
+    # prometheus:smtp/port: 587
+    # prometheus:smtp/secure: starttls
+    # prometheus:smtp/username: alerts@example.com
+    # prometheus:smtp/from: alerts@example.com
+    # prometheus:alertmanager/emailTo: you@example.com
     prometheus:grafana/hostname: grafana
     prometheus:storageSize: 100Gi
     prometheus:alertmanager/storageSize: 5Gi
