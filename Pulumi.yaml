@@ -18,6 +18,10 @@ config:
     k3s:clusterCidr: 10.42.0.0/16
     k3s:serviceCidr: 10.43.0.0/16
 
+    # IPv4 range used by the tailnet. Tailscale always allocates from this
+    # CGNAT range; Headscale uses the same default. Change only to match a
+    # custom Headscale prefix.
+    orangelab:tailnetCidr: 100.64.0.0/10
     orangelab:routingProvider: tailscale # tailscale | traefik
     # Custom domain supported by Traefik provider only.
     # Note: add A record for "*" pointing to one of your Tailscale IPs

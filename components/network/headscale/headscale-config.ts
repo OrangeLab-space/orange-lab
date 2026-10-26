@@ -27,8 +27,8 @@ interface OidcSettings {
 const NOISE_SECTION = `noise:
   private_key_path: /var/lib/headscale/noise_private.key`;
 
-const PREFIXES_SECTION = `prefixes:
-  v4: 100.64.0.0/10
+const PREFIXES_SECTION = (tailnetCidr: string) => `prefixes:
+  v4: ${tailnetCidr}
   v6: fd7a:115c:a1e0::/48
   allocation: sequential`;
 
@@ -41,6 +41,7 @@ const DATABASE_SECTION = `database:
 export function createHeadscaleConfig({
     serverUrl,
     trustedProxyCidr,
+    tailnetCidr,
     baseDomain,
     logLevel,
     derp,
@@ -49,6 +50,7 @@ export function createHeadscaleConfig({
 }: {
     serverUrl: string;
     trustedProxyCidr: string;
+    tailnetCidr: string;
     baseDomain: string;
     logLevel: string;
     derp: DerpSettings;
@@ -59,7 +61,7 @@ export function createHeadscaleConfig({
         createServerSection(serverUrl),
         createTrustedProxiesSection(trustedProxyCidr),
         NOISE_SECTION,
-        PREFIXES_SECTION,
+        PREFIXES_SECTION(tailnetCidr),
         createDerpSection(derp),
         DATABASE_SECTION,
         createLogSection(logLevel),

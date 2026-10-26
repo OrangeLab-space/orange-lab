@@ -152,9 +152,7 @@ export class Headscale extends pulumi.ComponentResource {
                     config.require('orangelab', 'customDomain'),
                     config.get('headplane', 'hostname') ?? 'headplane',
                 ])
-                .apply(
-                    ([domain, label]) => `https://${label}.${domain}/admin`,
-                );
+                .apply(([domain, label]) => `https://${label}.${domain}/admin`);
 
             this.app.network.createHttpRedirect({
                 path: '/admin',
@@ -183,6 +181,7 @@ export class Headscale extends pulumi.ComponentResource {
             createHeadscaleConfig({
                 serverUrl: url,
                 trustedProxyCidr: config.require('k3s', 'clusterCidr'),
+                tailnetCidr: config.require('orangelab', 'tailnetCidr'),
                 baseDomain: config.require(this.name, 'baseDomain'),
                 logLevel: this.app.debug ? 'debug' : 'info',
                 derp: this.derp,
