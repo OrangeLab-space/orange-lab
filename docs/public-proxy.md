@@ -59,8 +59,8 @@ optional exit node is separate. Keep media services on the tailnet.
 - One or more cluster nodes running the Traefik public gateway on `10443`
   (the ServiceLB nodes).
 - DNS access and provider firewall access.
-- Decide: node name (`proxy` or `proxy-<location>`), tag (`tag:proxy`, plus
-  `tag:orangelab` if used), and whether to enable an exit node.
+- Decide: node name (`proxy` or `proxy-<location>`), `tag:proxy` only, and
+  whether to enable an exit node.
 - IPv4 is the default. IPv6 is optional and only after an external check.
 
 ## What your agent will do
@@ -125,6 +125,13 @@ A public TCP port is published at `<port> + 10000`; the proxy forwards the
 public port to that offset. Raw TCP has no SNI or host filter, so only add ports
 that are meant to be public. Never forward a database, RPC, admin, or metrics
 port.
+
+With Headscale, the proxy's tailnet access is restricted to `10443`, the public
+offsets on the ServiceLB nodes, and the Technitium resolver on `53`. Add each
+forwarded port to
+[`headscale-policy.hujson`](../components/network/headscale/headscale-policy.hujson)
+and reapply it with `set-policy.sh`, or the forward times out. See
+[Headscale → Proxy and node access](../components/network/headscale/headscale.md#proxy-and-node-access).
 
 ### 4. Verify
 

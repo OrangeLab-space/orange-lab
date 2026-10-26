@@ -84,10 +84,9 @@ Ask the user for, and verify where possible:
    to the VPS.
 6. Control-plane auth after detection: for Headscale, mint a single-use tagged
    pre-auth key with `tag:proxy`; for Tailscale, ask the user to create or
-   provide a tagged auth key. Add `tag:orangelab` when the installation uses a
-   shared tag. Tailscale requires every selected tag (`tag:proxy`, and
-   `tag:orangelab` if used) in `tagOwners` first. Use `--user <numeric-id>` only
-   for a Headscale key that explicitly needs a personal owner.
+   provide a tagged auth key. Tailscale requires `tag:proxy` in `tagOwners`
+   first. Use `--user <numeric-id>` only for a Headscale key that explicitly
+   needs a personal owner.
 7. VPS/control-plane node name. Default `proxy`; `proxy-<location>` is a good
    choice if there are several proxies. This is the name for `ssh <user>@proxy`
    over the tailnet and the name shown in the exit-node list, not the VPS OS
@@ -317,15 +316,9 @@ Create a single-use tagged key without printing it:
 chmod 600 /tmp/opencode/proxy-authkey
 ```
 
-`tag:proxy` is the default identity. Add `tag:orangelab` for an
-installation-wide tag:
-
-```sh
-./components/network/headscale/exec-headscale.sh preauthkeys create \
-  --tags tag:proxy,tag:orangelab --expiration 1h \
-  > /tmp/opencode/proxy-authkey
-chmod 600 /tmp/opencode/proxy-authkey
-```
+`tag:proxy` is the only identity. Do not add a shared tag: the access policy
+scopes `tag:proxy` by port, and another tag would widen what the proxy can
+reach.
 
 A tags-only key needs no `--user`; the node is owned by `tagged-devices`, not a
 person. Use `--user <numeric-user-id>` only when the Headscale version cannot
@@ -335,12 +328,11 @@ OIDC sign-in or be created as a local Headscale user.
 
 ### Tailscale
 
-Define every selected tag in the tailnet policy's `tagOwners` first (`tag:proxy`,
-and `tag:orangelab` if used). Ask the user to generate a tagged auth key in the
-Tailscale admin console (Settings → Keys) and place it in
-`/tmp/opencode/proxy-authkey`, or use the Tailscale API. Set a short expiry and
-exclude it from shell history. Do not create a Headscale pre-auth key for a
-Tailscale tailnet.
+Define `tag:proxy` in the tailnet policy's `tagOwners` first. Ask the user to
+generate a tagged auth key in the Tailscale admin console (Settings → Keys) and
+place it in `/tmp/opencode/proxy-authkey`, or use the Tailscale API. Set a short
+expiry and exclude it from shell history. Do not create a Headscale pre-auth key
+for a Tailscale tailnet.
 
 ### Join and verify
 
@@ -683,7 +675,7 @@ VPS:            <ip>
 OS:             <ubuntu/debian/fedora> (tested)
 SSH:            <user>@<ip> (key)
 Control plane:  <Headscale or Tailscale>
-Node:           <name> (tailnet <ip>, tags: tag:proxy[, tag:orangelab])
+Node:           <name> (tailnet <ip>, tags: tag:proxy)
 Control pin:    <headscale-host> -> <home-ipv4> (Headscale only)
 HAProxy:        443 -> <upstream-a>, <upstream-b>
 TCP forwards:   <none | <public-port> -> <name>=<upstream-a>:<port+10000>, ...>
@@ -711,9 +703,8 @@ Stop and discuss when:
   and update the script instead of working around it on the host;
 - there is no key-based SSH access and no console fallback;
 - the VPS and the Traefik nodes would use different control planes;
-- Tailscale is selected but one of the selected tags (`tag:proxy`, or
-  `tag:orangelab` if requested) is not defined in `tagOwners`, or no tagged auth
-  key can be created;
+- Tailscale is selected but `tag:proxy` is not defined in `tagOwners`, or no
+  tagged auth key can be created;
 - Headscale is selected, the version cannot mint tagged pre-auth keys, and no
   Headscale user exists to own the key;
 - the Traefik public gateway is unreachable over the tailnet after checking the

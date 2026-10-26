@@ -118,12 +118,17 @@ public IP. See [Headscale](../components/network/headscale/headscale.md) for
 prerequisites and signing in, and [Public services](./public-services.md) for
 exposing the gateway with a router forward or a VPS proxy.
 
-Nodes register with a reusable preauth key rather than an interactive login,
-since a headless server has no browser:
+Nodes register with a reusable, tags-only preauth key rather than an interactive
+login, since a headless server has no browser:
 
 ```sh
+./components/network/headscale/exec-headscale.sh \
+    preauthkeys create --tags tag:cluster --reusable --expiration 24h
 tailscale up --login-server https://headscale.<customDomain> --authkey <key>
 ```
+
+The tag is what places the node under the cluster policy; a `--user` key makes
+the node personal and subject to key expiry.
 
 Then follow [Installation - K3s cluster](./install-k3s.md) to add cluster nodes.
 

@@ -116,21 +116,32 @@ exit-node list, not the VPS OS hostname. It is set with
 `nodes rename <new> --identifier <id>`, Tailscale uses the admin console. Route
 approvals are by node ID and survive the rename.
 
-**The proxy is a tagged service node.** Use `tag:proxy` by default; add
-`tag:orangelab` when the installation uses a shared tag. The node has a tag
-identity, not a personal owner; Headscale shows it under `tagged-devices`.
+**The proxy is a tagged service node.** Use `tag:proxy` only. The node has a
+tag identity, not a personal owner; Headscale shows it under `tagged-devices`.
+Do not add cluster or service tags: the policy grants `tag:proxy` its own
+port-scoped access, and a shared tag would widen that.
 
 - **Headscale:** mint a tags-only pre-auth key with `--tags tag:proxy`. In the
   tested v0.29.5, this needs no `tagOwners` entry for those tags; the key
   carries its own tag authorization. Use `--user <numeric-id>` only for a
   version that cannot mint tagged keys, or when personal ownership is
   explicitly wanted.
-- **Tailscale:** define every selected tag (`tag:proxy`, and `tag:orangelab` if
-  used) in `tagOwners` first, then create a tagged auth key in the admin console
-  or API. Prefer the key's tags; do not rely on `--advertise-tags` as a
-  substitute.
+- **Tailscale:** define `tag:proxy` in `tagOwners` first, then create a tagged
+  auth key in the admin console or API. Prefer the key's tags; do not rely on
+  `--advertise-tags` as a substitute.
 
-If a policy is added later, include the selected proxy tags in its access rules.
+**A Headscale policy must scope the proxy, not merely admit it.** The supplied
+[`headscale-policy.hujson`](../components/network/headscale/headscale-policy.hujson)
+grants `tag:proxy` only `tag:lb` on `tcp:10443`, the public `+10000` offsets, and
+53 for the Technitium resolver, so the proxy cannot reach private ports on
+cluster nodes. It also grants members `tcp:22` to `tag:proxy`, which is what
+keeps `ssh <user>@proxy` working over the tailnet; keep that in sync with the
+hardened SSH port. Add every new `--tcp-forward` upstream to the proxy grant;
+otherwise the forward times out once the policy exists. Exit-node use is a
+separate grant (`dst: autogroup:internet`, `via: tag:proxy`). A node re-joined
+with a user key becomes personal and falls outside the proxy grant. On
+Tailscale, define `tag:proxy` in `tagOwners` and add the same port-scoped grants
+to the tailnet policy.
 
 **Headscale control path must not depend on itself.** The VPS's `ControlURL`
 is normally `https://headscale.<domain>`. If that hostname resolves to the VPS,

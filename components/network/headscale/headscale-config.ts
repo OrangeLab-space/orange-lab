@@ -38,6 +38,13 @@ const DATABASE_SECTION = `database:
     path: /var/lib/headscale/db.sqlite
     write_ahead_log: true`;
 
+// The policy lives in the database rather than in a file: it can be replaced
+// without restarting the control plane, it is validated before it is stored,
+// and it is covered by the volume backup. An empty policy means allow-all;
+// set-policy.sh applies the repository's policy.
+const POLICY_SECTION = `policy:
+  mode: database`;
+
 export function createHeadscaleConfig({
     serverUrl,
     trustedProxyCidr,
@@ -64,6 +71,7 @@ export function createHeadscaleConfig({
         PREFIXES_SECTION(tailnetCidr),
         createDerpSection(derp),
         DATABASE_SECTION,
+        POLICY_SECTION,
         createLogSection(logLevel),
         createDnsSection(dns, baseDomain),
         oidc ? createOidcSection(oidc) : undefined,

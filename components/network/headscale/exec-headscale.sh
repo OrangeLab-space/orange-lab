@@ -10,6 +10,9 @@ set -euo pipefail
 #   ./components/network/headscale/exec-headscale.sh nodes list
 #   ./components/network/headscale/exec-headscale.sh preauthkeys create --reusable
 #
+# stdin is attached, so a policy can be piped in:
+#   ./components/network/headscale/exec-headscale.sh policy check -f /dev/stdin < policy.hujson
+#
 # The first argument is the Headscale subcommand; everything after it is passed
 # through untouched.
 #
@@ -59,4 +62,4 @@ if [[ -z "${pod}" ]]; then
     exit 1
 fi
 
-exec "${kubectl_cmd}" exec -n "${namespace}" "${pod}" -- headscale "$@"
+exec "${kubectl_cmd}" exec -i -n "${namespace}" "${pod}" -- headscale "$@"

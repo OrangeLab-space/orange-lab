@@ -1,0 +1,58 @@
+{
+  // Tailnet access policy, stored in Headscale's database by set-policy.sh.
+  //
+  // Identity model:
+  //   tag:cluster  every K3s node (joined with a tags-only preauth key)
+  //   tag:lb       the K3s nodes labelled svccontroller.k3s.cattle.io/enablelb=true
+  //   tag:proxy    the VPS public proxy
+  //   (untagged)   people's phones and laptops, covered by autogroup:member
+  //
+  // Empty owner lists mean only a tailnet admin can apply the tag. A tagged
+  // node is never treated as its user, so removing a tag needs re-registration.
+  "tagOwners": {
+    "tag:cluster": [],
+    "tag:lb": [],
+    "tag:proxy": []
+  },
+  "grants": [
+    // People keep their current reach: devices to each other, and to every
+    // private application served by Traefik on the cluster nodes.
+    { "src": ["autogroup:member"], "dst": ["autogroup:member"], "ip": ["*"] },
+    { "src": ["autogroup:member"], "dst": ["tag:cluster"], "ip": ["*"] },
+
+    // Cluster internals. This is load-bearing: Flannel's VXLAN (8472/udp),
+    // kubelet, the API server and Longhorn all cross the tailnet at
+    // 100.64.0.0/10. Narrow it only with a full inventory of node-to-node ports.
+    { "src": ["tag:cluster"], "dst": ["tag:cluster"], "ip": ["*"] },
+
+    // The proxy is an exit node with 0.0.0.0/0 and ::/0 approved. Members may
+    // use it; the proxy itself is not granted access to the internet.
+    {
+      "src": ["autogroup:member"],
+      "dst": ["autogroup:internet"],
+      "via": ["tag:proxy"],
+      "ip": ["*"]
+    },
+
+    // Operators manage the proxy over the tailnet (ssh <user>@proxy). This is
+    // inbound to the proxy, not part of its own reach. Use the hardened SSH
+    // port here if it is not 22.
+    { "src": ["autogroup:member"], "dst": ["tag:proxy"], "ip": ["tcp:22"] },
+
+    // The whole point: the proxy reaches the public gateway and public raw
+    // ports on the LB nodes, and nothing else. 10443 is Traefik's public
+    // listener; 18333 is Bitcoin's public P2P (8333 + 10000). Every added
+    // --tcp-forward needs its <port + 10000> here, or that forward fails.
+    //
+    // 53 is the Technitium resolver, which Headscale pushes to clients when
+    // overrideLocalDns is on. The VPS accepts MagicDNS by default, so without
+    // this its resolver stalls on the primary before falling back to the
+    // public one. Join the proxy with --accept-dns=false instead if you would
+    // rather not expose the resolver to it.
+    {
+      "src": ["tag:proxy"],
+      "dst": ["tag:lb"],
+      "ip": ["tcp:10443", "tcp:18333", "udp:53", "tcp:53"]
+    }
+  ]
+}

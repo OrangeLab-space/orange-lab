@@ -54,12 +54,14 @@ Tailscale routing provider would lose that function in the migration.
 ```sh
 ./components/network/headscale/exec-headscale.sh users list
 ./components/network/headscale/exec-headscale.sh \
-    preauthkeys create --user <user-id> --reusable --expiration 24h
+    preauthkeys create --tags tag:cluster --reusable --expiration 24h
 ```
 
-`--user` takes a numeric ID, not a username. Use `--reusable` so every node can
-share one key, and set an expiration so an abandoned migration does not leave a
-live credential behind.
+`--tags` makes every node join as a tagged cluster node, which is what the
+access policy expects. Use `--reusable` so every node can share one key, and set
+an expiration so an abandoned migration does not leave a live credential behind.
+A `--user <user-id>` key instead creates personal nodes: they work, but they fall
+outside the proxy policy and expire like any user device.
 
 Do this **first**: Headscale runs as a pod in the cluster being migrated, so it
 must be reachable before you stop anything.

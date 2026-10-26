@@ -159,6 +159,69 @@ else resolves through the wildcard to a mesh address. Those mesh names are plain
 DNS records sitting in the VPN range, not MagicDNS entries, so they resolve the
 same way from anywhere the address is reachable.
 
+## Proxy and node access
+
+With no policy, Headscale allows every tailnet device to reach every other device
+on every port. That includes the VPS public proxy, which could otherwise reach
+kubelet, Longhorn and private services on any node. The supplied policy gives
+the proxy only the public endpoints on the LB nodes.
+
+Access is expressed with tags, not users:
+
+| Tag           | Applied to                                                 |
+| ------------- | ---------------------------------------------------------- |
+| `tag:cluster` | every K3s node                                             |
+| `tag:lb`      | nodes labelled `svccontroller.k3s.cattle.io/enablelb=true` |
+| `tag:proxy`   | the VPS public proxy                                       |
+
+Phones and laptops stay untagged. Tagging them removes their user identity and
+key expiry; they remain covered by `autogroup:member`. The proxy carries only
+`tag:proxy`; giving it a cluster tag would grant it cluster-wide access.
+
+On a fresh deployment the tags are not declared yet, and `nodes tag` rejects
+them. Declare them once with an allow-all policy (this changes no access):
+
+```sh
+printf '{"tagOwners":{"tag:cluster":[],"tag:lb":[],"tag:proxy":[]}}\n' | \
+  ./components/network/headscale/exec-headscale.sh policy set -f /dev/stdin
+```
+
+Tag the existing nodes (addresses and keys do not change):
+
+```sh
+# every K3s node
+./components/network/headscale/exec-headscale.sh nodes tag -i <id> -t tag:cluster
+# additionally, on each ServiceLB node
+./components/network/headscale/exec-headscale.sh nodes tag -i <id> -t tag:cluster,tag:lb
+```
+
+Then validate and apply [`headscale-policy.hujson`](./headscale-policy.hujson):
+
+```sh
+./components/network/headscale/set-policy.sh --check
+./components/network/headscale/set-policy.sh
+```
+
+The policy grants people access to the cluster, cluster nodes access to each
+other (Flannel, kubelet, API, Longhorn), members use of the proxy as an exit
+node, and the proxy only `tcp:10443`, the public port offsets, and 53 for the
+Technitium resolver on the LB nodes. Tailnet SSH to the proxy
+(`ssh <user>@proxy`) stays allowed — inbound management is separate from the
+proxy's egress. Every `--tcp-forward` needs its `<port> + 10000` added to the
+proxy grant, or the forward times out. `set-policy.sh` rewrites the stored
+policy in place, with no restart; rollback to allow-all with:
+
+```sh
+printf '{}\n' | ./components/network/headscale/exec-headscale.sh policy set -f /dev/stdin
+```
+
+Two consequences worth planning for. A tagged node **never expires**, and it
+re-joins as personal unless it uses a tagged key: mint node keys with
+`preauthkeys create --tags tag:cluster`, never `--user`. The policy is also
+**global** — the member and cluster grants are what keep private apps and the
+cluster itself working, so narrow them only with a full inventory of the ports
+in use.
+
 ## DERP relay
 
 Headscale can relay node traffic when a direct path fails. It is **off by

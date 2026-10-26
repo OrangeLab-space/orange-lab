@@ -72,6 +72,27 @@ the noise key (its loss forces every node to re-authenticate) and the database
 (loss of all users, nodes, and pre-auth keys). Treat it like any other
 application volume and include it in backups.
 
+**Access is tag-based and the policy is global.** `policy.mode` is `database`,
+so the policy is stored in the volume-backed SQLite database and applied with
+`set-policy.sh`; there is no mounted policy file. Cluster nodes carry
+`tag:cluster`, ServiceLB nodes also `tag:lb`, and the proxy `tag:proxy`; phones
+and laptops stay untagged. A tagged node is never covered by
+`autogroup:member`, and a policy without member → cluster and cluster → cluster
+grants cuts off private apps or the cluster's own node-to-node traffic
+(Flannel over `tailscale0`, kubelet, API, Longhorn). The proxy grant is
+port-scoped to `tcp:10443`, the public `+10000` offsets, and 53 for the
+Technitium resolver, so a new public TCP port must be added to the policy as
+well as to HAProxy, or it times out.
+
+**A node's tag comes from its preauth key.** `preauthkeys create --tags
+tag:cluster` keeps the node tagged; a `--user` key makes it personal, so it
+falls under `autogroup:member` and outside the proxy policy. "Convert from
+personal to tagged" with `nodes tag` is for existing nodes only, and tagged
+nodes never expire — a deliberate trade for servers, not for people's devices.
+`nodes tag` accepts only tags declared in `tagOwners`, so a fresh install applies
+a tags-only allow-all policy first (`{"tagOwners":{...}}`), tags the nodes, then
+applies the real policy.
+
 **Pin the control plane with `headscale:requiredNodeLabel`.** The component
 takes a node selector, and the volume follows the pod. Without a pin the pod
 lands wherever the scheduler puts it, which may be a node you are about to take
