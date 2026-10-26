@@ -189,7 +189,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 
 - [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/OrangeLab-space/orange-lab) ↗ - AI generated documentation and good place to ask questions
 - [Installation - Admin node](./docs/install-admin.md) - Initial Pulumi and Tailscale setup
-- [Pulumi backend and state](./docs/pulumi.md) - Pulumi Cloud, local and RustFS state backends, and migrating between them
+- [Pulumi backend and state](./docs/pulumi.md) - Local (recommended) or Pulumi Cloud state backends, backups and switching
 - [Installation - Linux node configuration](./docs/install-linux.md) - Configure nodes (firewall, suspend settings)
 - [Installation - Alpine Linux](./docs/install-linux-alpine.md) - Node configuration for Alpine Linux
 - [Installation - Fedora Linux](./docs/install-linux-fedora.md) - Node configuration for plain Fedora

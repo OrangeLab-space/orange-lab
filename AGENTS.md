@@ -105,3 +105,4 @@ Agent-facing operating notes. Read as needed:
 - [`spec/longhorn.md`](spec/longhorn.md) — volume provisioning, failure behaviour, recovery
 - [`spec/pocket.md`](spec/pocket.md) — OIDC provider, group model, client scripts, onboarding new apps
 - [`spec/public-proxy.md`](spec/public-proxy.md) — VPS public proxy: passthrough invariants, OS support, DNS cutover, exit node, failure modes
+- [`spec/pulumi.md`](spec/pulumi.md) — backend choices, stack names, migration, state backup and restore
