@@ -30,6 +30,45 @@ Deleting a PVC does not delete data, but it does orphan the volume. Orphaned
 volumes still consume the full replica allocation on disk — `frigate-media`
 holds a 50 GB volume times its replica count whether or not Frigate is enabled.
 
+## Expanding a static volume
+
+A `fromVolume` volume is bound by name: the PV has `spec.volumeName` set, so
+Kubernetes never runs the resizer. Two consequences, both of which only appear
+when you try to grow one:
+
+- The PVC cannot be resized. The API server rejects the update with
+  `only dynamically provisioned pvc can be resized`: the StorageClass must also
+  support resize. Changing `storageSize` with the app running fails the deploy.
+- Patching the Longhorn volume while it is **attached** is rejected by
+  `mutator.longhorn.io`: the webhook looks up `longhorn-<volume>`, which does
+  not exist for static volumes. PV and PVC are matched by name, which is all
+  mounting needs, but the webhook still checks the SC for an attached volume.
+  Detached volumes skip the check.
+
+So the procedure is: disable the app (detach), patch `spec.size`, re-enable.
+Re-enabling creates a new PV/PVC at the configured `storageSize`; the data
+survives because the PV's reclaim policy is `Retain` and the Longhorn volume is
+independent of the claim.
+
+`spec.size` is bytes as a quoted number (`"268435456000"` for 250Gi), not
+`"250Gi"` — the CRD field is `int64` with a `,string` tag. The block device
+grows immediately; the filesystem is grown by the CSI while the volume is
+mounted, so `df` inside the pod is the proof. `dmesg` in the engine-image pod
+is not.
+
+Creating the `longhorn-<volume>` StorageClasses would allow online size patches
+and give the resizer a path, but it is not required for mounting. That is a
+separate change, not part of the resize procedure.
+
+## `strict-local` volumes are pinned to one node
+
+A volume with `dataLocality: strict-local` stores its only replica on the node
+in `spec.nodeID`. That node must also be the node the PV is pinned to
+(`<app>:requiredVolumeLabel`), or the replica is unschedulable and the pod stays
+in `FailedAttachVolume` with `volume ... detached state with some un-schedulable
+replicas`. Repin the volume's `nodeID` to match the PV before investigating the
+attach path.
+
 ## Use `replicas.longhorn.io`, not `engines.longhorn.io`
 
 These are not interchangeable, and the second badly under-reports:
@@ -192,7 +231,9 @@ kubectl -n longhorn-system logs -l app=longhorn-manager \
 Judge the cost by `status.actualSize`, not `spec.size`. Provisioned
 sizes are much larger than used data: in one reboot here, 28 volumes
 rebuilt but the affected volumes held only ~474 GB actual; the 1 TB
-volumes were mostly empty. Rebuilds are serialized by
+volumes were mostly empty. `actualSize` is the replica's on-disk usage
+including snapshots, so it can exceed the filesystem usage that `df`
+reports inside the pod. Rebuilds are serialized by
 `concurrent-replica-rebuild-per-node-limit` (2), so the queue can take
 an hour even when each volume is quick.
 

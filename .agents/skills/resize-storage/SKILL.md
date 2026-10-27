@@ -13,11 +13,11 @@ setting itself — this skill covers the operational procedure.
 
 This determines the whole procedure, so establish it first.
 
-| | Dynamic | Static (`fromVolume`) |
-|---|---|---|
-| PVC name | `pvc-<random>` | the volume name |
-| Backups | **not available** | available (`enableBackup`) |
-| Resize | Pulumi alone is enough | app must be disabled first |
+|          | Dynamic                | Static (`fromVolume`)      |
+| -------- | ---------------------- | -------------------------- |
+| PVC name | `pvc-<random>`         | the volume name            |
+| Backups  | **not available**      | available (`enableBackup`) |
+| Resize   | Pulumi alone is enough | app must be disabled first |
 
 Static volumes are the recommended option because they can be backed up —
 Longhorn attaches recurring-job labels only to PVCs it attaches by name
@@ -52,7 +52,18 @@ Report `storageAvailable` vs `storageMaximum` from the Longhorn node CR.
 
 Dynamic volumes expand while attached — skip to step 3.
 
-Static volumes must be detached first, so the app has to be disabled:
+Static volumes must be detached first, for two independent reasons:
+
+- A statically bound PVC (`spec.volumeName` set) cannot be resized: the API
+  server says `only dynamically provisioned pvc can be resized`, and requires a
+  StorageClass that supports resize.
+- Patching the Longhorn volume while it is attached fails because Longhorn's
+  mutating webhook looks up the volume's StorageClass, and `longhorn-<volume>`
+  does not exist for static volumes. The SC is not needed for mounting — PV and
+  PVC are matched by name — but the webhook still checks it for an attached
+  volume. Detached volumes skip that check.
+
+Disable the app:
 
 ```sh
 pulumi config set <app>:enabled false --cwd stacks/<module> --stack <stack>
@@ -73,45 +84,74 @@ Set it in `stacks/<module>/Pulumi.yaml` to change the default for all users, or
 as stack config when only one deployment needs it. Stack config overrides the
 component default.
 
+Set the size **while the app is disabled** (step 2). Changing `storageSize`
+with the app running makes `pulumi up` attempt the forbidden static-PVC resize
+and fail.
+
 ### 4. Expand the Longhorn volume (static volumes only)
 
 For dynamic volumes the deploy in step 5 expands the volume on its own — skip
 to step 5.
 
 For static volumes the volume is attached by name, so Pulumi's new PVC size does
-not expand it. Patch the volume directly:
+not expand it. Patch the volume directly, **while it is detached**:
 
 ```sh
 kubectl patch volumes.longhorn.io <volume> -n longhorn-system \
-  --type=merge -p '{"spec":{"size":"5Gi"}}'
+  --type=merge -p '{"spec":{"size":"5368709120"}}'
 ```
+
+`spec.size` is bytes as a quoted number, not a Gi string — `"5Gi"` is rejected
+with `cannot unmarshal number 5Gi into ... int64`. Common values:
+
+| Size    | Bytes          |
+| ------- | -------------- |
+| `5Gi`   | `5368709120`   |
+| `10Gi`  | `10737418240`  |
+| `50Gi`  | `53687091200`  |
+| `100Gi` | `107374182400` |
+| `250Gi` | `268435456000` |
+| `500Gi` | `536870912000` |
+
+The Longhorn UI (Volume → Edit → Size) accepts GiB and converts for you.
 
 `<volume>` is the Longhorn volume name, which for static volumes matches the PVC
-name. Longhorn expands the filesystem from inside the engine image. Confirm it
-landed on the node:
+name. Longhorn expands the block device; the filesystem is grown by the CSI on
+the next mount. Confirm the expansion finished:
 
 ```sh
-kubectl exec -n longhorn-system <engine-image-pod-on-node> -- dmesg | grep -i resizing
+kubectl get volumes.longhorn.io <volume> -n longhorn-system \
+  -o jsonpath='{.spec.size} {.status.expansionRequired}{"\n"}'
 ```
 
-The Longhorn UI (Volume → Edit → Size) does the same thing interactively.
+`expansionRequired` must become `false`. Do not read the size from the PV/PVC —
+only `spec.size` proves the volume grew, and `dmesg` in the engine-image pod is
+not a reliable confirmation.
 
-### 5. Apply
+### 5. Apply (dynamic volumes only)
 
 ```sh
 cd stacks/<module> && pulumi up --yes --stack <stack>
 ```
 
-For dynamic volumes this is what performs the expansion. For static volumes it
-aligns the PV/PVC with the size patched in step 4.
+This is what performs the expansion for a dynamic volume. Skip it for static
+volumes: the PV/PVC no longer exist while the app is disabled, and step 6
+recreates them at the new `storageSize`.
 
 ### 6. Re-enable and verify (static volumes only)
 
 ```sh
 pulumi config set <app>:enabled true --cwd stacks/<module> --stack <stack>
 cd stacks/<module> && pulumi up --yes --stack <stack>
-kubectl get volumes.longhorn.io -n longhorn-system
+kubectl get volumes.longhorn.io -n longhorn-system <volume>
+kubectl exec -n <app-namespace> deploy/<app> -- df -h /<mount>
 ```
+
+Re-enabling creates a new PV/PVC at the new `storageSize`. The data survives
+because the PV's reclaim policy is `Retain` and the Longhorn volume is
+independent of the claim. The CSI grows the filesystem while mounting, so `df`
+inside the pod is the proof — it should show the new size. If it still shows the
+old size, the volume was not detached when it was patched.
 
 A volume at 100% can leave app data damaged, which the resize does not repair.
 Check the app's logs after re-enabling; see the component `<app>.md` for
@@ -140,6 +180,7 @@ read-only filesystem — check `id` before concluding the volume is read-only.
 - Dynamic vs static established before starting — they need different procedures
 - Node disk headroom reported before assuming a volume is full
 - Longhorn volume `spec.size` matches the intended size — PV/PVC alone are not proof
-- Resize confirmed via `dmesg` resize lines or `df` inside a mounted pod
+- Resize confirmed via `df` inside a mounted pod — the CSI grows the filesystem
+  on mount, and `dmesg` in the engine-image pod is not reliable
 - App logs checked after re-enabling
 - Throwaway debug pods deleted

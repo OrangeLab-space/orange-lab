@@ -116,9 +116,11 @@ disks, so their presence in `lsblk` output does not indicate failing hardware.
 ### Volume out of space
 
 Expanding a volume is covered in the
-[configuration guide](./configuration.md#storage). Note that Pulumi only updates
-the PVC size — it does not expand the Longhorn volume, so a volume attached with
-`fromVolume` keeps its original filesystem until the volume itself is expanded.
+[configuration guide](./configuration.md#storage) and the `resize-storage`
+skill. For a dynamic volume Pulumi updates the PVC and Longhorn expands it on
+the next deploy. A volume attached with `fromVolume` is statically bound: its
+PVC cannot be resized, so disable the app, patch the Longhorn volume's
+`spec.size`, and re-enable it.
 
 A volume that reached 100% may have left application data damaged. Resizing does
 not repair it, so check the application logs after expanding. SQLite-based
