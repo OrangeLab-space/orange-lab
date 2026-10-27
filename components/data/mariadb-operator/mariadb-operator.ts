@@ -52,6 +52,20 @@ export class MariaDBOperator extends pulumi.ComponentResource {
                         certManager: {
                             enabled: true,
                         },
+                        resources: {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                    },
+                    certController: {
+                        resources: {
+                            requests: { cpu: '50m', memory: '128Mi' },
+                            limits: { cpu: '500m', memory: '256Mi' },
+                        },
+                    },
+                    resources: {
+                        requests: { cpu: '50m', memory: '256Mi' },
+                        limits: { cpu: '500m', memory: '512Mi' },
                     },
                 },
             },

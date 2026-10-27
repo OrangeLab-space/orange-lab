@@ -1,6 +1,9 @@
-import { config, OidcProviderSettings } from '@orangelab/pulumi';
+import { config, mergeEndpointExports, OidcProviderSettings } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
+import { Caddy } from './caddy/caddy';
 import { CertManager } from './cert-manager/cert-manager';
+import { Headscale } from './headscale/headscale';
+import { Headplane } from './headplane/headplane';
 import { TailscaleOperator } from './tailscale/tailscale';
 import { Technitium } from './technitium/technitium';
 import { Traefik } from './traefik/traefik';
@@ -14,16 +17,29 @@ export class NetworkModule extends pulumi.ComponentResource {
     technitium?: Technitium;
     zot?: Zot;
     traefik?: Traefik;
+    caddy?: Caddy;
+    headscale?: Headscale;
+    headplane?: Headplane;
 
     getExports() {
         return {
-            endpoints: {
-                technitium: this.technitium?.endpointUrl,
-                zot: this.zot?.endpointUrl,
-                traefik: this.traefik?.endpointUrl,
+            endpoints: mergeEndpointExports(
+                this.caddy,
+                this.headscale,
+                this.headplane,
+                this.technitium,
+                this.traefik,
+                this.zot,
+            ),
+            apps: {
+                technitium: this.technitium
+                    ? {
+                          resolverIp: this.technitium.resolverIp,
+                          users: this.technitium.users,
+                      }
+                    : undefined,
+                zot: this.zot ? { users: this.zot.users } : undefined,
             },
-            technitiumUsers: this.technitium?.users,
-            zotUsers: this.zot?.users,
         };
     }
 
@@ -71,6 +87,30 @@ export class NetworkModule extends pulumi.ComponentResource {
                     dependsOn: certManager,
                     aliases: [{ type: 'orangelab:system:Traefik', parent: systemAlias }],
                 },
+            );
+        }
+
+        if (config.isEnabled('caddy')) {
+            this.caddy = new Caddy(
+                'caddy',
+                { oidc: args.oidc },
+                { parent: this, dependsOn: this.traefik },
+            );
+        }
+
+        if (config.isEnabled('headscale')) {
+            this.headscale = new Headscale(
+                'headscale',
+                { oidc: args.oidc },
+                { parent: this, dependsOn: this.traefik },
+            );
+        }
+
+        if (config.isEnabled('headplane')) {
+            this.headplane = new Headplane(
+                'headplane',
+                { oidc: args.oidc },
+                { parent: this, dependsOn: this.headscale },
             );
         }
 

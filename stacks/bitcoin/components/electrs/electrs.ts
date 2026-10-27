@@ -57,8 +57,8 @@ export class Electrs extends pulumi.ComponentResource {
                 { name: 'config', mountPath: '/conf' },
             ],
             resources: {
-                requests: { cpu: '100m', memory: '8Gi' },
-                limits: { cpu: '2000m', memory: '16Gi' },
+                requests: { cpu: '200m', memory: '1Gi' },
+                limits: { cpu: '2000m', memory: '4Gi' },
             },
         });
     }

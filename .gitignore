@@ -6,5 +6,6 @@ dist/
 *.d.ts
 *.d.ts.map
 Pulumi.*.yaml
+Pulumi.*.yaml.bak.*
 .goose/
 .github/copilot.yml

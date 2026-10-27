@@ -5,7 +5,7 @@ import { Auth, OidcAuthConfig, OidcProviderSettings } from './auth';
 import { config } from './config';
 import { Databases } from './databases';
 import { Metadata } from './metadata';
-import { Network } from './network';
+import { getNamespaceLabels, Network } from './network';
 import { Nodes } from './nodes';
 import { createPassword } from './secrets';
 import { Services } from './services';
@@ -50,6 +50,11 @@ export class Application {
             existingNamespace?: string;
             /** OIDC provider settings; route protection is opt-in for edge-only applications. */
             oidc?: OidcProviderSettings;
+            /**
+             * Request headers set on the application's own HTTP route. An empty
+             * value removes a header the client sent.
+             */
+            routeRequestHeaders?: Record<string, string>;
         },
     ) {
         this.processDeprecated();
@@ -64,6 +69,7 @@ export class Application {
             {
                 namespace: args?.namespace,
                 existingNamespace: args?.existingNamespace,
+                labels: getNamespaceLabels(appName),
             },
             { parent: this.scope },
         );
@@ -73,6 +79,7 @@ export class Application {
             {
                 metadata: this.metadata,
                 oidc: routeOidc,
+                routeRequestHeaders: args?.routeRequestHeaders,
                 pluginSecret: routeOidc
                     ? config.getSecret(appName, 'auth/pluginSecret') ??
                       createPassword(this.scope, `${appName}-oidc-secret`)
@@ -94,6 +101,11 @@ export class Application {
         assert(
             !config.get(this.appName, 'amd-gpu'),
             `${this.appName}:amd-gpu is deprecated. Use ${this.appName}:gpu instead (amd|nvidia|intel).`,
+        );
+        config.assertNotConfigured(
+            this.appName,
+            'backupVolume',
+            `${this.appName}:backupVolume is no longer supported. Use ${this.appName}:storage/backupEnabled instead.`,
         );
     }
 
@@ -288,7 +300,7 @@ export class Application {
                     hostname: endpoint.hostname,
                     serviceName: args.httpRoute.serviceName,
                     servicePort: args.httpRoute.servicePort,
-                    middlewareName: this.network.oidcMiddlewareName,
+                    middlewareName: this.network.routeMiddlewareName,
                 },
                 { parent: this.scope, dependsOn: [chart] },
             );

@@ -8,7 +8,7 @@
 
 - Infrastructure as code and deployment automation ([Pulumi](https://www.pulumi.com/) ↗)
 - Lightweight Kubernetes cluster ([K3S](https://k3s.io/) ↗)
-- Encrypted networking ([Tailscale](https://tailscale.com/) ↗)
+- Encrypted networking ([Tailscale](https://tailscale.com/) ↗ or self-hosted [Headscale](./components/network/headscale/headscale.md))
 - Distributed replicated storage ([Longhorn](https://longhorn.io/) ↗)
 - Daily incremental backups to S3 ([RustFS](https://rustfs.dev/) ↗)
 - Custom domain support ([Traefik](https://traefik.io/) ↗)
@@ -24,7 +24,7 @@ Deploy applications using included Pulumi stacks ([`stacks/`](./stacks/) folder)
 
 Most Linux systems with kernel 6.11.6+ and SELinux are supported. That includes your own hardware (e.g. laptops, mini PCs, Rasberry Pi and Zimaboard) as well as any cloud instances.
 
-The main requirement is that K3S and Longhorn (including `open-iscsi` and `iscsiadm`) can be installed.
+The main requirement is that K3S and Longhorn (including `iscsiadm` - provided by `iscsi-initiator-utils` on Fedora, `open-iscsi` on Alpine and Debian) can be installed.
 
 Tested with:
 
@@ -53,7 +53,7 @@ See [Hardware module](/components/hardware/HARDWARE.md) for more information.
 # Principles and goals
 
 - decentralized - uses your physical machines potentially spread out over geographical locations, minimise dependency on external services and cloud providers
-- private by default - uses Tailscale/WireGuard for end to end encrypted communication, making services public has to be explicitly enabled
+- private by default - uses Tailscale/Headscale/WireGuard for end to end encrypted communication, making services public has to be explicitly enabled
 - OSS - only open source components that can be run locally
 - automation - use Pulumi and Helm to automate most tasks and configuration
 - easy to use - no deep Kubernetes knowledge required, sensible defaults
@@ -82,7 +82,7 @@ Configure **Pulumi** then install **Tailscale** and **K3S** on each node you wan
 
 After setting up the Kubernetes cluster, deploy the required core modules:
 
-1. [Network](./components/network/NETWORK.md) - Routing provider (Tailscale or **Traefik**)
+1. [Network](./components/network/NETWORK.md) - Routing provider (Tailscale or **Traefik**), public exposure, mesh VPN choice (Tailscale/**Headscale**)
 2. [Storage](./components/storage/STORAGE.md) - Distributed storage (**Longhorn**) and optionally backups (S3)
 3. [Hardware](./components/hardware/HARDWARE.md) - (Optional) **GPU** support
 4. [Data](./components/data/DATA.md) - (Optional) **Databases**
@@ -104,6 +104,9 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 - [`cert-manager`](./components/network/cert-manager/cert-manager.md) - certificate management
 - [`tailscale-operator`](./components/network/tailscale/tailscale.md) - ingress support with Tailscale authentication
 - [`traefik`](./components/network/traefik/traefik.md) - reverse proxy for custom domain support
+- [`caddy`](./components/network/caddy/caddy.md) - serves the bare domain (WebFinger, redirects)
+- [`headscale`](./components/network/headscale/headscale.md) - self-hosted Tailscale control plane
+- [`headplane`](./components/network/headplane/headplane.md) - web UI for Headscale
 - [`technitium`](./components/network/technitium/technitium.md) - DNS server and ad-blocker
 - [`zot`](./components/network/zot/zot.md) - OCI registry and pull-through image cache
 
@@ -186,13 +189,18 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 
 - [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/OrangeLab-space/orange-lab) ↗ - AI generated documentation and good place to ask questions
 - [Installation - Admin node](./docs/install-admin.md) - Initial Pulumi and Tailscale setup
+- [Pulumi backend and state](./docs/pulumi.md) - Local (recommended) or Pulumi Cloud state backends, backups and switching
 - [Installation - Linux node configuration](./docs/install-linux.md) - Configure nodes (firewall, suspend settings)
 - [Installation - Alpine Linux](./docs/install-linux-alpine.md) - Node configuration for Alpine Linux
+- [Installation - Fedora Linux](./docs/install-linux-fedora.md) - Node configuration for plain Fedora
 - [Installation - Zimaboard (ZimaOS)](./docs/install-linux-zima.md) - Node configuration for ZimaOS
 - [Installation - SSH configuration](./docs/install-ssh.md) - Configure SSH keys on nodes for easier access
 - [Installation - K3s cluster](./docs/install-k3s.md) - Install Kubernetes cluster and label nodes
+- [Public services](./docs/public-services.md) - Publish applications and expose the Traefik public gateway with a router forward or VPS proxy
+- [Public proxy on a VPS](./docs/public-proxy.md) - Expose public services through Headscale or Tailscale without router port forwarding (tested on Ubuntu, Debian and Fedora)
 - [Backup and Restore](./docs/backup.md) - Using Longhorn backups with S3 storage
 - [Configuration Guide](./docs/configuration.md) - Application configuration and deployment
+- [Migrating nodes to Headscale](./docs/headscale-migration.md) - Moving an existing cluster off Tailscale to a self-hosted control plane
 - [Disabling Longhorn](./docs/longhorn-disable.md) - Running OrangeLab without distributed storage
 - [Multi-Stack Deployment](./docs/stacks.md) - Deploy applications as independent Pulumi stacks
 - [Troubleshooting](./docs/troubleshooting.md) - Common issues and solutions

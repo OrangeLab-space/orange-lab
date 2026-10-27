@@ -1,4 +1,8 @@
+import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
+import type { OidcAuthConfig } from './auth';
+import type { Metadata } from './metadata';
+import type { EndpointExports } from './network';
 
 export type GpuType = 'amd' | 'nvidia' | 'intel';
 
@@ -22,6 +26,12 @@ export interface ServicePort {
      */
     protocol?: 'http' | 'tcp' | 'tls' | 'udp';
     private?: boolean;
+    /**
+     * Publish this TCP/UDP port to the public internet as well. Only takes
+     * effect together with the application's `network/public`, and only with
+     * the Traefik routing provider.
+     */
+    public?: boolean;
 }
 
 export interface VolumeMount {
@@ -93,11 +103,55 @@ export interface ContainerSpec {
     initContainers?: InitContainerSpec[];
     volumeMounts?: VolumeMount[];
     healthCheck?: HealthCheck;
+    /**
+     * Node labels the pod must have. Unlike `nodeAffinity`, these are ANDed
+     * with it rather than ORed, so use this to narrow placement to nodes
+     * capable of serving something the pod depends on.
+     */
+    nodeSelector?: Record<string, pulumi.Input<string>>;
     resources?: ContainerResources;
+    /**
+     * Subdomain label to serve this deployment's HTTP ports at, resolved
+     * against the custom domain (`nextcloud` becomes `nextcloud.example.com`).
+     * Defaults to `<app>:hostname`.
+     *
+     * This is a *label*, not a domain. The only other name an app gets is the
+     * bare custom domain, via `apexDomain`.
+     */
     hostname?: string;
+    /**
+     * Also serve the bare custom domain (`example.com`), for applications that
+     * own the apex rather than a subdomain of it — typically alongside a `www`
+     * hostname. Requires Traefik, and HTTP only.
+     */
+    apexDomain?: boolean;
     runAsUser?: number;
     volumeOwnerUserId?: number;
     restartPolicy?: string;
+    /**
+     * Additional containers that share the pod's network namespace. They are
+     * not given a Service, so they are only reachable from the main container
+     * or from outside through a port they expose themselves.
+     */
+    sidecars?: SidecarSpec[];
+}
+
+/**
+ * A container running alongside the application container in the same pod.
+ * Use it for helpers that must reach the application over localhost, such as a
+ * Tor client that terminates onion connections to the app.
+ */
+export interface SidecarSpec {
+    name: string;
+    image: pulumi.Input<string>;
+    command?: pulumi.Input<string[]>;
+    commandArgs?: pulumi.Input<string[]>;
+    env?: Record<string, pulumi.Input<string> | undefined>;
+    envSecret?: Record<string, pulumi.Input<string> | undefined>;
+    volumeMounts?: VolumeMount[];
+    resources?: ContainerResources;
+    runAsUser?: number;
+    runAsGroup?: number;
 }
 
 /**
@@ -244,7 +298,6 @@ export interface HttpEndpointInfo {
     hostname: pulumi.Input<string>;
     url: pulumi.Input<string>;
     tls: boolean;
-    tlsSecretName?: string;
     domain: pulumi.Input<string>;
     gatewayRef?: {
         name: string;
@@ -253,13 +306,62 @@ export interface HttpEndpointInfo {
     };
 }
 
+/**
+ * Redirects a request instead of proxying it.
+ *
+ * Separate from `HttpRouteSpec` because there is no backend: a redirect has no
+ * Service to point at. For an application that serves only under a fixed path,
+ * this is what keeps the bare hostname from being a dead end.
+ */
+export interface HttpRedirectSpec {
+    /**
+     * Names the Kubernetes objects this redirect creates. Defaults to the
+     * application's own name.
+     */
+    componentName?: string;
+    /** Defaults to the application's own hostname. */
+    hostname?: pulumi.Input<string>;
+    /** Exact request path to match. Use `/` for the bare hostname. */
+    path: pulumi.Input<string>;
+    /** Absolute target URL, e.g. `https://headplane.example.com/admin`. */
+    to: pulumi.Input<string>;
+    /**
+     * `301` by default. Pass `false` when the target can change underneath a
+     * cached response, such as a redirect that exists only while another
+     * component is enabled.
+     */
+    permanent?: boolean;
+    /**
+     * Attach to the public gateway as well. Needed when the source hostname
+     * resolves to a WAN address, in which case a private-only route is
+     * unreachable even from inside the mesh.
+     */
+    public?: boolean;
+}
+
 export interface HttpRouteSpec {
-    componentName: string;
-    hostname: pulumi.Input<string>;
-    serviceName: pulumi.Input<string>;
+    /**
+     * Names the Kubernetes objects this route creates. Defaults to the
+     * application's own name, so a route on the app's own hostname needs no
+     * argument. Set it only for a secondary route belonging to another
+     * component.
+     */
+    componentName?: string;
+    /** Defaults to the application's own hostname. */
+    hostname?: pulumi.Input<string>;
+    /** Defaults to the application's ClusterIP Service. */
+    serviceName?: pulumi.Input<string>;
     servicePort?: number;
     serviceKind?: string;
     middlewareName?: string;
+    /**
+     * Serve only requests whose path starts with this prefix.
+     *
+     * The prefix is *not* stripped — the backend receives the path as sent. Use
+     * for applications that serve themselves under a sub-path (Headplane under
+     * `/admin`, which is the only prefix it supports).
+     */
+    pathPrefix?: string;
 }
 
 /**
@@ -270,14 +372,26 @@ export interface HttpRouteSpec {
 export interface CoreStackExports {
     config?: {
         customDomain?: string;
-        adminGroup?: string;
+        tailnet?: string;
         longhorn?: {
             backupAllVolumes?: boolean;
+            backupCron?: string;
+            backupEnabled?: boolean;
+            backupFullInterval?: string;
+            backupRetain?: number;
+            snapshotCron?: string;
+            snapshotEnabled?: boolean;
+            snapshotRetain?: number;
         };
     };
     security?: {
-        oidcProviderBaseUrl?: string;
-        oidcProviderUrl?: string;
+        endpoints?: EndpointExports;
+        apps?: {
+            pocket?: {
+                oidcProviderBaseUrl?: string;
+                oidcProviderUrl?: string;
+            };
+        };
     };
 }
 
@@ -312,14 +426,36 @@ export interface PublicTcpServiceConfig {
 }
 
 /**
+ * Constructor arguments shared by the routing providers and `Network`: the
+ * settings a provider acts on, alongside the metadata it creates objects in.
+ */
+export interface RoutingProviderArgs {
+    metadata: Metadata;
+    /** Route protection requested for the application's own routes. */
+    oidc?: OidcAuthConfig;
+    pluginSecret?: pulumi.Input<string>;
+    /** Request headers the application's routes set, or remove when empty. */
+    routeRequestHeaders?: Record<string, string>;
+}
+
+/**
  * Represents a routing provider that creates HTTP and TCP endpoints.
  */
 export interface RoutingProvider {
     getPublicTcpService: (params: { hostname: string }) => PublicTcpServiceConfig;
-    endpoints: Record<string, pulumi.Input<string>>;
+    /** Endpoints reachable only within the tailnet. */
+    privateEndpoints: Record<string, pulumi.Input<string>>;
+    /** Endpoints reachable from the public internet. */
+    publicEndpoints: Record<string, pulumi.Input<string>>;
     getHttpEndpointInfo: (hostname: string) => HttpEndpointInfo;
+    /** Middleware the application's own routes attach, if the provider has one. */
+    readonly routeMiddlewareName?: string;
     createHttpRoute: (
         spec: HttpRouteSpec,
+        opts?: pulumi.CustomResourceOptions,
+    ) => void;
+    createHttpRedirect: (
+        spec: HttpRedirectSpec,
         opts?: pulumi.CustomResourceOptions,
     ) => void;
     createHttpEndpoints: (params: {
@@ -328,6 +464,10 @@ export interface RoutingProvider {
         component?: string;
         hostname: string;
         middlewareName?: string;
+        /** Also create a route on the public gateway. */
+        public?: boolean;
+        /** Also serve the bare custom domain alongside `hostname`. */
+        apexDomain?: boolean;
     }) => void;
     createTcpEndpoints: (params: {
         serviceName: pulumi.Input<string>;
@@ -335,5 +475,7 @@ export interface RoutingProvider {
         component?: string;
         hostname: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
-    }) => void;
+        /** The application is publicly exposed; publish its `public` ports. */
+        public?: boolean;
+    }) => kubernetes.core.v1.Service | undefined;
 }

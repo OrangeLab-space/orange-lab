@@ -2,29 +2,62 @@ import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
 import { config } from './config';
-import { Metadata } from './metadata';
+import { coreStack, resolveInherited } from './core-stack';
 import {
     HttpEndpointInfo,
+    HttpRedirectSpec,
     HttpRouteSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
+    RoutingProviderArgs,
     ServicePort,
 } from './types';
 
 export class TailscaleNetwork implements RoutingProvider {
-    endpoints: Record<string, pulumi.Input<string>> = {};
-    tailnetDomain: string;
+    privateEndpoints: Record<string, pulumi.Input<string>> = {};
+    publicEndpoints: Record<string, pulumi.Input<string>> = {};
+    tailnetDomain: pulumi.Input<string>;
 
     constructor(
         private appName: string,
-        private args: { metadata: Metadata },
+        private args: RoutingProviderArgs,
         private opts?: pulumi.ComponentResourceOptions,
     ) {
-        assert(
-            config.isEnabled('tailscale'),
-            `${this.appName}: Tailscale Operator has to be installed (tailscale:enabled=true)`,
-        );
-        this.tailnetDomain = config.require('tailscale', 'tailnet');
+        if (args.oidc !== undefined) {
+            throw new Error(
+                `${this.appName}: OIDC-protected routes are not implemented by the Tailscale routing provider.`,
+            );
+        }
+        if (
+            args.routeRequestHeaders !== undefined &&
+            Object.keys(args.routeRequestHeaders).length > 0
+        ) {
+            throw new Error(
+                `${this.appName}: route request headers are not implemented by the Tailscale routing provider.`,
+            );
+        }
+        this.tailnetDomain = this.resolveTailnet();
+    }
+
+    /**
+     * The tailnet this cluster is registered with. Resolved from the core stack
+     * when unset locally, so module stacks can use the Tailscale routing
+     * provider without repeating it — the same way `customDomain` resolves.
+     */
+    private resolveTailnet(): pulumi.Input<string> {
+        const local = config.get('tailscale', 'tailnet');
+        if (local !== undefined) return local;
+
+        if (!coreStack.outputs.config) {
+            throw new Error(
+                `${this.appName}: tailscale:tailnet is unset and there is no core stack to inherit it from. Set orangelab:coreStackRef, or set tailscale:tailnet directly.`,
+            );
+        }
+
+        return resolveInherited({
+            settingName: 'tailnet',
+            coreValue: coreStack.outputs.config.apply(coreConfig => coreConfig?.tailnet),
+        });
     }
 
     getHttpEndpointInfo(hostname: string): HttpEndpointInfo {
@@ -32,7 +65,7 @@ export class TailscaleNetwork implements RoutingProvider {
             className: 'tailscale',
             host: hostname,
             hostname,
-            url: `https://${hostname}.${this.tailnetDomain}`,
+            url: pulumi.interpolate`https://${hostname}.${this.tailnetDomain}`,
             tls: true,
             domain: this.tailnetDomain,
         };
@@ -52,7 +85,17 @@ export class TailscaleNetwork implements RoutingProvider {
     ): void {
         assert(
             false,
-            `${this.appName}: OIDC-protected routes require the Traefik routing provider.`,
+            `${this.appName}: OIDC-protected routes are not implemented by the Tailscale routing provider.`,
+        );
+    }
+
+    createHttpRedirect(
+        _spec: HttpRedirectSpec,
+        _opts?: pulumi.CustomResourceOptions,
+    ): void {
+        assert(
+            false,
+            `${this.appName}: redirects are not implemented by the Tailscale routing provider.`,
         );
     }
 
@@ -62,10 +105,13 @@ export class TailscaleNetwork implements RoutingProvider {
         component?: string;
         hostname: string;
         middlewareName?: string;
+        /** Also expose this endpoint to the public internet via Funnel. */
+        public?: boolean;
+        apexDomain?: boolean;
     }): void {
         assert(
-            !params.middlewareName,
-            `${this.appName}: OIDC-protected routes require the Traefik routing provider.`,
+            !params.apexDomain,
+            `${this.appName}: apexDomain is not implemented by the Tailscale routing provider — the tailnet apex is not the same concept.`,
         );
         params.httpPorts.forEach(httpPort => {
             const httpEndpointInfo = this.getHttpEndpointInfo(
@@ -80,6 +126,7 @@ export class TailscaleNetwork implements RoutingProvider {
                 httpEndpointInfo,
                 serviceName: params.serviceName,
                 servicePort: httpPort,
+                public: params.public,
             });
         });
         this.exportHttpEndpoints(params);
@@ -90,18 +137,27 @@ export class TailscaleNetwork implements RoutingProvider {
         httpEndpointInfo: HttpEndpointInfo;
         serviceName: pulumi.Input<string>;
         servicePort: ServicePort;
+        public?: boolean;
     }): void {
         const metadata = this.args.metadata.get({ component: params.componentName });
         new kubernetes.networking.v1.Ingress(
             `${metadata.name}-ingress`,
             {
-                metadata,
+                metadata: {
+                    ...metadata,
+                    // Funnel extends the existing ts.net name to the public
+                    // internet rather than replacing it — the tailnet hostname
+                    // is what Funnel publishes, so the service stays reachable
+                    // both inside and outside the tailnet.
+                    ...(params.public
+                        ? { annotations: { 'tailscale.com/funnel': 'true' } }
+                        : {}),
+                },
                 spec: {
                     ingressClassName: params.httpEndpointInfo.className,
                     tls: [
                         {
                             hosts: [params.httpEndpointInfo.hostname],
-                            secretName: params.httpEndpointInfo.tlsSecretName,
                         },
                     ],
                     rules: [
@@ -141,10 +197,16 @@ export class TailscaleNetwork implements RoutingProvider {
         component?: string;
         hostname: string;
         externalTrafficPolicy?: 'Local' | 'Cluster';
-    }): void {
-        if (params.tcpPorts.length === 0) return;
+        public?: boolean;
+    }): kubernetes.core.v1.Service | undefined {
+        if (params.tcpPorts.length === 0) return undefined;
 
-        this.createTcpLoadBalancer({
+        assert(
+            !params.public || !params.tcpPorts.some(p => p.public),
+            `${this.appName}: public TCP ports are not supported by the tailscale routing provider.`,
+        );
+
+        const loadBalancer = this.createTcpLoadBalancer({
             component: params.component,
             tcpPorts: params.tcpPorts,
             hostname: params.hostname,
@@ -156,6 +218,8 @@ export class TailscaleNetwork implements RoutingProvider {
             tcpPorts: params.tcpPorts,
             hostname: params.hostname,
         });
+
+        return loadBalancer;
     }
 
     private createTcpLoadBalancer(params: {
@@ -197,6 +261,7 @@ export class TailscaleNetwork implements RoutingProvider {
         httpPorts: ServicePort[];
         hostname: string;
         serviceName: pulumi.Input<string>;
+        public?: boolean;
     }): void {
         params.httpPorts.forEach(port => {
             const portHostname = port.hostname ?? params.hostname;
@@ -205,8 +270,12 @@ export class TailscaleNetwork implements RoutingProvider {
                 component: params.component,
                 portName: port.name,
             });
-            this.endpoints[key] =
-                pulumi.interpolate`https://${httpEndpointInfo.hostname}`;
+            // `hostname` is only the subdomain label here — the operator appends
+            // the tailnet domain itself. The full name comes from `url`.
+            const bucket = params.public
+                ? this.publicEndpoints
+                : this.privateEndpoints;
+            bucket[key] = httpEndpointInfo.url;
         });
     }
 
@@ -220,7 +289,8 @@ export class TailscaleNetwork implements RoutingProvider {
                 component: params.component,
                 portName: port.name,
             });
-            this.endpoints[key] = pulumi.interpolate`${params.hostname}:${port.port}`;
+            this.privateEndpoints[key] =
+                pulumi.interpolate`${params.hostname}:${port.port}`;
         });
     }
 

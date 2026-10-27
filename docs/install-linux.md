@@ -4,6 +4,7 @@ This document covers general node configuration that should be done before insta
 
 For Alpine-specific steps, see [Installation - Alpine Linux node configuration](./install-linux-alpine.md).
 For Zimaboard (ZimaOS) steps, see [Installation - Zimaboard node configuration](./install-linux-zima.md).
+For plain Fedora steps, see [Installation - Fedora node configuration](./install-linux-fedora.md).
 
 ## Tailscale
 
@@ -21,7 +22,7 @@ sudo tailscale up --operator=$USER
 # Disable key expiry for the node after joining:
 # Admin Console → Machines → <node> → Disable key expiry
 sudo tailscale up --auth-key=<auth-key> \
---advertise-tags orangelab \ # optional when key already has tags
+--advertise-tags=tag:server \ # must already be defined in tagOwners
 --hostname <host> # override hostname provided by OS
 
 # Advanced option
@@ -31,6 +32,11 @@ sudo tailscale up \
 --accept-routes \ # Accept routes from subnet routers
 --advertise-exit-node # allow this host to be used as exit node
 ```
+
+For Headscale, mint a tags-only key with `tag:cluster` instead (see
+[Migrating nodes to Headscale](./headscale-migration.md#1-mint-a-preauth-key));
+the node then lands under the cluster access policy. A `--user` key creates a
+personal node that expires and falls outside it.
 
 ## Firewall
 
@@ -52,10 +58,11 @@ Binding `tailscale0` to the zone is required so firewalld allows forwarded pod t
 (Optional) Ports used by apps, open them on the node where the app runs:
 
 ```sh
-firewall-cmd --permanent --add-port=9100/tcp # Prometheus metrics
+firewall-cmd --permanent --add-port=9100/tcp  # Prometheus metrics
 firewall-cmd --permanent --add-port=45876/tcp # Beszel metrics
-firewall-cmd --permanent --add-port=53/tcp  # Technitium DNS Zone transfers, DNSSEC
-firewall-cmd --permanent --add-port=53/udp  # Technitium standard DNS queries
+firewall-cmd --permanent --add-port=53/tcp    # Technitium DNS Zone transfers, DNSSEC
+firewall-cmd --permanent --add-port=53/udp    # Technitium standard DNS queries
+firewall-cmd --permanent --add-port=13478/udp # Headscale DERP STUN (public port)
 
 systemctl reload firewalld
 ```

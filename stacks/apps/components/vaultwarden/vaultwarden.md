@@ -57,6 +57,10 @@ pulumi up
 
 The Vaultwarden integration uses the `email profile groups offline_access` scopes, matches SSO signups by email, and resolves the OIDC provider URL from the core stack.
 
+Sign-in is restricted to `admin` and `vaultwarden-users`
+(`vaultwarden:auth/allowedGroups`). `vaultwarden-users` is a new-user default
+group, so every OrangeLab account has access.
+
 In Pocket ID, enable **Emails Verified** under **Application Configuration**, then verify each user email under **Users**. Vaultwarden requires the provider to return a verified email address.
 
 ## Admin access

@@ -53,12 +53,18 @@ frigate:config:
         front_door:
             ffmpeg:
                 inputs:
-                    - path: rtsp://viewer:cam-password@10.0.10.10:554/main
+                    - path: rtsp://viewer:cam-password@<camera-ip>:554/main
                       roles: [record, audio]
-                    - path: rtsp://viewer:cam-password@10.0.10.10:554/sub
+                    - path: rtsp://viewer:cam-password@<camera-ip>:554/sub
                       roles: [detect]
     record:
         enabled: true
+        alerts:
+            retain:
+                days: 30
+        detections:
+            retain:
+                days: 30
 ```
 
 To keep the credentials encrypted instead, store the same document as a secret:
@@ -69,6 +75,10 @@ pulumi config set --secret frigate:config "$(cat frigate.yml)"
 
 Point `detect` at a low-resolution sub stream and `record` at
 the main stream when the camera offers both.
+
+This keeps alert and detection recordings for 30 days. Continuous and motion
+recording stay off unless `record.continuous.days` / `record.motion.days` are
+set.
 
 The `detectors`, `mqtt` and `tls` sections are generated automatically from
 `frigate:coral`, `frigate:gpu` and the enabled Mosquitto broker — set them
@@ -171,12 +181,13 @@ groups (`X-Forwarded-User` / `X-Forwarded-Groups`), which Frigate maps to roles:
 - authenticated users matching no group get `frigate:auth/defaultRole` (default
   `viewer`; must be `admin` or `viewer`).
 
-`groupMap` defaults to `{admin: [admin]}` (membership in the shared `admin`
-group grants Frigate's `admin` role; everyone else gets `viewer`). Set the whole
-map to add a read-only role for the `viewers` group:
+`groupMap` defaults to `{admin: [admin, frigate-admin]}` (membership in the
+global `admin` group or the delegated `frigate-admin` group grants Frigate's
+`admin` role; other allowed users get `viewer`). Set the whole map to add a
+read-only role for the `viewers` group:
 
 ```sh
-pulumi config set frigate:auth/groupMap '{"admin":["admin"],"viewer":["viewers"]}'
+pulumi config set frigate:auth/groupMap '{"admin":["admin","frigate-admin"],"viewer":["viewers"]}'
 ```
 
 The value must be a JSON object string when set with `pulumi config set` (Pulumi
@@ -188,6 +199,7 @@ frigate:auth/groupMap:
     value:
         admin:
             - admin
+            - frigate-admin
         viewer:
             - viewers
 ```
@@ -197,10 +209,9 @@ defined in `frigate:config` under `auth.roles`, otherwise they grant no camera
 access.
 
 Create the OIDC client from the iot stack directory and apply the printed
-commands. The `admin` group must already exist (the scripts never create groups).
-The client is left unrestricted - any authenticated Pocket ID user can sign in,
-and their group membership determines their Frigate role (unmatched users get
-`viewer`):
+commands. The groups must already exist (the scripts never create them). The
+client is restricted to `admin` and `frigate-admin`; members of either group
+get the `admin` role and other allowed users get `viewer`:
 
 ```sh
 cd stacks/iot

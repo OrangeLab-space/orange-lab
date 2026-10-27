@@ -29,7 +29,7 @@ export interface FrigateArgs {
 const IMAGE_VARIANTS: Record<string, string> = { nvidia: 'tensorrt', amd: 'rocm' };
 
 export class Frigate extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
+    public readonly app: Application;
     public readonly proxySecret?: pulumi.Input<string>;
 
     constructor(name: string, args: FrigateArgs, opts?: pulumi.ResourceOptions) {
@@ -40,7 +40,7 @@ export class Frigate extends pulumi.ComponentResource {
             (config.getObject(name, 'devices') as FrigateDevice[] | undefined) ?? [];
         const recreateConfig = config.requireBoolean(name, 'config/recreate');
         this.proxySecret = this.getProxySecret(name);
-        const app = new Application(
+        this.app = new Application(
             this,
             name,
             this.proxySecret
@@ -53,37 +53,37 @@ export class Frigate extends pulumi.ComponentResource {
                   }
                 : undefined,
         );
-        const gpu = app.nodes.getGpu();
+        const gpu = this.app.nodes.getGpu();
 
-        app.addStorage();
-        this.addMediaStorage(app, name);
-        app.addEmptyVolume({
+        this.app.addStorage();
+        this.addMediaStorage(this.app, name);
+        this.app.addEmptyVolume({
             name: 'shm',
             memory: true,
             sizeLimit: config.require(name, 'shmSize'),
         });
-        app.addEmptyVolume({
+        this.app.addEmptyVolume({
             name: 'cache',
             memory: true,
             sizeLimit: config.require(name, 'cacheSize'),
         });
 
         if (coral) {
-            app.storage?.addDeviceMount({
+            this.app.storage?.addDeviceMount({
                 name: 'usb',
                 hostPath: '/dev/bus/usb',
                 type: 'Directory',
             });
         }
         for (const { name: deviceName, device } of devices) {
-            app.storage?.addDeviceMount({ name: deviceName, hostPath: device });
+            this.app.storage?.addDeviceMount({ name: deviceName, hostPath: device });
         }
 
-        app.addConfigVolume({
+        this.app.addConfigVolume({
             name: 'config-yml',
             secretFiles: {
                 'config.yml': this.createConfig(name, {
-                    app,
+                    app: this.app,
                     coral,
                     gpu,
                     mqtt: args.mqtt,
@@ -91,9 +91,9 @@ export class Frigate extends pulumi.ComponentResource {
                 }),
             },
         });
-        if (app.storageOnly) return;
+        if (this.app.storageOnly) return;
 
-        app.addDeployment({
+        this.app.addDeployment({
             image: this.getImage(name, gpu),
             env: { TZ: config.get(name, 'TZ') },
             envSecret: { FRIGATE_MQTT_PASSWORD: args.mqtt?.password },
@@ -107,13 +107,12 @@ export class Frigate extends pulumi.ComponentResource {
                 { name: 'webrtc-udp', port: 8555, protocol: 'udp', private: true },
             ],
             resources: {
-                requests: { cpu: '500m', memory: '512Mi' },
-                limits: { memory: '4Gi' },
+                requests: { cpu: '800m', memory: '2Gi' },
+                limits: { cpu: '2000m', memory: '4Gi' },
             },
             volumeMounts: this.createVolumeMounts(name, coral, devices),
         });
 
-        this.endpointUrl = app.network.endpoints[`${name}-auth`];
     }
 
     private addMediaStorage(app: Application, name: string) {
@@ -165,9 +164,13 @@ export class Frigate extends pulumi.ComponentResource {
     ): InitContainerSpec {
         const source = '/config-seed/config.yml';
         const target = '/config/config.yml';
+        // A replaced config Secret can briefly mount empty during a rollout.
+        // Fail instead of overwriting the live config with an empty file; the
+        // pod retries once the volume is populated.
+        const sourceReady = `[ -s ${source} ] || { echo "${source} is empty" >&2; exit 1; }`;
         const copy = recreate
-            ? `cp -vf ${source} ${target}`
-            : `[ -s ${target} ] || cp -v ${source} ${target}`;
+            ? `${sourceReady}; cp -vf ${source} ${target}`
+            : `[ -s ${target} ] || { ${sourceReady}; cp -v ${source} ${target}; }`;
         return {
             name: 'seed-config',
             command: ['sh', '-c', copy],

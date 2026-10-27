@@ -6,6 +6,7 @@ Longhorn jobs:
 
 - **Snapshots**: Taken hourly for all volumes (configurable with `longhorn:snapshotCron`)
 - **Incremental Backups**: Run daily at 00:15 (configurable with `longhorn:backupCron`)
+- **Retention**: `longhorn:snapshotRetain` and `longhorn:backupRetain` (default 7)
 - If a volume has no changes since the last backup, no data is transferred
 
 **Note:** Snapshots are disabled by default to save storage space. You can enable them with `longhorn:snapshotEnabled` to be able to revert storage to previous state. It's recommneded however to enable daily backups instead as a snapshot is also taked during backup operation.
@@ -15,12 +16,17 @@ Longhorn jobs:
 Make sure RustFS is installed and functioning before enabling backups. See [RustFS installation instructions](/components/storage/rustfs/rustfs.md) for details.
 
 ```sh
-# S3 bucket that will be used for backups. Default: backup-longhorn
-pulumi config set longhorn:backupBucket backup-longhorn
+# Backup target: s3://<bucket>@<region>/[<path>/]. Default:
+# s3://backup-longhorn@lab/. The bucket is created by the RustFS provisioner
+# together with the user and policy.
+pulumi config set longhorn:backupTarget 's3://backup-longhorn@lab/v2/'
 
 # Enable backup functionality in Longhorn. RustFS has to be running.
 pulumi config set longhorn:backupEnabled true
 ```
+
+If the target later becomes unavailable with a `system-backup list` timeout, see
+[Backup target unavailable](./troubleshooting.md#backup-target-unavailable).
 
 ## Managing Volume Backups
 
@@ -38,7 +44,7 @@ pulumi config set longhorn:backupEnabled true
 pulumi config set longhorn:backupAllVolumes true
 
 # Optional: Exclude specific volumes from backup
-pulumi config set <app>:backupVolume false
+pulumi config set <app>:<component>/storage/backupEnabled false
 
 pulumi up
 ```
@@ -54,16 +60,59 @@ pulumi config set longhorn:backupEnabled true
 # Don't back up volumes by default (this is the default setting)
 pulumi config set longhorn:backupAllVolumes false
 
-# Enable backup for specific application volumes
-pulumi config set <app>:backupVolume true
+# Enable backup for a specific app or component
+pulumi config set <app>:storage/backupEnabled true
+pulumi config set <app>:<component>/storage/backupEnabled true
 
 pulumi up
 ```
 
-The backup setting precedence is:
+`storage/backupEnabled` is the per-volume participation switch. If it is unset,
+the volume follows `longhorn:backupAllVolumes`.
 
-1. App-specific setting (`<app>:backupVolume`) if specified
-2. Global setting (`longhorn:backupAllVolumes`) if no app-specific setting exists
+### Per-app and per-component schedules and retention
+
+App-level `storage/*` settings are defaults. Component-level settings use the
+volume/component name from `addStorage()` and override the app defaults:
+
+```sh
+# App-wide defaults
+pulumi config set nextcloud:storage/snapshotEnabled true
+pulumi config set nextcloud:storage/snapshotCron '0 */6 * * *'
+pulumi config set nextcloud:storage/snapshotRetain 28
+pulumi config set nextcloud:storage/backupEnabled true
+pulumi config set nextcloud:storage/backupCron '0 2 * * *'
+pulumi config set nextcloud:storage/backupRetain 14
+
+# Component overrides
+pulumi config set nextcloud:data/storage/backupEnabled false
+pulumi config set nextcloud:db/storage/backupCron '0 3 * * *'
+pulumi config set nextcloud:db/storage/backupRetain 30
+pulumi config set nextcloud:db/storage/backupFullInterval 30
+pulumi config set nextcloud:db/storage/snapshotCron '0 */6 * * *'
+```
+
+- Each setting is resolved independently: component `storage/*`, then app-level
+  `storage/*`, then the global `longhorn:*` value.
+- Component keys use the component/volume name, e.g. `nextcloud:data/...` or
+  `nextcloud:db/...`.
+- App-level `storage/backupEnabled` and `storage/snapshotEnabled` are defaults
+  for components that do not set their own.
+- `storage/backupEnabled` and `storage/snapshotEnabled` override the global
+  enablement settings.
+- For backups, `storage/backupEnabled` alone opts the volume in or out of the
+  global backup job. Add `storage/backupCron`, `storage/backupRetain`, or
+  `storage/backupFullInterval` to create an app/component-specific job.
+- Components with their own backup schedule/retention or snapshot settings get
+  their own Longhorn `RecurringJob`; `storage/backupEnabled=false` or
+  `storage/snapshotEnabled=false` disables that component.
+- The S3 backup target and the global backup job must exist
+  (`longhorn:backupEnabled=true`); `storage/backupEnabled` controls
+  participation, not the target or job configuration.
+- `backupFullInterval` is the number of incremental backups between full
+  backups, not days.
+- Trim remains global (`longhorn:trimEnabled` / `longhorn:trimCron`).
+- `backupVolume` is removed; Pulumi fails if it is still configured.
 
 ## Restoring from Backup
 

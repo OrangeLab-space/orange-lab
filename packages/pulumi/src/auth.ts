@@ -55,12 +55,14 @@ export class Auth {
             providerBaseUrl:
                 local?.providerBaseUrl ??
                 coreStack.outputs.security?.apply(
-                    security => security?.oidcProviderBaseUrl,
+                    security => security?.apps?.pocket?.oidcProviderBaseUrl,
                 ),
             providerUrl:
                 config.get(this.appName, 'auth/providerUrl') ??
                 local?.providerUrl ??
-                coreStack.outputs.security?.apply(security => security?.oidcProviderUrl),
+                coreStack.outputs.security?.apply(
+                    security => security?.apps?.pocket?.oidcProviderUrl,
+                ),
             providerName:
                 config.get(this.appName, 'auth/providerName') ?? local?.providerName,
             clientId: config.require(this.appName, 'auth/clientId'),
@@ -69,10 +71,7 @@ export class Auth {
                 : config.requireSecret(this.appName, 'auth/clientSecret'),
             adminGroup:
                 config.get(this.appName, 'auth/adminGroup') ??
-                coreStack.outputs.config?.apply(
-                    coreConfig => coreConfig?.adminGroup ?? 'admin',
-                ) ??
-                'admin',
+                `${this.appName}-admin`,
             groupMap:
                 (config.getObject(this.appName, 'auth/groupMap') as
                     | Record<string, string[]>

@@ -1,6 +1,6 @@
 ---
 name: code-conventions
-description: Use when creating or editing TypeScript code in the orange-lab repo — stacks, components (`stacks/<module>/components/`, `components/`), or the `@orangelab/pulumi` library (`packages/pulumi/src/`). Covers code style, component patterns, Pulumi config conventions, and secrets handling. Not needed for markdown/documentation-only changes.
+description: Use when creating or editing TypeScript code or shell scripts in the orange-lab repo — stacks, components (`stacks/<module>/components/`, `components/`), the `@orangelab/pulumi` library (`packages/pulumi/src/`), or `scripts/`. Covers code style, component patterns, shell script conventions, provider/control-plane behavior, Pulumi config conventions, and secrets handling. Not needed for markdown/documentation-only changes.
 ---
 
 # Code Conventions
@@ -16,15 +16,22 @@ description: Use when creating or editing TypeScript code in the orange-lab repo
 - Use `assert` for validations that should never fail
 - Prefer `variable?: Type` over `variable: Type | undefined`
 - Keep methods around 20 lines or less; inline simple operations (single `.map()`, `.filter()`) rather than extracting private methods; orchestration methods coordinating multiple steps may be longer
+- Treat ~200–300 lines as a soft ceiling for a file. When a change would push a file past it, or a method well past ~20 lines, flag the refactor before implementing. Propose moving the cohesive concern to a new module/class; an in-file extraction can add indirection without reducing responsibility.
 - Prefer standard Kubernetes conventions unless there's a specific reason to deviate (e.g. node-role labels use `true` value to match k3s `control-plane` and `master` roles)
+- Assign the `Application` straight to `this.app` and use `this.app` for the rest of the constructor. `addStorage()`, `addDeployment()` and the other chained calls return the app, so `const app = new Application(...); this.app = app;` buys nothing and splits one reference across two names. Helper functions outside the class keep `app` as a parameter — that's a different thing
 
 ## Components
 
 - Follow the established pattern for new modules and components
+- Match how sibling components handle the same cross-cutting concern. A component that adds a requirement where every sibling treats the concern as optional is a flag. Headscale was the only one that failed the deploy when OIDC was unset, while Zot, Caddy, Traefik and Technitium all did `if (app.oidc)`; that outlier is the only reason the bug was findable
 - Use constructor parameter properties with access modifiers (e.g., `constructor(private readonly args: Args)`)
 - Prefer composition over inheritance for component relationships
 - Only export fields when needed for external use; keep sensitive values like auth keys internal when not required
 - Share provider instances across components (pass via args) rather than creating duplicates
+
+### Object keys
+
+`sort-keys` is enabled with `minKeys: 10`, so an object with fewer than ten keys is never checked — and may already be in a non-alphabetical order. Adding the tenth key activates the rule and the whole object then has to be sorted. This bites Helm `values` objects, which are long and mostly ordered by convention rather than by lint. When the rule fires, reorder the object rather than working around the lint error.
 
 ### Initialization Order
 
@@ -33,19 +40,67 @@ When a value from `Application` (like `this.app.debug`) is needed during chained
 ## Shell Scripts & Tooling
 
 - Scripts under `scripts/` are generic tools driven entirely by explicit arguments. They must not read app-specific Pulumi config or infer app-specific names.
-- App-specific knowledge (stack outputs, `auth/*` values, group/client names) stays in the per-app wrapper that calls the shared script, which passes explicit parameters. Example: `pocket-<app>.sh` reads its `<app>:auth/allowedGroups` (unset = unrestricted) and passes them as `--restrict-access "admin,power-user"`; `scripts/pocket-client.sh` only acts on the arguments it is given.
+- App-specific knowledge (stack outputs, `auth/*` values, group/client names) stays in the per-app wrapper that calls the shared script, which passes explicit parameters. Example: `pocket-<app>.sh` reads its `<app>:auth/allowedGroups` (unset = unrestricted) and passes them as `--restrict-access "<groups>"`; `scripts/pocket-client.sh` only acts on the arguments it is given.
 - An existing group is reused, never modified, so members are not dropped.
 - If a shared tool needs something from another component's config to work, pass it as a parameter instead of reading it — and raise the new coupling for discussion first (see AGENTS.md).
+- Use `set -euo pipefail` at the top.
+- For scripts with distinct phases, use block section comments:
+
+    ```sh
+    #
+    # Validation
+    #
+    ```
+
+- After editing, run `shellcheck -x` on every changed script and `bash -n` for syntax; `npm test` does not cover shell.
+- When a shared script supports multiple providers or control planes, branch user-facing output. Never print Headscale approval commands for a Tailscale deployment; detect the control plane or print both paths.
+
+## Providers & Control Planes
+
+- Keep one shared implementation or guide with provider-specific sections instead of duplicating the whole thing.
+- Verify flags, tags, auth keys and approval steps against the current provider docs; do not infer one provider's behavior from the other.
+- Use **tailnet** as the generic term; reserve "mesh" for Headscale-specific prose.
 
 ## Configuration
 
-- **Pulumi stack files**: Never modify or read `Pulumi.*.yaml` files directly — they may contain secrets. Use `pulumi config set/get` (`--secret` for sensitive values).
+- **Pulumi stack files**: Never modify or read `Pulumi.*.yaml` files directly — they may contain secrets. Use `pulumi config set/get` (`--secret` for sensitive values). Note that `pulumi config get <key>` always returns the decrypted value (it has no `--show-secrets` flag), whereas `pulumi config` (full list) and `pulumi stack output` redact secrets unless `--show-secrets` is passed. Never run `pulumi config get` on a secret key or pass `--show-secrets` from an agent — give those commands to the user to run in their terminal.
 - Use `config.require()` instead of `config.get()` when a default value exists in `Pulumi.yaml`; don't use optional accessors (`?.`, `??`) for such settings. This prevents typos and simplifies processing logic
+- **A default lives in exactly one place: `Pulumi.yaml`.** When a setting has a real default there, read it with the `require*` accessor — `config.getBoolean(x, 'k') ?? false` duplicates the default in code and lets the two drift, so changing one silently leaves the other behind. `??` is for settings with no default anywhere; a default that only exists in code is a smell, since `Pulumi.yaml` is the published contract. Required accessors resolve `Pulumi.yaml` defaults, so `requireBoolean` works for a key that is present with a value. Corollary: a commented-out key has no default, so it must use the optional accessor and stay genuinely absent when unset
 - **Feature-gated validation**: When a feature is conditionally enabled (e.g., `smtp/enabled`), validate its required settings only when enabled. `Pulumi.yaml` can then carry defaults for optional features without forcing users to set them
 - **Conditional requirements**: When a feature is enabled, all its related settings should typically be required — the `enabled` flag acts as the conditional gate
+- **No installation-specific values as defaults**: `Pulumi.yaml` is published to every user, so a default must be meaningful for anyone. Never put a real domain, hostname, node name, IP, account or group name in it — the developer's own values are not the generic case. Comment the key out with a `#` example value and say whether it is required; it then belongs in the user's `Pulumi.<stack>.yaml`. Required settings use `config.require()` so the deploy fails with a clear message rather than silently substituting the author's environment. Optional ones use `config.get()` and leave the feature genuinely absent when unset — do not invent a fallback URL or redirect that only makes sense for the author (e.g. `caddy:rootRedirect`). Note `pulumi config get` resolves `Pulumi.yaml` defaults, so a default left in place is active, not inert.
 - **Minimal config generation**: Only generate config files (ConfigMaps/Secrets) when a feature requiring them is enabled
 - **Derive don't duplicate**: Values that can be derived from existing resources (like URLs from `HttpEndpointInfo`) should be derived, not manually configured
 - **Naming**: Settings that map to container environment variables use the exact env var name (e.g. `DNS_SERVER_FORWARDERS` instead of `forwarders`). Exception: settings that are standardized across apps (shared semantics regardless of the app's env var name) use a generic namespace and the component maps them to the app-specific env var — e.g. `auth/clientId`, `auth/clientSecret`, `auth/providerUrl`, `auth/providerName` map to `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OPENID_PROVIDER_URL`, `OAUTH_PROVIDER_NAME` in Open WebUI (and the equivalent vars in other apps). Use this only for genuinely cross-app settings, not for one-off app-specific knobs.
+
+### Pulumi.yaml Layout
+
+These apply to `Pulumi.yaml` in the core stack and to every module's `Pulumi.yaml`:
+
+- **One blank line between apps.** Each app's settings form a contiguous block; the next app starts after a blank line. Core also groups them under `### SECTION ###` headers (Network, Storage, Hardware, ...), with a blank line after each header.
+- **A commented-out key is a disabled setting, not a comment.** Treat it as part of the settings list — it needs no separator around it, and it never counts toward the comment length limit.
+- **Separate commented-out settings with a bare `#` line.** When several commented-out keys sit in a row and each carries its own comment, put a lone `#` between them so it is clear where one note ends and the next begins. A single one needs none. The separator goes _only_ between two commented-out keys — never after a real setting, since a real setting is already the end of the previous entry and needs nothing after it. Neither does a run of real settings under one leading comment: `key, comment, key, key` reads fine as-is. Show one commented-out form per key; if a setting takes several shapes, describe the variants in prose instead of commenting the key out twice.
+- **Comments are 1–2 lines, 3 maximum.** A comment says what the setting is and when it is required — nothing else. Anything longer belongs in the component's `<app>.md`, referenced by path. If the reason does not fit, the setting probably needs a better name or a code-level check instead of a prose explanation.
+- **A commented-out key is a placeholder, not a disabled default.** Show the shape (`# caddy:rootRedirect: https://example.com`) so users know what to type, and use generic example values.
+
+## Stack Outputs
+
+Every module and stack exports the same two keys, so a caller learns one shape:
+
+- **`endpoints`** — addresses grouped by reach, via `mergeEndpointExports(...apps)`:
+    - `public` — reachable from the internet: HTTP endpoints when the app sets `network/public: true` (Traefik public gateway or Tailscale Funnel), and TCP endpoints whose port sets `public: true` alongside it
+    - `private` — the tailnet gateway only; every endpoint not explicitly opted in, including a publicly-exposed app's TCP ports
+    - `cluster` — in-cluster Service DNS, for app-to-app wiring
+- **`apps`** — app-specific values that are not addresses: `users`, passwords, tokens, `db`, and resolver addresses like Technitium's `resolverIp`
+
+Rules:
+
+- **HTTP endpoints classify by `network/public`; TCP endpoints by their own reach.** An opted-in app's HTTP endpoints get a second route on the public gateway but serve one URL, so the flag decides where that URL goes. A TCP port lands in `public` only when a public publication was actually built — `public: true` on the port plus the app's `network/public` under Traefik — so a tailnet-only TCP port stays in `private` even for a publicly-exposed app.
+- **Never hand-list an endpoint in `getExports()`.** The library registers them; a hand-written list is what this shape replaced. If a URL is missing, the component never registered it — call `app.network.addEndpoint(name, url)` (or `addClusterEndpoint` for a Service address) where the component derives it.
+- **Helm-served apps must register their own endpoint.** Automatic port handling only sees `addDeployment`; an app brought up by `addHelmChart` or by a chart's own Ingress registers nothing and would silently vanish from the outputs.
+- **Store `app` as `public readonly`** on any component whose endpoints a module merges, so the module can read `component.app.network`.
+- **Drop single-URL fields like `endpointUrl` and `serviceUrl` from components** once the URL is in `endpoints`. A duplicate in two places drifts.
+- **The old flat `clusterEndpoints`, `clusterUrls` and `<app>Users` keys are gone.** Scripts and docs read `.endpoints.private.<app>`, `.endpoints.cluster.<app>` and `.apps.<app>.users.<user>`.
 
 ## Secrets
 

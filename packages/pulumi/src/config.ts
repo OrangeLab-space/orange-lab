@@ -119,6 +119,12 @@ class Config {
         return this.getConfig(appName).requireBoolean(key);
     }
 
+    public assertNotConfigured(appName: string, key: string, message: string) {
+        if (this.get(appName, key) !== undefined) {
+            throw new Error(message);
+        }
+    }
+
     private processDeprecated() {
         if (this.get('longhorn', 'backupAccessKeyId')) {
             console.warn('longhorn:backupAccessKeyId is deprecated.');
@@ -126,11 +132,11 @@ class Config {
         if (this.get('longhorn', 'backupAccessKeySecret')) {
             console.warn('longhorn:backupAccessKeySecret is deprecated.');
         }
-        if (this.get('longhorn', 'backupTarget')) {
-            console.warn(
-                'longhorn:backupTarget is deprecated. Use longhorn:backupBucket instead.',
-            );
-        }
+        this.assertNotConfigured(
+            'longhorn',
+            'backupBucket',
+            'longhorn:backupBucket is no longer supported. Use longhorn:backupTarget instead, e.g. pulumi config set longhorn:backupTarget s3://backup-longhorn@lab/.',
+        );
         if (this.get('longhorn', 'backupBucketCreate')) {
             console.warn('longhorn:backupBucketCreate is deprecated.');
         }

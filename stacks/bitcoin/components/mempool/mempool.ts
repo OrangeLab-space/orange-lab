@@ -68,7 +68,7 @@ export class Mempool extends pulumi.ComponentResource {
                 },
                 initContainers: waitForDb ? [waitForDb] : undefined,
                 resources: {
-                    requests: { cpu: '100m', memory: '512Mi' },
+                    requests: { cpu: '300m', memory: '1Gi' },
                     limits: { cpu: '1000m', memory: '4Gi' },
                 },
             })
@@ -81,8 +81,8 @@ export class Mempool extends pulumi.ComponentResource {
                     BACKEND_MAINNET_HTTP_HOST: backendHostname,
                 },
                 resources: {
-                    requests: { cpu: '100m', memory: '512Mi' },
-                    limits: { cpu: '1000m', memory: '2Gi' },
+                    requests: { cpu: '50m', memory: '128Mi' },
+                    limits: { cpu: '500m', memory: '512Mi' },
                 },
             });
     }

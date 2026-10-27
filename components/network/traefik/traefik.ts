@@ -8,10 +8,9 @@ import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 
 export class Traefik extends pulumi.ComponentResource {
-    private readonly app: Application;
+    public readonly app: Application;
     private chart: kubernetes.helm.v3.Release;
     private readonly customDomain: string;
-    public readonly endpointUrl: pulumi.Input<string>;
 
     constructor(
         private name: string,
@@ -27,8 +26,9 @@ export class Traefik extends pulumi.ComponentResource {
         const crds = this.createGatewayAPICRDs();
         this.chart = this.createChart(crds);
         this.createCertificate();
+        this.createPublicGateway();
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
-        this.endpointUrl = httpEndpointInfo.url;
+        this.app.network.addEndpoint(name, httpEndpointInfo.url);
         this.createDashboard(httpEndpointInfo);
     }
 
@@ -127,6 +127,30 @@ export class Traefik extends pulumi.ComponentResource {
                                 },
                             },
                         },
+                        publicweb: {
+                            expose: { default: true },
+                            exposedPort: 10080,
+                            port: 10080,
+                            http: {
+                                redirections: {
+                                    entryPoint: {
+                                        permanent: true,
+                                        scheme: 'https',
+                                        to: 'publicwebsecure',
+                                    },
+                                },
+                            },
+                        },
+                        publicwebsecure: {
+                            expose: { default: true },
+                            exposedPort: 10443,
+                            port: 10443,
+                            transport: {
+                                respondingTimeouts: {
+                                    readTimeout: '30s',
+                                },
+                            },
+                        },
                     },
                     priorityClassName: 'system-cluster-critical',
                     providers: {
@@ -134,6 +158,10 @@ export class Traefik extends pulumi.ComponentResource {
                             enabled: true,
                             experimentalChannel: true,
                         },
+                    },
+                    resources: {
+                        requests: { cpu: '100m', memory: '256Mi' },
+                        limits: { cpu: '1', memory: '512Mi' },
                     },
                     service: {
                         ipFamilyPolicy: 'PreferDualStack',
@@ -181,6 +209,57 @@ export class Traefik extends pulumi.ComponentResource {
                     secretName: `${this.customDomain}-tls`,
                     dnsNames: [`*.${this.customDomain}`, this.customDomain],
                     issuerRef: { name: clusterIssuer, kind: 'ClusterIssuer' },
+                },
+            },
+            { parent: this, dependsOn: this.chart },
+        );
+    }
+
+    /**
+     * Gateway for internet-facing routes, separate from the chart-managed
+     * gateway. Routes may only attach from namespaces labelled
+     * `orangelab.space/public`, so an application cannot become publicly
+     * reachable by accident.
+     */
+    private createPublicGateway() {
+        new kubernetes.apiextensions.CustomResource(
+            `${this.name}-gateway-public`,
+            {
+                apiVersion: 'gateway.networking.k8s.io/v1',
+                kind: 'Gateway',
+                metadata: {
+                    name: `${this.name}-gateway-public`,
+                    namespace: this.app.metadata.namespace,
+                },
+                spec: {
+                    gatewayClassName: 'traefik',
+                    listeners: [
+                        {
+                            name: 'publicwebsecure',
+                            port: 10443,
+                            protocol: 'HTTPS',
+                            tls: {
+                                mode: 'Terminate',
+                                certificateRefs: [
+                                    {
+                                        kind: 'Secret',
+                                        group: '',
+                                        name: `${this.customDomain}-tls`,
+                                    },
+                                ],
+                            },
+                            allowedRoutes: {
+                                namespaces: {
+                                    from: 'Selector',
+                                    selector: {
+                                        matchLabels: {
+                                            'orangelab.space/public': 'true',
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    ],
                 },
             },
             { parent: this, dependsOn: this.chart },

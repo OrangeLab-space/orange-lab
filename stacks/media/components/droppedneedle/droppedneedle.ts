@@ -50,8 +50,8 @@ export class DroppedNeedle extends pulumi.ComponentResource {
                 SLSKD_DOWNLOADS_PATH: config.require(this.name, 'SLSKD_DOWNLOADS_PATH'),
             },
             resources: {
-                requests: { memory: '128Mi' },
-                limits: { memory: '512Mi' },
+                requests: { cpu: '50m', memory: '384Mi' },
+                limits: { cpu: '1', memory: '512Mi' },
             },
         });
     }

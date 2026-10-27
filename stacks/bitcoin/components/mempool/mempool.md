@@ -25,8 +25,8 @@ pulumi up
 pulumi config set mempool:enabled true
 
 # Optional configuration
-pulumi config set mempool:backend/image mempool/backend:v3.2.1
-pulumi config set mempool:frontend/image mempool/frontend:v3.2.1
+pulumi config set mempool:backend/image mempool/backend:v3.3.1
+pulumi config set mempool:frontend/image mempool/frontend:v3.3.1
 pulumi config set mempool:frontend/hostname explorer # public frontend hostname
 pulumi config set mempool:backend/hostname mempool-backend # cluster-internal backend hostname
 
@@ -43,7 +43,8 @@ You can access the frontend at https://mempool/
 ## Pocket ID Launcher
 
 Mempool does not support OIDC, but it can appear in Pocket ID's App Dashboard as
-a launcher available to every Pocket ID user:
+a launcher restricted to `admin` and `mempool-users`
+(`mempool:auth/allowedGroups`):
 
 ```sh
 cd stacks/bitcoin

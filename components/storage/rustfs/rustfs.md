@@ -7,7 +7,7 @@
 | Documentation     | https://docs.rustfs.com/en/security-compliance/oidc                            |
 | Docker image      | https://hub.docker.com/r/rustfs/rustfs                                         |
 | Docker image (rc) | https://hub.docker.com/r/rustfs/rc                                             |
-| Endpoints         | `https://rustfs.<domain>/` (console) <br> `https://rustfs-api.<domain>/` (api) |
+| Endpoints         | `https://rustfs.<domain>/` (console) <br> `https://s3.<domain>/` (api) |
 
 Rustfs is a distributed object storage system compatible with Amazon S3, implemented in Rust.
 
@@ -53,15 +53,28 @@ pulumi config set rustfs:fixVolumePermissions "-Rv"
 RustFS provides the `rc` CLI tool for S3 operations:
 
 ```sh
-# Create "rustfs" alias pointing to Rustfs server
+# Create "rustfs" alias pointing at the S3 API (port 9000), not the console
 export ACCESS_KEY=$(pulumi config get rustfs:rootUser)
-export SECRET_KEY=$(pulumi stack output system --show-secrets | jq .rustfsUsers.admin -r)
+export SECRET_KEY=$(pulumi stack output system --show-secrets | jq .storage.apps.rustfs.users.admin -r)
 
-rc alias set rustfs https://rustfs.<domain> $ACCESS_KEY $SECRET_KEY
+rc alias set rustfs https://s3.<domain> $ACCESS_KEY $SECRET_KEY
 
 # Test connection
 rc ls rustfs
 ```
+
+## Buckets and users
+
+`scripts/rustfs-provision.sh` creates a bucket, a user and a policy that lets
+the user manage that bucket. Run it with a root `rc` alias; it writes the
+credentials to a 600 env file and leaves existing resources alone:
+
+```sh
+./scripts/rustfs-provision.sh --user my-app --bucket my-bucket
+```
+
+Use `--check` to verify an existing bucket, user, policy and attachment without
+changing anything.
 
 ## OpenID Connect (Pocket ID)
 
@@ -94,9 +107,10 @@ Access is granted through a custom claim on the shared Pocket ID groups. Add a c
 | Pocket ID group | Custom claim key  | Custom claim value |
 | --------------- | ----------------- | ------------------ |
 | `admin`         | `rustfs_policies` | `consoleAdmin`     |
-| `power-user`    | `rustfs_policies` | `readwrite`        |
+| `rustfs-admin`  | `rustfs_policies` | `consoleAdmin`     |
+| `rustfs-users`  | `rustfs_policies` | `readwrite`        |
 
-Users without a `rustfs_policies` claim cannot log in (`OIDC policy mapping did not resolve to current policies`). The client is restricted to `admin` and `power-user`, so only those users can sign in and see RustFS in **My Apps**.
+Users without a `rustfs_policies` claim cannot log in (`OIDC policy mapping did not resolve to current policies`). The client is restricted to `admin`, `rustfs-admin` and `rustfs-users`, so only those users can sign in and see RustFS in **My Apps**.
 
 ### Manual setup
 
@@ -110,7 +124,7 @@ Create the client in Pocket ID before deploying RustFS:
 | PKCE           | Enabled (RustFS requires S256)                                           |
 | Logo (dark)    | https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rustfs.svg            |
 | Logo (light)   | https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/rustfs-dark.svg       |
-| Allowed groups | `admin`, `power-user`                                                    |
+| Allowed groups | `admin`, `rustfs-admin`, `rustfs-users`                                 |
 
 When OIDC is enabled:
 

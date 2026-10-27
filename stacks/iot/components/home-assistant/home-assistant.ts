@@ -1,4 +1,9 @@
-import { Application, config } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    INIT_CONTAINER_RESOURCES,
+    requireOutput,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export interface HomeAssistantDevice {
@@ -14,8 +19,7 @@ export interface HomeAssistantArgs {
 }
 
 export class HomeAssistant extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
-    private readonly app: Application;
+    public readonly app: Application;
 
     constructor(name: string, args: HomeAssistantArgs, opts?: pulumi.ResourceOptions) {
         super('orangelab:iot:HomeAssistant', name, args, opts);
@@ -30,7 +34,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
         this.createHelmChart(name, args);
         this.app.addHostNetworkProxy({ targetPort: 8080, serviceAccountName: name });
 
-        this.endpointUrl = httpEndpointInfo.url;
+        this.app.network.addEndpoint(name, httpEndpointInfo.url);
     }
 
     private createHelmChart(name: string, args: HomeAssistantArgs) {
@@ -98,6 +102,10 @@ export class HomeAssistant extends pulumi.ComponentResource {
                         existingClaim: this.app.storage?.getClaimName(),
                     },
                     replicaCount: 1,
+                    resources: {
+                        requests: { cpu: '100m', memory: '512Mi' },
+                        limits: { cpu: '1', memory: '1Gi' },
+                    },
                     securityContext: {
                         capabilities: {
                             add: ['NET_ADMIN', 'NET_RAW'],
@@ -148,6 +156,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
             name: 'install-oidc-auth',
             image: 'alpine:3.21',
             command: ['/bin/sh', '-c'],
+            resources: INIT_CONTAINER_RESOURCES,
             env: [
                 { name: 'OIDC_REPO', value: config.require(name, 'oidcRepo') },
                 {
@@ -193,6 +202,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
             name: 'install-frigate-integration',
             image: 'alpine:3.21',
             command: ['/bin/sh', '-c'],
+            resources: INIT_CONTAINER_RESOURCES,
             env: [
                 { name: 'FRIGATE_REPO', value: config.require(name, 'frigateRepo') },
                 {
@@ -237,13 +247,9 @@ export class HomeAssistant extends pulumi.ComponentResource {
     }
 
     private getDiscoveryUrl() {
-        return pulumi.output(this.app.oidc?.providerUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'Home Assistant: OIDC enabled (home-assistant:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with Pocket ID enabled.',
-                );
-            }
-            return url;
-        });
+        return requireOutput(
+            this.app.oidc?.providerUrl,
+            'Home Assistant: OIDC enabled (home-assistant:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with Pocket ID enabled.',
+        );
     }
 }

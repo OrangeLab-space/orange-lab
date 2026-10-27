@@ -18,6 +18,10 @@ config:
     k3s:clusterCidr: 10.42.0.0/16
     k3s:serviceCidr: 10.43.0.0/16
 
+    # IPv4 range used by the tailnet. Tailscale always allocates from this
+    # CGNAT range; Headscale uses the same default. Change only to match a
+    # custom Headscale prefix.
+    orangelab:tailnetCidr: 100.64.0.0/10
     orangelab:routingProvider: tailscale # tailscale | traefik
     # Custom domain supported by Traefik provider only.
     # Note: add A record for "*" pointing to one of your Tailscale IPs
@@ -30,11 +34,12 @@ config:
     # Global Redis image - apps can override with <app>:redis/image
     orangelab:redis/image: docker.io/redis:8-alpine
 
-    # Pocket ID group that grants each app's admin role.
-    # Apps can override with <app>:auth/adminGroup.
-    orangelab:auth/adminGroup: admin
-
     ### Network ###
+
+    # Global Tor sidecar image - apps can override with <app>:tor/image
+    orangelab:tor/image: docker.io/dockurr/tor:0.4.9.14
+    # Global I2P sidecar image - apps can override with <app>:i2p/image
+    orangelab:i2p/image: docker.io/purplei2p/i2pd:release-3.0.0.1
 
     tailscale:enabled: false
     # tailscale:tailnet: <*.ts.net>
@@ -43,41 +48,117 @@ config:
     #   secure: OAUTH_CLIENT_SECRET
     # Hostname for Tailscale operator proxy for Kubernetes API
     tailscale:hostname: k8s
+    # Pocket ID groups allowed to sign in to the tailnet (unset = unrestricted)
+    tailscale:auth/allowedGroups: admin,vpn-users
 
     traefik:enabled: false
     traefik:hostname: traefik
-    traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml'
+    traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml'
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    traefik:auth/allowedGroups: admin,power-user
+    traefik:auth/allowedGroups: admin,traefik-admin
 
     cert-manager:enabled: false
     cert-manager:clusterIssuer: letsencrypt-issuer
 
+    caddy:enabled: false
+    # Optional redirect for the bare domain. Unset = no redirect, everything else 404s.
+    # caddy:rootRedirect: https://example.com
+    # Required. The acct: URI OIDC providers query to prove domain control.
+    # caddy:webfingerSubject: acct:admin@example.com
+
+    headscale:enabled: false
+    headscale:image: headscale/headscale:v0.29.5
+    headscale:hostname: headscale
+    headscale:storageSize: 1Gi
+    headscale:network/public: true
+    # MagicDNS suffix for node names. Apps are served under customDomain, not
+    # here. vpn.internal is reserved for private use (RFC 8375), is never
+    # delegated in public DNS, and so cannot be captured by a wildcard on the
+    # app domain - keep it outside customDomain, see spec/headscale.md.
+    # Must not contain the Headscale URL - headscale refuses to start otherwise.
+    headscale:baseDomain: vpn.internal
+    # Push Headscale's DNS resolvers onto every client, overriding the node's own
+    # resolver. false = clients keep whatever resolver they already use.
+    headscale:overrideLocalDns: false
+    # Comma-separated resolvers, raced with the first given a head start. Only used
+    # when overrideLocalDns is true. First is your Technitium resolver IP (see
+    # headscale.md), second a public fallback; the list only works while the
+    # tailnet is up.
+    # headscale:nameservers: <technitium-ip>,1.1.1.1
+    #
+    # Optional OIDC sign-in through Pocket ID
+    # headscale:auth: pocket
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    headscale:auth/allowedGroups: admin,vpn-users
+    #
+    # Run the built-in DERP relay for clients that cannot connect directly.
+    # Disabled = clients relay through Tailscale's public DERP servers.
+    # Enabling it needs a UDP port forward for STUN; see headscale.md.
+    headscale:derp/enabled: false
+    # STUN WAN port to forward; the node publishes it at this port + 10000
+    headscale:derp/stunPort: 3478
+    # Region ID. Tailscale reads 0 as "unset" and will never select such a relay,
+    # so it must be non-zero. 900-999 are reserved for self-hosted regions.
+    headscale:derp/regionId: 900
+    headscale:derp/regionCode: headscale
+    # Also offer Tailscale's public DERP servers, so a failure of ours does not
+    # take the tailnet offline. Needs outbound HTTPS on startup, or Headscale
+    # refuses to start.
+    headscale:derp/fallback: true
+    # Relay's public IPv4. Required when derp/enabled is true; clients probe a
+    # region by address and will not select one they can only resolve by name.
+    # headscale:derp/externalIp: 203.0.113.1
+
+    # Web UI for Headscale, served under /admin on the headscale hostname.
+    # Requires headscale:enabled. Create the API key first with
+    # components/network/headplane/headscale-apikey.sh
+    headplane:enabled: false
+    headplane:image: ghcr.io/tale/headplane:0.8.0
+    headplane:hostname: headplane
+    headplane:storageSize: 1Gi
+    # Sign in with Pocket ID. Roles come from a group custom claim
+    # (headplane_role), not from group names.
+    # headplane:auth: pocket
+    # Headscale API key. Set by headscale-apikey.sh, never by hand.
+    # headplane:apiKey:
+
     technitium:enabled: false
-    technitium:image: technitium/dns-server:15.6.0
+    technitium:image: technitium/dns-server:15.6.2
     technitium:hostname: dns
     technitium:storageSize: 5Gi
     # set to empty to use root servers recursion
     technitium:DNS_SERVER_FORWARDERS: '1.1.1.1'
     technitium:DNS_SERVER_FORWARDER_PROTOCOL: 'Udp' # Udp, Tcp, Tls, Https, HttpsJson
+    # Route upstream DNS through a Tor DNS resolver.
+    # Set the SOCKS5 proxy 127.0.0.1:9050 (and forwarder on existing volumes) in the UI.
+    technitium:network/tor: false
+    # Tor DNS resolver and protocol. Defaults to Cloudflare's hidden resolver.
+    technitium:torResolver: 'https://dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion/dns-query'
+    technitium:torResolverProtocol: 'Https'
     # technitium:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    technitium:auth/allowedGroups: admin,power-user
+    technitium:auth/allowedGroups: admin,technitium-admin
     # Pocket ID groups mapped to Technitium roles for SSO (Technitium role -> list of groups).
     technitium:auth/groupMap:
         value:
             Administrators:
                 - admin
-                - power-user
+                - technitium-admin
+    # Send pod DNS through Technitium, so ad-blocking applies inside the cluster.
+    # Comma-separated fallback resolvers, tried after Technitium. Unset = pods keep
+    # resolving through the node's own resolver.
+    # technitium:podNameservers: 1.1.1.1
 
     zot:enabled: false
-    zot:image: ghcr.io/project-zot/zot:v2.1.21
+    zot:image: ghcr.io/project-zot/zot:v2.1.22
     zot:hostname: registry
     zot:storageSize: 100Gi
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    zot:auth/allowedGroups: admin,power-user
+    zot:auth/allowedGroups: admin,zot-admin
     # Vulnerability scan interval for cached images (minimum 2h)
     zot:scanInterval: 24h
+    # Tags kept per mirrored repository before older ones are evicted; unset or 0 keeps all
+    zot:retentionKeepTags: 5
     # Upstream registries cached on-demand: host (K3s mirror key), upstream URL, and
     # local destination (pull as registry.<domain>/<destination>/<image>).
     zot:registries:
@@ -119,20 +200,27 @@ config:
     longhorn:version: 1.13.0
     longhorn:hostname: longhorn
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    longhorn:auth/allowedGroups: admin,power-user
+    longhorn:auth/allowedGroups: admin,longhorn-admin
     # Initial value for default storage. Adjust each volume in Longhorn UI
     longhorn:replicaCount: 2
+    # Max concurrent replica rebuilds per node
+    longhorn:concurrentReplicaRebuildPerNodeLimit: 2
     longhorn:snapshotEnabled: false
     longhorn:snapshotCron: '0 * * * *' # every hour
+    longhorn:snapshotRetain: 10
     longhorn:trimEnabled: true
     longhorn:trimCron: '0 0 * * 0' # once a week on Sunday at midnight
     longhorn:backupEnabled: false
-    longhorn:backupBucket: backup-longhorn
+    # Longhorn backup target: s3://<bucket>@<region>/[<path>/]
+    longhorn:backupTarget: s3://backup-longhorn@lab/
     longhorn:backupCron: '15 0 * * *' # daily at 0:15
-    # Enable backups for all volumes. Apps can opt in/out individually with <app>:backupVolume: true/false.
+    longhorn:backupRetain: 7
+    # Minutes Longhorn allows the system-backup listing to take
+    longhorn:backupExecutionTimeout: '10'
+    # Enable backups for all volumes. Apps opt in/out with <app>:storage/backupEnabled: true/false.
     longhorn:backupAllVolumes: false
-    # Full backup every x days, use 0 for incremental only
-    longhorn:backupFullInterval: '14'
+    # Full backup every x incremental backups, use 0 for incremental only
+    longhorn:backupFullInterval: '7'
     # Set to "least-effort" or "best-effort" to move replicas when nodes become unavailable
     longhorn:replicaAutoBalance: disabled
     # Set to "best-effort" to create a local replica on the pod's node
@@ -143,13 +231,13 @@ config:
 
     rustfs:enabled: false
     rustfs:hostname: rustfs
-    rustfs:hostname-api: rustfs-api
+    rustfs:hostname-api: s3
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    rustfs:auth/allowedGroups: admin,power-user
+    rustfs:auth/allowedGroups: admin,rustfs-admin,rustfs-users
     # rustfs:dataPath: /mnt/my-drive/rustfs-data
     # rustfs:requiredNodeLabel: kubernetes.io/hostname=<hostname>
     rustfs:rootUser: admin
-    rustfs:image: rustfs/rustfs:1.0.0
+    rustfs:image: rustfs/rustfs:1.0.4
     rustfs:provisioner/image: rustfs/rc:latest
     # rustfs:fixVolumePermissions: '-Rv'
 
@@ -160,7 +248,7 @@ config:
     nfd:excludeNodeLabel: orangelab/alpine
 
     nvidia-gpu-operator:enabled: false
-    nvidia-gpu-operator:version: v26.7.1
+    nvidia-gpu-operator:version: v26.7.2
 
     amd-gpu-operator:enabled: false
     amd-gpu-operator:version: v1.5.1
@@ -180,8 +268,17 @@ config:
     # prometheus:grafana/password: admin # auto-generated if not set
     prometheus:hostname: prometheus
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    prometheus:auth/allowedGroups: admin,power-user
+    prometheus:auth/allowedGroups: admin,prometheus-admin
     prometheus:alertmanager/hostname: alertmanager
+    # Email alerts, disabled until smtp/enabled is true. Port 465 uses
+    # implicit TLS; otherwise secure is none or starttls.
+    # prometheus:smtp/enabled: true
+    # prometheus:smtp/host: smtp.example.com
+    # prometheus:smtp/port: 587
+    # prometheus:smtp/secure: starttls
+    # prometheus:smtp/username: alerts@example.com
+    # prometheus:smtp/from: alerts@example.com
+    # prometheus:alertmanager/emailTo: you@example.com
     prometheus:grafana/hostname: grafana
     prometheus:storageSize: 100Gi
     prometheus:alertmanager/storageSize: 5Gi
@@ -195,7 +292,7 @@ config:
     # beszel:hubKey: BESZEL_KEY
     beszel:hostname: beszel
     # Pocket ID groups allowed to sign in (unset = unrestricted)
-    beszel:auth/allowedGroups: admin,power-user
+    beszel:auth/allowedGroups: admin,beszel-admin
     beszel:image: henrygd/beszel:latest
     beszel:agent/image: henrygd/beszel-agent:latest
     # Deploy to all nodes by default, even if requiredNodeLabel used on beszel
@@ -207,7 +304,7 @@ config:
 
     pocket:enabled: false
     pocket:hostname: pocket
-    pocket:image: pocketid/pocket-id:v2.14.0
+    pocket:image: pocketid/pocket-id:v2.18.0
     pocket:storageSize: 1Gi
     # pocket:encryptionKey:
     #   secure: ENCRYPTION_KEY

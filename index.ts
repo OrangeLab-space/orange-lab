@@ -27,9 +27,16 @@ exports.storage = storageModule.getExports();
 
 exports.config = {
     customDomain: config.get('orangelab', 'customDomain'),
-    adminGroup: config.get('orangelab', 'auth/adminGroup') ?? 'admin',
+    tailnet: config.get('tailscale', 'tailnet'),
     longhorn: {
         backupAllVolumes: config.getBoolean('longhorn', 'backupAllVolumes') ?? false,
+        backupCron: config.require('longhorn', 'backupCron'),
+        backupEnabled: config.requireBoolean('longhorn', 'backupEnabled'),
+        backupFullInterval: config.require('longhorn', 'backupFullInterval'),
+        backupRetain: config.requireNumber('longhorn', 'backupRetain'),
+        snapshotCron: config.require('longhorn', 'snapshotCron'),
+        snapshotEnabled: config.requireBoolean('longhorn', 'snapshotEnabled'),
+        snapshotRetain: config.requireNumber('longhorn', 'snapshotRetain'),
     },
 };
 

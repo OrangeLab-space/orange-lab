@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=home-assistant
 client_name="Home Assistant"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.homeAssistant')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private["home-assistant"]')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/auth/oidc/callback")
 logout_callback_urls=()
@@ -15,6 +15,9 @@ dark_icon_url=https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/home-a
 light_icon_url=https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/home-assistant.png
 pkce_enabled=true
 public_client=true
+
+# Pocket ID groups allowed to sign in; unset = unrestricted.
+allowed_groups=$(pulumi config get "${app_name}:auth/allowedGroups" 2>/dev/null || true)
 
 #
 # Shared invocation - identical in every app wrapper.
@@ -28,4 +31,5 @@ exec "$(git rev-parse --show-toplevel)/scripts/pocket-client.sh" \
     --dark-icon-url "$dark_icon_url" \
     --light-icon-url "$light_icon_url" \
     --pkce-enabled "$pkce_enabled" \
-    --public-client "$public_client"
+    --public-client "$public_client" \
+    --restrict-access "$allowed_groups"

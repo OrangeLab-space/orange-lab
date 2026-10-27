@@ -27,7 +27,7 @@ pulumi config set zot:enabled true
 pulumi up
 
 # Read the password if it was auto-generated
-pulumi stack output --json --show-secrets | jq -r '.network.zotUsers.admin'
+pulumi stack output --json --show-secrets | jq -r '.network.apps.zot.users.admin'
 ```
 
 ## Usage
@@ -65,7 +65,7 @@ The list is defined by `zot:registries` in `Pulumi.yaml` (each entry has an upst
 
 By default images are cached only when referenced explicitly (see [Usage](#usage)). To transparently cache images on a node, configure K3s containerd to use Zot as a mirror. Because Zot runs on the cluster, do this **after** Zot is deployed (and repeat it for nodes added later, or if the Zot endpoint changes).
 
-Generate `/etc/rancher/k3s/registries.yaml` from the `network.endpoints.zot` output and write it on the node:
+Generate `/etc/rancher/k3s/registries.yaml` from the `network.endpoints.private.zot` output and write it on the node:
 
 ```sh
 # Run where Pulumi is installed
@@ -96,7 +96,7 @@ Mirroring is per node and covers only the upstreams listed above. Pulls from `re
 
 ## Authentication
 
-Anonymous users can read any cached image. The `admin` user (password from `zot:adminPassword` or the `network.zotUsers.admin` output) can push images and use the web UI:
+Anonymous users can read any cached image. The `admin` user (password from `zot:adminPassword` or the `network.apps.zot.users.admin` output) can push images and use the web UI:
 
 ```sh
 docker login registry.<domain>
@@ -120,6 +120,24 @@ pulumi config set <app>:image registry.<domain>/apps/myapp:1.0
 
 > Note: read access is currently anonymous for all repositories (`anonymousPolicy: read` on `**`), so pushed images are readable by anyone who can reach the registry. Per-repository policies to make images private are not configured yet; treat Zot as a network-restricted registry, not a secret store.
 
+## Retention
+
+Each mirrored repository keeps a limited number of tags, so the cache cannot grow without bound. Once retention removes a tag, garbage collection frees the blobs it referenced.
+
+```sh
+# (Optional) Tags kept per mirrored repository (default: 5)
+pulumi config set zot:retentionKeepTags 5
+
+# (Optional) Keep every tag instead - unset or 0 disables eviction
+pulumi config set zot:retentionKeepTags 0
+```
+
+Retention covers only the mirrored upstream destinations ([upstreams](#upstreams) table). A repository matching no policy keeps every tag, so images [pushed](#pushing-your-own-images) to Zot directly are never pruned. Evicting a cached tag drops only the local copy — the next pull re-syncs it from upstream, costing a slower pull rather than a failed one.
+
+Tags are ranked by last pull, which Zot records in its metadata index rather than from real usage: the timestamps come out in tag order, so the tag treated as oldest is arbitrary and can change between cycles. A count keeps that many tags, not the newest versions — keep it above the tags currently deployed.
+
+Pruning runs on Zot's garbage collection cycle. Set the count back to 0 to stop it.
+
 ## SSO
 
 Zot supports OpenID Connect login for the web UI using [Pocket ID](../../security/pocket/pocket.md). The registry API still uses the `admin` password, since CLI clients cannot complete a browser redirect.
@@ -138,7 +156,7 @@ pulumi up
 
 2. A Pocket ID button then appears on the login page. The optional `zot:auth/providerName` labels the button.
 
-The Pocket ID client is restricted to `admin` and `power-user`, so only those users can sign in and see Zot in **My Apps**. Authenticated users get the default policy and can push and edit through the UI. Create the same user in the `admin`/htpasswd config if you also need CLI push.
+The Pocket ID client is restricted to `admin`, so only those users can sign in and see Zot in **My Apps**. Authenticated users get the default policy and can push and edit through the UI. Create the same user in the `admin`/htpasswd config if you also need CLI push.
 
 ## Vulnerability scanning
 

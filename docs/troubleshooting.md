@@ -34,6 +34,45 @@ If that works, then Tailscale Ingress needs to be looked at. Try stopping the `t
 
 Make sure there is no leftover entry for a service at https://login.tailscale.com/admin/machines. If there is a conflicting entry, remove it before enabling the app again (specifically the Ingress resource managed by Tailscale operator).
 
+## Pocket ID sign-in
+
+Pocket ID is the OIDC provider applications sign in through. When someone cannot
+sign in, or an app is missing from their **My Apps** dashboard, audit the live
+instance against the repository first — it reports exactly which group, client or
+launch URL has drifted:
+
+```sh
+./scripts/pocket-verify.sh                 # whole instance
+./scripts/pocket-verify.sh --app immich    # one application
+./scripts/pocket-verify.sh --json | jq     # machine-readable (exits 1 on drift)
+```
+
+The most common causes:
+
+- **The user is not in an allowed group.** Sign-in requires membership of one of
+  the app's `allowedGroups`; the client audit lists what each one allows. Group
+  membership is managed by hand in Pocket ID.
+- **The client is not restricted.** When `isGroupRestricted` is false the
+  allowed-group list is ignored, so every Pocket ID user can sign in.
+- **A tile is missing.** A client only appears in **My Apps** when it has a launch
+  URL; the VPN clients deliberately have none.
+- **A claim or role group is missing.** RustFS needs a `rustfs_policies` claim and
+  Headplane a `headplane_role` claim; other apps map groups to roles with
+  `auth/groupMap` or an `<app>-admin` group.
+- **Passkeys fail after a hostname change.** Passkeys are bound to the origin, so
+  every user has to register again.
+
+If only **one** app is affected and the audit is clean, the app is the likelier
+culprit: a 5xx from the app's SSO _start_ URL happens before Pocket ID is
+contacted, so read that app's log first. Jellyfin, for example, fails this way
+when an upgrade leaves an old plugin version next to the new one
+([Jellyfin](../stacks/media/components/jellyfin/jellyfin.md)).
+
+`<app>:auth/allowedGroups` is declared in the owning `Pulumi.yaml` (repository
+root for core components, `stacks/<module>/Pulumi.yaml` for applications). After
+changing it, re-run the app's `pocket-<app>.sh` wrapper — `allowedGroups` is read
+only by the wrapper, so no `pulumi up` is needed.
+
 ## Longhorn
 
 Longhorn troubleshooting guide - https://github.com/longhorn/longhorn/wiki/Troubleshooting
@@ -77,9 +116,11 @@ disks, so their presence in `lsblk` output does not indicate failing hardware.
 ### Volume out of space
 
 Expanding a volume is covered in the
-[configuration guide](./configuration.md#storage). Note that Pulumi only updates
-the PVC size — it does not expand the Longhorn volume, so a volume attached with
-`fromVolume` keeps its original filesystem until the volume itself is expanded.
+[configuration guide](./configuration.md#storage) and the `resize-storage`
+skill. For a dynamic volume Pulumi updates the PVC and Longhorn expands it on
+the next deploy. A volume attached with `fromVolume` is statically bound: its
+PVC cannot be resized, so disable the app, patch the Longhorn volume's
+`spec.size`, and re-enable it.
 
 A volume that reached 100% may have left application data damaged. Resizing does
 not repair it, so check the application logs after expanding. SQLite-based
@@ -100,3 +141,17 @@ counter is not reset after a successful rebuild, so it reflects historical
 attempts rather than the current state. Check the volume's `robustness` field
 instead, and allow time for the rebuild: a degraded volume during a rebuild is
 expected until the new replica is usable.
+
+### Backup target unavailable
+
+A `system-backup list` timeout usually means RustFS is slow to answer Longhorn's
+root-prefix listing, not that the backup target is broken. Restart RustFS, wait
+for the next reconcile, then check the target:
+
+```sh
+kubectl -n rustfs rollout restart deployment/rustfs
+kubectl -n longhorn-system get backuptarget default
+```
+
+See [Longhorn behavior notes](../spec/longhorn.md#backup-target-can-flap-on-slow-s3-storage)
+for the full diagnosis and fallback settings.

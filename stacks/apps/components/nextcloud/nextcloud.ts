@@ -5,14 +5,15 @@ import {
     config,
     DatabaseConfig,
     HttpEndpointInfo,
+    METRICS_EXPORTER_RESOURCES,
     OidcAuthConfig,
+    requireOutput,
     SmtpSettings,
 } from '@orangelab/pulumi';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 
 export class Nextcloud extends pulumi.ComponentResource {
-    public readonly serviceUrl?: pulumi.Input<string>;
     public readonly app: Application;
     public readonly users: Record<string, pulumi.Output<string>> = {};
     public readonly dbConfig?: DatabaseConfig;
@@ -44,7 +45,7 @@ export class Nextcloud extends pulumi.ComponentResource {
             auth,
             smtp,
         });
-        this.serviceUrl = httpEndpointInfo.url;
+        this.app.network.addEndpoint(appName, httpEndpointInfo.url);
     }
 
     private createHelmChart(args: {
@@ -67,6 +68,13 @@ export class Nextcloud extends pulumi.ComponentResource {
                     affinity: this.app.nodes.getAffinity(),
                     cronjob: {
                         enabled: true,
+                        sidecar: {
+                            resources: {
+                                requests: { cpu: '50m', memory: '128Mi' },
+                                // Above PHP's 512M memory_limit.
+                                limits: { cpu: '500m', memory: '768Mi' },
+                            },
+                        },
                     },
                     externalDatabase: {
                         enabled: true,
@@ -93,13 +101,22 @@ export class Nextcloud extends pulumi.ComponentResource {
                         tls: [
                             {
                                 hosts: [args.httpEndpointInfo.hostname],
-                                secretName: args.httpEndpointInfo.tlsSecretName,
                             },
                         ],
                     },
                     internalDatabase: { enabled: false },
+                    lifecycle: {
+                        preStopCommand: [
+                            '/bin/sh',
+                            '-c',
+                            'apache2ctl graceful-stop 2>/dev/null || kill -TERM 1',
+                        ],
+                    },
                     livenessProbe: { enabled: true },
-                    metrics: { enabled: true },
+                    metrics: {
+                        enabled: true,
+                        resources: METRICS_EXPORTER_RESOURCES,
+                    },
                     nextcloud: {
                         configs: this.getConfigFiles(args.auth),
                         extraEnv: this.getExtraEnv(args, oidcSecret),
@@ -123,9 +140,23 @@ export class Nextcloud extends pulumi.ComponentResource {
                         enabled: args.httpEndpointInfo.tls,
                         protocol: args.httpEndpointInfo.tls ? 'https' : 'http',
                     },
-                    readinessProbe: { enabled: true },
+                    readinessProbe: {
+                        enabled: true,
+                        initialDelaySeconds: 5,
+                        periodSeconds: 5,
+                    },
                     replicaCount: 1,
-                    startupProbe: { enabled: true },
+                    resources: {
+                        requests: { cpu: '50m', memory: '384Mi' },
+                        // No CPU limit: 500m throttled preview bursts, piling up
+                        // Apache workers and DB connections.
+                        limits: { memory: '1.5Gi' },
+                    },
+                    startupProbe: {
+                        enabled: true,
+                        initialDelaySeconds: 5,
+                        periodSeconds: 5,
+                    },
                 },
             },
             { parent: this },
@@ -237,14 +268,10 @@ $CONFIG = array (
     private createOidcSecret(auth: OidcAuthConfig | undefined): k8s.core.v1.Secret | undefined {
         if (!auth) return undefined;
 
-        const discoveryUri = pulumi.output(auth.providerUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'Nextcloud: OIDC enabled (nextcloud:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, or set nextcloud:auth/providerUrl.',
-                );
-            }
-            return url;
-        });
+        const discoveryUri = requireOutput(
+            auth.providerUrl,
+            'Nextcloud: OIDC enabled (nextcloud:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, or set nextcloud:auth/providerUrl.',
+        );
 
         return new k8s.core.v1.Secret(
             `${this.appName}-oidc`,

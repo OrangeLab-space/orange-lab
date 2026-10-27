@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=longhorn
 client_name="Longhorn"
-launch_url=$(pulumi stack output --json | jq -er '.storage.endpoints.longhorn')
+launch_url=$(pulumi stack output --json | jq -er '.storage.endpoints.private.longhorn')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/oidc/callback")
 logout_callback_urls=("$launch_url/oidc/callback")

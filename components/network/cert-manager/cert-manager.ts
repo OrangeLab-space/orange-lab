@@ -16,6 +16,12 @@ export class CertManager extends pulumi.ComponentResource {
                     enabled: true,
                     keep: true,
                 },
+                cainjector: {
+                    resources: {
+                        requests: { cpu: '50m', memory: '128Mi' },
+                        limits: { cpu: '500m', memory: '256Mi' },
+                    },
+                },
                 prometheus: config.enableMonitoring()
                     ? {
                           servicemonitor: {
@@ -23,6 +29,16 @@ export class CertManager extends pulumi.ComponentResource {
                           },
                       }
                     : undefined,
+                resources: {
+                    requests: { cpu: '10m', memory: '64Mi' },
+                    limits: { cpu: '500m', memory: '128Mi' },
+                },
+                webhook: {
+                    resources: {
+                        requests: { cpu: '10m', memory: '64Mi' },
+                        limits: { cpu: '500m', memory: '128Mi' },
+                    },
+                },
             },
         });
     }

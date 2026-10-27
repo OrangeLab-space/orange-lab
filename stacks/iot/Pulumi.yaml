@@ -26,12 +26,13 @@ config:
     # home-assistant:requiredNodeLabel: topology.kubernetes.io/zone=<value>
     # or deploy to specific node
     # home-assistant:requiredNodeLabel: kubernetes.io/hostname=<value>
-
     home-assistant:trustedProxies: '10.42.0.0/16,10.43.0.0/16,127.0.0.0/8' # clusterCidr,serviceCidr,local
     # Home Assistant OpenID Connect integration source (used when home-assistant:auth is set)
     # Release archive is fetched from <oidcRepo>/releases/download/<oidcVersion>/hass-oidc-auth.zip
     home-assistant:oidcRepo: https://github.com/christiaangoossens/hass-oidc-auth
     home-assistant:oidcVersion: v1.2.1
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    home-assistant:auth/allowedGroups: admin,home-assistant-admin
     # Frigate custom integration, installed into /config/custom_components
     # when the Frigate component is enabled (repo + release tag, fetched from a tarball)
     home-assistant:frigateRepo: https://github.com/blakeblackshear/frigate-hass-integration
@@ -71,9 +72,7 @@ config:
     frigate:shmSize: 512Mi
     frigate:cacheSize: 1Gi
     frigate:coral: false
-    # GPU: nvidia | amd | intel (image variant + device access). Detection stays
-    # on CPU, except Intel (OpenVINO on the iGPU); other GPUs are set up in the
-    # Frigate UI. See frigate.md, including the AMD iGPU chipset override.
+    # GPU: nvidia | amd | intel. See frigate.md for the AMD iGPU chipset override.
     # frigate:gpu: nvidia
     # Deploy on the node with the Coral USB accelerator / recorded media disk.
     # frigate:requiredNodeLabel: kubernetes.io/hostname=<node>
@@ -83,31 +82,24 @@ config:
     # frigate:devices:
     #     - name: dri
     #       device: /dev/dri
-    # Frigate configuration (YAML, see frigate.md). Per-camera credentials live
-    # in the RTSP URLs; storing it here keeps them plaintext in this file. For
-    # encrypted storage use:
-    #   pulumi config set --secret frigate:config "$(cat frigate.yml)"
-    # frigate:config:
-    #     cameras:
-    #         front_door:
-    #             ffmpeg:
-    #                 inputs:
-    #                     - path: rtsp://viewer:password@10.0.10.10:554/live
-    #                       roles: [detect, record, audio]
-    # After first deploy Frigate's UI owns /config/config.yml, so the value above
-    # is only a seed. Set to true to overwrite it (and any UI edits) on the next
-    # deploy, then set it back to false.
+    # Frigate config (YAML). Holds camera credentials in plaintext - use
+    # `pulumi config set --secret frigate:config "$(cat frigate.yml)"` instead.
+    # frigate:config: {}
+    # After first deploy the UI owns config.yml, so the seed above is ignored
+    # until this is true. Set back to false afterwards.
     frigate:config/recreate: false
-    # Single sign-on via Pocket ID (disabled by default). Create the OIDC client
-    # first with ./components/frigate/pocket-frigate.sh, then apply the printed
-    # commands (frigate:auth, frigate:auth/clientId, frigate:auth/clientSecret).
-    # Frigate's own login is disabled while SSO is enabled.
+    # Single sign-on via Pocket ID. Create the OIDC client first with
+    # ./components/frigate/pocket-frigate.sh. See frigate.md.
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    frigate:auth/allowedGroups: admin,frigate-admin
     # Pocket ID groups mapped to Frigate roles (Frigate role -> list of groups).
-    # Roles other than admin/viewer must also be defined in frigate:config.auth.roles.
+    # The global admin group grants Frigate's admin role; frigate-admin delegates
+    # the same role without granting access to other apps.
     frigate:auth/groupMap:
         value:
             admin:
                 - admin
+                - frigate-admin
             # viewer:
             #     - viewers
     # Fallback role for authenticated users not matched above (admin | viewer).

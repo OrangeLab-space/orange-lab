@@ -1,4 +1,4 @@
-import { config } from '@orangelab/pulumi';
+import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import { Nextcloud } from './components/nextcloud/nextcloud';
 import { Vaultwarden } from './components/vaultwarden/vaultwarden';
 
@@ -7,17 +7,7 @@ const vaultwarden = config.isEnabled('vaultwarden')
     ? new Vaultwarden('vaultwarden')
     : undefined;
 
-export const endpoints = {
-    ...nextcloud?.app.network.endpoints,
-    ...vaultwarden?.app.network.endpoints,
-    nextcloud: nextcloud?.serviceUrl,
-    vaultwarden: vaultwarden?.serviceUrl,
-};
-
-export const clusterUrls = {
-    nextcloud: nextcloud?.app.network.clusterEndpoints.nextcloud,
-    vaultwarden: vaultwarden?.app.network.clusterEndpoints.vaultwarden,
-};
+export const endpoints = mergeEndpointExports(nextcloud, vaultwarden);
 
 export const apps = {
     nextcloud: nextcloud

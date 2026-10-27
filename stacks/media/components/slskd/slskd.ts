@@ -70,8 +70,8 @@ export class Slskd extends pulumi.ComponentResource {
                 SLSKD_SLSK_PASSWORD: this.soulseekPassword,
             },
             resources: {
-                requests: { memory: '128Mi' },
-                limits: { memory: '512Mi' },
+                requests: { cpu: '100m', memory: '384Mi' },
+                limits: { cpu: '1', memory: '512Mi' },
             },
             runAsUser: 1000,
             volumeOwnerUserId: 1000,

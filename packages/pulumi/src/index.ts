@@ -1,3 +1,4 @@
+export { EndpointExports, mergeEndpointExports } from './network';
 export { Application } from './application';
 export { Auth, OidcAuthConfig, OidcProvider, OidcProviderSettings } from './auth';
 export { coreStack } from './core-stack';
@@ -5,12 +6,17 @@ export { config } from './config';
 export { GrafanaDashboard } from './grafana-dashboard';
 export { Metadata } from './metadata';
 export { Nodes, NodesArgs } from './nodes';
-export { createPassword } from './secrets';
-export { Smtp } from './smtp';
 export {
-    createTraefikOidcMiddleware,
-    traefikOidcMiddlewareName,
-} from './oidc-auth';
+    DATABASE_RESOURCES,
+    INIT_CONTAINER_RESOURCES,
+    METRICS_EXPORTER_RESOURCES,
+    REDIS_RESOURCES,
+} from './resources';
+export { createPassword } from './secrets';
+export { createI2pSidecar, getI2pImage, I2pSidecar, I2pSidecarArgs } from './i2p';
+export { Smtp } from './smtp';
+export { createTorSidecar, getTorImage, TorSidecar, TorSidecarArgs } from './tor';
+export { requireOutput } from './utils';
 export {
     ConfigVolumeSpec,
     ContainerResources,
@@ -27,8 +33,10 @@ export {
     PersistentVolumeSpec,
     PublicTcpServiceConfig,
     RoutingProvider,
+    RoutingProviderArgs,
     S3Provisioner,
     ServicePort,
+    SidecarSpec,
     SmtpSecurity,
     SmtpSettings,
     SmtpSettingsDisabled,

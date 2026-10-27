@@ -46,7 +46,7 @@ An existing admin user works but a dedicated user is recommended.
 
 ## SSO (Pocket ID)
 
-Jellyfin supports OIDC login via [Pocket ID](../../../../components/security/pocket/pocket.md) using the [SSO plugin (K0lin fork)](https://github.com/K0lin/jellyfin-plugin-sso). This is a manual setup - the plugin is configured in the Jellyfin web UI and requires no Pulumi configuration.
+Jellyfin supports OIDC login via [Pocket ID](../../../../components/security/pocket/pocket.md) using the [SSO plugin (K0lin fork)](https://github.com/K0lin/jellyfin-plugin-sso). This is a manual setup - the plugin is configured in the Jellyfin web UI and requires no Pulumi configuration. The Pocket ID client is restricted to `admin`, `jellyfin-users` and `jellyfin-admin`.
 
 > [!WARNING]
 > SSO only works in browsers and apps that support [QuickConnect](https://jellyfin.org/docs/general/server/quick-connect). Native Jellyfin apps (Android, iOS, Smart TV) sign in via QuickConnect only: start QuickConnect in the app, then accept the code in the web browser after logging in with Pocket ID.
@@ -71,7 +71,7 @@ cd stacks/media
 | Enable Authorization  | yes (group membership controls admin status)                   |
 | Enable All Folders    | yes                                                            |
 | Roles                 | (empty - every user gets access)                               |
-| Admin Roles           | `admin`                                                        |
+| Admin Roles           | `admin`, `jellyfin-admin`                                      |
 | Role Claim            | `groups`                                                       |
 | Scopes                | `groups`                                                       |
 | Username claim        | `preferred_username`                                           |
@@ -95,8 +95,8 @@ Alternative to the plugin's config page (roles left blank = every provisioned us
 ```sh
 # Create an API key in Dashboard -> API Keys, then:
 export API_KEY=<api-key>
-export JELLYFIN_URL=$(pulumi stack output --json | jq -er '.endpoints.jellyfin')
-export POCKET_URL=$(pulumi --cwd ../.. stack output --json | jq -er '.security.endpoints.pocket')
+export JELLYFIN_URL=$(pulumi stack output --json | jq -er '.endpoints.private.jellyfin')
+export POCKET_URL=$(pulumi --cwd ../.. stack output --json | jq -er '.security.endpoints.public.pocket')
 export OIDC_CLIENT_ID=$(pulumi config get jellyfin:auth/clientId)
 export OIDC_CLIENT_SECRET=$(pulumi config get jellyfin:auth/clientSecret)
 
@@ -112,7 +112,7 @@ curl -sf -X POST "$JELLYFIN_URL/sso/OID/Add/pocketid" \
     "enableAllFolders": true,
     "enabledFolders": [],
     "roles": [],
-    "adminRoles": ["admin"],
+    "adminRoles": ["admin", "jellyfin-admin"],
     "roleClaim": "groups",
     "oidScopes": ["groups"],
     "defaultUsernameClaim": "preferred_username",
@@ -128,8 +128,22 @@ curl -sf "$JELLYFIN_URL/sso/OID/Get" -H "Authorization: MediaBrowser Token=\"$AP
 ### Notes
 
 - Keep the local `admin` account usable as a fallback login.
+- The global `admin` group and the delegated `jellyfin-admin` group both grant Jellyfin administrator rights; both must be listed in **Admin Roles**.
 - If a Pocket ID username matches an existing Jellyfin account, the plugin overrides that account's permissions on login; `Enable Authorization` makes group membership the source of truth for admin and folder access.
 - Existing Jellyfin users can link or unlink their SSO identity at `/SSOViews/linking`.
+
+### After an upgrade
+
+Jellyfin keeps **one folder per plugin version** in `/data/plugins/` and loads
+every folder it finds. An upgrade can leave the previous version behind, so two
+copies of the same plugin register the same routes and every sign-in attempt
+fails with `Error processing request`. Check for a stale folder and remove it:
+
+```sh
+kubectl -n jellyfin exec deploy/jellyfin -- ls /data/plugins
+kubectl -n jellyfin exec deploy/jellyfin -- rm -rf "/data/plugins/SSO Authentication_<old-version>"
+kubectl -n jellyfin rollout restart deploy/jellyfin
+```
 
 ## Hardware Acceleration
 

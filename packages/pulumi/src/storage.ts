@@ -4,11 +4,11 @@ import * as pulumi from '@pulumi/pulumi';
 import * as crypto from 'crypto';
 import assert from 'node:assert';
 import { config } from './config';
-import { coreStack, resolveInherited } from './core-stack';
 import { LocalVolume } from './local-volume';
 import { LonghornVolume } from './longhorn-volume';
 import { Metadata } from './metadata';
 import { Nodes } from './nodes';
+import { StorageRecurringJobs } from './storage-recurring-jobs';
 import {
     ConfigVolumeSpec,
     DeviceMountSpec,
@@ -31,6 +31,7 @@ export class Storage extends pulumi.ComponentResource {
     private localVolumes = new Map<string, LocalVolume>();
     private longhornVolumes = new Map<string, LonghornVolume>();
     private volumes = new Map<string, kubernetes.types.input.core.v1.Volume>();
+    private readonly storageRecurringJobs: StorageRecurringJobs;
     public configFilesHash?: pulumi.Output<string>;
 
     constructor(
@@ -42,6 +43,7 @@ export class Storage extends pulumi.ComponentResource {
         opts?: pulumi.ComponentResourceOptions,
     ) {
         super('orangelab:Storage', `${appName}-storage`, args, opts);
+        this.storageRecurringJobs = new StorageRecurringJobs(appName, this);
     }
 
     getVolumes(): kubernetes.types.input.core.v1.Volume[] {
@@ -96,6 +98,14 @@ export class Storage extends pulumi.ComponentResource {
     }
 
     addPersistentVolume(volume?: PersistentVolumeSpec) {
+        if (volume?.name) {
+            config.assertNotConfigured(
+                this.appName,
+                `${volume.name}/backupVolume`,
+                `${this.appName}:${volume.name}/backupVolume is no longer supported. Use ${this.appName}:${volume.name}/storage/backupEnabled instead.`,
+            );
+        }
+
         const volumeName = this.getVolumeName(volume?.name);
         const fullVolumeName = this.getFullVolumeName(volume?.name);
         const prefix = volume?.name ? `${volume.name}/` : '';
@@ -104,6 +114,7 @@ export class Storage extends pulumi.ComponentResource {
             : this.args.metadata.get().labels;
         const fromVolume =
             volume?.fromVolume ?? config.get(this.appName, `${prefix}fromVolume`);
+        const recurringJobs = this.storageRecurringJobs.getVolumeArgs(volume?.name);
         const storage = new LonghornVolume(
             `${fullVolumeName}-storage`,
             {
@@ -111,11 +122,11 @@ export class Storage extends pulumi.ComponentResource {
                 affinity: this.args.nodes.getVolumeAffinity(volume?.name),
                 annotations: volume?.annotations,
                 createStorageClass: volume?.createStorageClass,
-                enableBackup: this.resolveBackupEnabled(volume?.name),
                 fromVolume,
                 labels: { ...labels, ...volume?.labels },
                 name: volume?.overrideFullname ?? fullVolumeName,
                 namespace: this.args.metadata.namespace,
+                recurringJobs,
                 size:
                     volume?.size ?? config.require(this.appName, `${prefix}storageSize`),
                 storageClass: fromVolume
@@ -183,21 +194,6 @@ export class Storage extends pulumi.ComponentResource {
         return resolveVolumeName(this.appName, storageName);
     }
 
-    private resolveBackupEnabled(volumeName?: string): pulumi.Input<boolean> {
-        const prefix = volumeName ? `${volumeName}/` : '';
-        const localBackupValue =
-            config.getBoolean(this.appName, `${prefix}backupVolume`) ??
-            config.getBoolean('longhorn', 'backupAllVolumes');
-        if (localBackupValue !== undefined) return localBackupValue;
-
-        return resolveInherited({
-            settingName: 'longhorn.backupAllVolumes',
-            coreValue: coreStack.outputs.config?.apply(
-                coreConfig => coreConfig?.longhorn?.backupAllVolumes,
-            ),
-        });
-    }
-
     private getFullVolumeName(storageName?: string): string {
         return storageName ? `${this.appName}-${storageName}` : this.appName;
     }
@@ -263,7 +259,9 @@ export class Storage extends pulumi.ComponentResource {
                 metadata: this.createMetadata(name),
                 data: files,
             },
-            { parent: this },
+            // Replacing a ConfigMap fails if the replacement is created before
+            // the original is deleted, since the name is already taken.
+            { parent: this, deleteBeforeReplace: true },
         );
     }
 

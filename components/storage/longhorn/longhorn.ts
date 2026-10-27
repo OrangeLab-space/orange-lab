@@ -9,6 +9,7 @@ import {
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import dashboardJson from './longhorn-dashboard.json';
+import { LonghornBackupStore, LonghornJobs } from './longhorn-jobs';
 
 export interface LonghornArgs {
     s3Provisioner?: S3Provisioner;
@@ -16,9 +17,7 @@ export interface LonghornArgs {
 }
 
 export class Longhorn extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
-
-    private readonly app: Application;
+    public readonly app: Application;
     private readonly chart: kubernetes.helm.v3.Release;
 
     constructor(
@@ -33,66 +32,50 @@ export class Longhorn extends pulumi.ComponentResource {
             oidc: args.oidc ? { ...args.oidc, protectRoutes: true } : undefined,
         });
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
-
-        const middlewareName = this.app.network.oidcMiddlewareName;
-        const backupEnabled = config.getBoolean(name, 'backupEnabled') ?? false;
-        let backupTarget: string | undefined = undefined;
-        let backupTargetCredentialSecret: pulumi.Output<string> | undefined = undefined;
-        if (backupEnabled && args.s3Provisioner) {
-            const bucketName = config.require(name, 'backupBucket');
-            backupTarget = `s3://${bucketName}@lab/`;
-            const backupSecret = this.createBackupSecret(bucketName, args.s3Provisioner);
-            backupTargetCredentialSecret = backupSecret.metadata.name;
-        }
+        const routeProtected = this.app.network.routeProtected;
+        const jobs = new LonghornJobs({
+            name,
+            app: this.app,
+            parent: this,
+            s3Provisioner: args.s3Provisioner,
+        });
 
         this.chart = this.createHelmRelease({
             httpEndpointInfo,
-            middlewareName,
-            backupTarget,
-            backupTargetCredentialSecret,
+            routeProtected,
+            defaultBackupStore: jobs.defaultBackupStore,
         });
 
         this.createStorageClasses();
-        if (config.getBoolean(name, 'snapshotEnabled')) {
-            this.createSnapshotJob();
-        }
-        if (config.getBoolean(name, 'trimEnabled')) {
-            this.createTrimJob();
-        }
-        if (backupEnabled) {
-            this.createBackupJob();
-        }
+        jobs.createRecurringJobs(this.chart);
         if (config.enableMonitoring()) {
             new GrafanaDashboard(name, { configJson: dashboardJson }, { parent: this });
         }
 
-        this.endpointUrl = httpEndpointInfo.url;
+        this.app.network.addEndpoint(name, httpEndpointInfo.url);
     }
 
     private createHelmRelease({
         httpEndpointInfo,
-        middlewareName,
-        backupTarget,
-        backupTargetCredentialSecret,
+        routeProtected,
+        defaultBackupStore,
     }: {
         httpEndpointInfo: HttpEndpointInfo;
-        middlewareName?: string;
-        backupTarget?: string;
-        backupTargetCredentialSecret?: pulumi.Output<string>;
+        routeProtected: boolean;
+        defaultBackupStore: LonghornBackupStore;
     }) {
         return this.app.addHelmChart(this.name, {
             chart: 'longhorn',
             repo: 'https://charts.longhorn.io',
             values: {
                 csi: {
+                    allowControllerSecretAccess: false,
                     attacherReplicaCount: 1,
                     provisionerReplicaCount: 1,
                     resizerReplicaCount: 1,
                     snapshotterReplicaCount: 1,
                 },
-                defaultBackupStore: backupTarget
-                    ? { backupTarget, backupTargetCredentialSecret }
-                    : { backupTarget: '', backupTargetCredentialSecret: '' },
+                defaultBackupStore,
                 defaultSettings: {
                     allowEmptyDiskSelectorVolume: 'true',
                     allowEmptyNodeSelectorVolume: 'true',
@@ -101,7 +84,14 @@ export class Longhorn extends pulumi.ComponentResource {
                     autoCleanupSnapshotWhenDeleteBackup: 'true',
                     autoCleanupSystemGeneratedSnapshot: 'true',
                     backupConcurrentLimit: '2',
-                    concurrentReplicaRebuildPerNodeLimit: '4',
+                    backupExecutionTimeout: config.require(
+                        this.name,
+                        'backupExecutionTimeout',
+                    ),
+                    concurrentReplicaRebuildPerNodeLimit: config.require(
+                        'longhorn',
+                        'concurrentReplicaRebuildPerNodeLimit',
+                    ),
                     defaultDataLocality: config.require('longhorn', 'dataLocality'),
                     defaultReplicaCount: config.require('longhorn', 'replicaCount'),
                     deletingConfirmationFlag: 'false',
@@ -126,8 +116,41 @@ export class Longhorn extends pulumi.ComponentResource {
                     storageMinimalAvailablePercentage: '10',
                     storageOverProvisioningPercentage: '100',
                     storageReservedPercentageForDefaultDisk: '30',
+                    systemManagedCSIComponentsResourceLimits: JSON.stringify({
+                        'csi-attacher': {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                        'csi-provisioner': {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                        'csi-resizer': {
+                            requests: { cpu: '10m', memory: '32Mi' },
+                            limits: { cpu: '500m', memory: '64Mi' },
+                        },
+                        'csi-snapshotter': {
+                            requests: { cpu: '10m', memory: '32Mi' },
+                            limits: { cpu: '500m', memory: '64Mi' },
+                        },
+                        'longhorn-csi-plugin': {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                        'longhorn-liveness-probe': {
+                            requests: { cpu: '10m', memory: '32Mi' },
+                            limits: { cpu: '500m', memory: '64Mi' },
+                        },
+                        'node-driver-registrar': {
+                            requests: { cpu: '10m', memory: '32Mi' },
+                            limits: { cpu: '500m', memory: '64Mi' },
+                        },
+                    }),
                     systemManagedComponentsNodeSelector:
                         'node-role.kubernetes.io/longhorn=true',
+                    // The CSI components are created by the Longhorn manager, not
+                    // by a chart template, so their sizing is a manager Setting.
+                    // Changing it restarts the CSI components.
                 },
                 global: {
                     nodeSelector: {
@@ -136,7 +159,7 @@ export class Longhorn extends pulumi.ComponentResource {
                 },
                 // Unauthenticated chart routing is disabled when OIDC auth
                 // protects the UI (the shared route helper adds the route).
-                ...(middlewareName
+                ...(routeProtected
                     ? {}
                     : httpEndpointInfo.gatewayRef
                       ? {
@@ -154,11 +177,41 @@ export class Longhorn extends pulumi.ComponentResource {
                                 tls: httpEndpointInfo.tls,
                             },
                         }),
+                longhornGlobalManager: {
+                    resources: {
+                        requests: { cpu: '50m', memory: '128Mi' },
+                        limits: { cpu: '500m', memory: '256Mi' },
+                    },
+                },
+                longhornManager: {
+                    resources: {
+                        requests: { cpu: '100m', memory: '1Gi' },
+                        limits: { cpu: '1', memory: '2Gi' },
+                    },
+                },
                 longhornUI: {
                     replicas: 1,
                 },
                 metrics: config.enableMonitoring()
                     ? { serviceMonitor: { enabled: true } }
+                    : undefined,
+                networkPolicies: config.enableMonitoring()
+                    ? {
+                          metricsScrapeSources: [
+                              {
+                                  namespaceSelector: {
+                                      matchLabels: {
+                                          'kubernetes.io/metadata.name': 'prometheus',
+                                      },
+                                  },
+                                  podSelector: {
+                                      matchLabels: {
+                                          'app.kubernetes.io/name': 'prometheus',
+                                      },
+                                  },
+                              },
+                          ],
+                      }
                     : undefined,
                 persistence: {
                     defaultClassReplicaCount: config.requireNumber(
@@ -168,7 +221,7 @@ export class Longhorn extends pulumi.ComponentResource {
                     defaultDataLocality: config.require('longhorn', 'dataLocality'),
                 },
             },
-            httpRoute: middlewareName
+            httpRoute: routeProtected
                 ? {
                       componentName: this.name,
                       serviceName: 'longhorn-frontend',
@@ -226,111 +279,6 @@ export class Longhorn extends pulumi.ComponentResource {
                 replaceOnChanges: ['*'],
                 deleteBeforeReplace: true,
             },
-        );
-    }
-
-    private createBackupSecret(bucketName: string, s3Provisioner: S3Provisioner) {
-        const { s3EndpointUrl, accessKey, secretKey } = s3Provisioner.create({
-            username: this.name,
-            bucket: bucketName,
-        });
-        const secretName = `${this.name}-${s3Provisioner.instanceName}-backup`;
-        return new kubernetes.core.v1.Secret(
-            `${secretName}-secret`,
-            {
-                metadata: {
-                    name: secretName,
-                    namespace: this.app.metadata.namespace,
-                },
-                stringData: {
-                    AWS_ACCESS_KEY_ID: accessKey,
-                    AWS_SECRET_ACCESS_KEY: secretKey,
-                    AWS_ENDPOINTS: s3EndpointUrl,
-                    VIRTUAL_HOSTED_STYLE: 'false',
-                },
-            },
-            { parent: this },
-        );
-    }
-
-    private createSnapshotJob() {
-        const cron = config.require(this.name, 'snapshotCron');
-        new kubernetes.apiextensions.CustomResource(
-            `${this.name}-snapshot-job`,
-            {
-                apiVersion: 'longhorn.io/v1beta2',
-                kind: 'RecurringJob',
-                metadata: {
-                    name: 'snapshot',
-                    namespace: this.app.metadata.namespace,
-                },
-                spec: {
-                    groups: ['default'],
-                    task: 'snapshot',
-                    cron,
-                    name: 'snapshot',
-                    retain: 10,
-                    concurrency: 2,
-                    labels: { cron },
-                },
-            },
-            { dependsOn: this.chart, parent: this },
-        );
-    }
-
-    private createBackupJob() {
-        const cron = config.require(this.name, 'backupCron');
-        new kubernetes.apiextensions.CustomResource(
-            `${this.name}-backup-job`,
-            {
-                apiVersion: 'longhorn.io/v1beta2',
-                kind: 'RecurringJob',
-                metadata: {
-                    name: 'backup',
-                    namespace: this.app.metadata.namespace,
-                },
-                spec: {
-                    groups: ['backup'],
-                    task: 'backup',
-                    cron,
-                    name: 'backup',
-                    retain: 10,
-                    concurrency: 2,
-                    labels: { cron },
-                    parameters: {
-                        'full-backup-interval': config.require(
-                            this.name,
-                            'backupFullInterval',
-                        ),
-                    },
-                },
-            },
-            { dependsOn: this.chart, parent: this },
-        );
-    }
-
-    private createTrimJob() {
-        const cron = config.require(this.name, 'trimCron');
-        new kubernetes.apiextensions.CustomResource(
-            `${this.name}-trim-job`,
-            {
-                apiVersion: 'longhorn.io/v1beta2',
-                kind: 'RecurringJob',
-                metadata: {
-                    name: 'trim',
-                    namespace: this.app.metadata.namespace,
-                },
-                spec: {
-                    groups: ['default'],
-                    task: 'filesystem-trim',
-                    cron,
-                    name: 'trim',
-                    retain: 0,
-                    concurrency: 2,
-                    labels: { cron },
-                },
-            },
-            { dependsOn: this.chart, parent: this },
         );
     }
 }

@@ -67,6 +67,10 @@ export class Debug extends pulumi.ComponentResource {
                     ? { name: 'local', mountPath: '/data-export' }
                     : undefined,
             ].filter((vm): vm is NonNullable<typeof vm> => vm !== undefined),
+            resources: {
+                requests: { cpu: '10m', memory: '64Mi' },
+                limits: { cpu: '500m', memory: '256Mi' },
+            },
         });
     }
 
@@ -84,6 +88,10 @@ export class Debug extends pulumi.ComponentResource {
                 { name: 'local', mountPath: '/data-export' },
             ],
             restartPolicy: 'Never',
+            resources: {
+                requests: { cpu: '100m', memory: '128Mi' },
+                limits: { cpu: '1', memory: '1Gi' },
+            },
         });
     }
 }

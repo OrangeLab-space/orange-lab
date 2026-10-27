@@ -1,4 +1,4 @@
-import { Application, config, OidcAuthConfig } from '@orangelab/pulumi';
+import { Application, config, OidcAuthConfig, requireOutput } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export interface OpenWebUIArgs {
@@ -8,9 +8,8 @@ export interface OpenWebUIArgs {
 }
 
 export class OpenWebUI extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
     public readonly secretKey: pulumi.Output<string>;
-    private readonly app: Application;
+    public readonly app: Application;
 
     constructor(
         private readonly name: string,
@@ -26,10 +25,16 @@ export class OpenWebUI extends pulumi.ComponentResource {
 
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
         const isTailscale = httpEndpointInfo.className === 'tailscale';
-        this.endpointUrl = httpEndpointInfo.url;
 
         const auth = this.app.auth.getOidc();
-        const env = this.getEnvironment(httpEndpointInfo.url, isTailscale, auth);
+        const openAi = this.getOpenAiConnections();
+        const env = this.getEnvironment(
+            httpEndpointInfo.url,
+            isTailscale,
+            auth,
+            openAi.baseUrls,
+            openAi.apiConfigs,
+        );
 
         this.app.addDeployment({
             ports: [{ name: 'http', port: 8080 }],
@@ -37,16 +42,80 @@ export class OpenWebUI extends pulumi.ComponentResource {
             env,
             envSecret: {
                 OAUTH_CLIENT_SECRET: auth?.clientSecret,
+                OPENAI_API_KEYS: openAi.apiKeys,
                 WEBUI_SECRET_KEY: this.secretKey,
             },
             healthCheck: { httpGet: { path: '/health' } },
+            resources: {
+                requests: { cpu: '100m', memory: '512Mi' },
+                limits: { cpu: '1', memory: '1Gi' },
+            },
         });
+    }
+
+    /**
+     * OpenAI-compatible backends, index-aligned and semicolon-joined as Open WebUI expects.
+     * The optional Responses-API connection comes first so it claims its model IDs before the
+     * external Chat Completions connection lists the same names (Open WebUI merge is first-wins).
+     */
+    private getOpenAiConnections(): {
+        baseUrls?: pulumi.Output<string>;
+        apiKeys?: pulumi.Output<string>;
+        apiConfigs?: string;
+    } {
+        const baseUrls: pulumi.Input<string>[] = [];
+        const apiKeys: pulumi.Input<string>[] = [];
+        const apiConfigs: Record<string, object> = {};
+
+        const externalBaseUrl = config.get(this.name, 'openai/baseUrl');
+        const externalApiKey = externalBaseUrl
+            ? config.requireSecret(this.name, 'openai/apiKey')
+            : undefined;
+
+        const responsesModels = config.getCommaSeparated(this.name, 'openai/responsesModels');
+        if (responsesModels) {
+            if (!externalBaseUrl || !externalApiKey) {
+                throw new Error(
+                    'Open WebUI: open-webui:openai/responsesModels is set but open-webui:openai/baseUrl is not.',
+                );
+            }
+            apiConfigs[baseUrls.length.toString()] = {
+                api_type: 'responses',
+                model_ids: responsesModels,
+            };
+            baseUrls.push(externalBaseUrl);
+            apiKeys.push(externalApiKey);
+        }
+
+        if (this.args.openAiUrl) {
+            baseUrls.push(this.args.openAiUrl);
+            apiKeys.push('not-used');
+        }
+
+        if (externalBaseUrl && externalApiKey) {
+            baseUrls.push(externalBaseUrl);
+            apiKeys.push(externalApiKey);
+        }
+
+        return {
+            baseUrls: baseUrls.length
+                ? pulumi.all(baseUrls).apply(urls => urls.join(';'))
+                : undefined,
+            apiKeys: apiKeys.length
+                ? pulumi.all(apiKeys).apply(keys => keys.join(';'))
+                : undefined,
+            apiConfigs: Object.keys(apiConfigs).length
+                ? JSON.stringify(apiConfigs)
+                : undefined,
+        };
     }
 
     private getEnvironment(
         endpointUrl: pulumi.Input<string>,
         isTailscale: boolean,
         auth: OidcAuthConfig | undefined,
+        openAiBaseUrls: pulumi.Input<string> | undefined,
+        openAiApiConfigs: string | undefined,
     ): Record<string, pulumi.Input<string> | undefined> {
         const env: Record<string, pulumi.Input<string> | undefined> = {
             AUTOMATIC1111_BASE_URL: this.args.automatic1111Url,
@@ -58,7 +127,12 @@ export class OpenWebUI extends pulumi.ComponentResource {
             ENABLE_IMAGE_GENERATION: this.args.automatic1111Url ? 'True' : 'False',
             ENABLE_LOGIN_FORM: isTailscale || auth ? 'False' : 'True',
             ENABLE_PASSWORD_AUTH: auth ? 'False' : 'True',
-            ENABLE_PERSISTENT_CONFIG: 'False',
+            ENABLE_PERSISTENT_CONFIG: config.requireBoolean(
+                this.name,
+                'ENABLE_PERSISTENT_CONFIG',
+            )
+                ? 'True'
+                : 'False',
             ENABLE_SEARCH_QUERY_GENERATION: 'True',
             ENABLE_SIGNUP: auth ? 'False' : 'True',
             ENABLE_VERSION_UPDATE_CHECK: 'False',
@@ -66,8 +140,8 @@ export class OpenWebUI extends pulumi.ComponentResource {
             IMAGE_GENERATION_ENGINE: 'automatic1111',
             LOG_LEVEL: this.app.debug ? 'debug' : undefined,
             OLLAMA_BASE_URLS: this.args.ollamaUrl,
-            OPENAI_API_BASE_URL: this.args.openAiUrl,
-            OPENAI_API_KEY: 'not-used',
+            OPENAI_API_BASE_URLS: openAiBaseUrls,
+            OPENAI_API_CONFIGS: openAiApiConfigs,
             USER_PERMISSIONS_FEATURES_DIRECT_TOOL_SERVERS: 'True',
             USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS: 'True',
             USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS: 'True',
@@ -96,12 +170,6 @@ export class OpenWebUI extends pulumi.ComponentResource {
         auth: OidcAuthConfig,
         endpointUrl: pulumi.Input<string>,
     ): void {
-        if (auth.providerUrl === undefined) {
-            throw new Error(
-                'Open WebUI: OIDC enabled (open-webui:auth) but orangelab:coreStackRef is not set. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, then deploy this stack.',
-            );
-        }
-
         env.ENABLE_OAUTH_SIGNUP = 'True';
         env.OAUTH_AUTO_REDIRECT = 'True';
         env.OAUTH_CLIENT_ID = auth.clientId;
@@ -110,14 +178,10 @@ export class OpenWebUI extends pulumi.ComponentResource {
         env.OAUTH_UPDATE_EMAIL_ON_LOGIN = 'True';
         env.OAUTH_UPDATE_NAME_ON_LOGIN = 'True';
         env.OAUTH_UPDATE_PICTURE_ON_LOGIN = 'True';
-        env.OPENID_PROVIDER_URL = pulumi.output(auth.providerUrl).apply(url => {
-            if (!url) {
-                throw new Error(
-                    'Open WebUI: orangelab:coreStackRef is set but the core stack did not export an OIDC provider URL. Deploy (or refresh) the core stack with the auth provider enabled before deploying this stack.',
-                );
-            }
-            return url;
-        });
+        env.OPENID_PROVIDER_URL = requireOutput(
+            auth.providerUrl,
+            'Open WebUI: OIDC enabled (open-webui:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, then deploy this stack.',
+        );
         env.WEBUI_AUTH_SIGNOUT_REDIRECT_URL = endpointUrl;
     }
 }

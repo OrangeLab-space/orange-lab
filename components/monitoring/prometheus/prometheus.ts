@@ -1,19 +1,23 @@
-import { Application, Nodes, config, OidcProviderSettings } from '@orangelab/pulumi';
+import {
+    Application,
+    Nodes,
+    config,
+    OidcProviderSettings,
+    requireOutput,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
+import { createAlertmanagerEmail } from './alertmanager-email';
 
 export interface PrometheusArgs {
     oidc?: OidcProviderSettings;
 }
 
 export class Prometheus extends pulumi.ComponentResource {
-    public readonly alertmanagerEndpointUrl?: pulumi.Input<string>;
-    public readonly prometheusEndpointUrl?: pulumi.Input<string>;
-    public readonly grafanaEndpointUrl?: pulumi.Input<string>;
     public readonly grafanaPassword: pulumi.Output<string>;
 
     private readonly nodes: Nodes;
-    private readonly app: Application;
+    public readonly app: Application;
 
     constructor(name: string, args: PrometheusArgs = {}, opts?: pulumi.ResourceOptions) {
         super('orangelab:monitoring:Prometheus', name, args, opts);
@@ -42,6 +46,12 @@ export class Prometheus extends pulumi.ComponentResource {
             this.app.network.getHttpEndpointInfo(prometheusHostname);
         const alertManagerHttpEndpoint =
             this.app.network.getHttpEndpointInfo(alertManagerHostname);
+        const oidcIssuer = this.app.oidc
+            ? requireOutput(
+                  this.app.oidc.providerBaseUrl,
+                  `${name}: OIDC enabled (${name}:auth) but the OIDC provider base URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled.`,
+              )
+            : undefined;
         this.app.addHelmChart(
             name,
             {
@@ -51,7 +61,15 @@ export class Prometheus extends pulumi.ComponentResource {
                     alertmanager: {
                         enabled: true,
                         alertmanagerSpec: {
+                            // Otherwise the operator scopes AlertmanagerConfig
+                            // routes to their namespace, so the catch-all email
+                            // route would miss cluster-wide alerts.
+                            alertmanagerConfigMatcherStrategy: { type: 'None' },
                             affinity: this.nodes.getAffinity(),
+                            resources: {
+                                requests: { cpu: '50m', memory: '128Mi' },
+                                limits: { cpu: '500m', memory: '256Mi' },
+                            },
                             storage: {
                                 volumeClaimTemplate:
                                     this.createVolumeClaimTemplate('alertmanager'),
@@ -73,10 +91,14 @@ export class Prometheus extends pulumi.ComponentResource {
                         enabled: true,
                         adminPassword: this.grafanaPassword,
                         affinity: this.nodes.getAffinity(),
+                        // The Grafana volume is ReadWriteOnce, so a rolling update
+                        // deadlocks: the new pod cannot attach it while the old pod holds it.
+                        deploymentStrategy: { type: 'Recreate' },
                         ...(this.app.oidc
                             ? {
                                   envRenderSecret: {
-                                      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: this.app.oidc.clientSecret,
+                                      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+                                          this.app.oidc.clientSecret,
                                   },
                               }
                             : {}),
@@ -90,6 +112,10 @@ export class Prometheus extends pulumi.ComponentResource {
                             enabled: true,
                             existingClaim: this.app.storage?.getClaimName('grafana'),
                         },
+                        resources: {
+                            requests: { cpu: '100m', memory: '256Mi' },
+                            limits: { cpu: '1', memory: '512Mi' },
+                        },
                         'grafana.ini': {
                             server: {
                                 root_url: pulumi.interpolate`${grafanaHttpEndpoint.url}/`,
@@ -101,39 +127,47 @@ export class Prometheus extends pulumi.ComponentResource {
                                       },
                                       'auth.generic_oauth': {
                                           allow_sign_up: 'true',
-                                           api_url: pulumi.interpolate`${this.app.oidc.providerBaseUrl}/api/oidc/userinfo`,
-                                           auth_url: pulumi.interpolate`${this.app.oidc.providerBaseUrl}/authorize`,
-                                           client_id: this.app.oidc.clientId,
+                                          api_url: pulumi.interpolate`${oidcIssuer}/api/oidc/userinfo`,
+                                          auth_url: pulumi.interpolate`${oidcIssuer}/authorize`,
+                                          client_id: this.app.oidc.clientId,
                                           client_secret:
                                               '$__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}',
                                           email_attribute_name: 'email:primary',
                                           enabled: 'true',
                                           name: 'Pocket ID',
+                                          // The global admin group and the
+                                          // app-specific admin group both grant
+                                          // Grafana's Admin role.
                                           role_attribute_path: pulumi
                                               .output(this.app.oidc.adminGroup)
                                               .apply(
                                                   adminGroup =>
-                                                      `contains(groups[*], '${adminGroup}') && 'Admin' || 'Viewer'`,
+                                                      `(contains(groups[*], 'admin') || contains(groups[*], '${adminGroup}')) && 'Admin' || 'Viewer'`,
                                               ),
                                           scopes: 'openid email profile groups',
                                           skip_org_role_sync: 'false',
-                                           token_url: pulumi.interpolate`${this.app.oidc.providerBaseUrl}/api/oidc/token`,
+                                          token_url: pulumi.interpolate`${oidcIssuer}/api/oidc/token`,
                                           use_pkce: 'true',
                                       },
                                   }
                                 : {}),
                         },
                     },
-                    'kube-state-metrics': { affinity: this.nodes.getAffinity() },
-                    kubeApiServer: { enabled: true },
-                    kubeControllerManager: {
-                        enabled: true,
-                        serviceMonitor: { https: false },
+                    'kube-state-metrics': {
+                        affinity: this.nodes.getAffinity(),
+                        resources: {
+                            requests: { cpu: '50m', memory: '128Mi' },
+                            limits: { cpu: '500m', memory: '256Mi' },
+                        },
                     },
+                    kubeApiServer: { enabled: true },
+                    // k3s runs the control plane in-process and binds these
+                    // metrics to localhost, so the scrape targets never exist.
+                    kubeControllerManager: { enabled: false },
                     kubeDns: { enabled: false },
                     kubeEtcd: { enabled: false },
-                    kubeProxy: { enabled: true, serviceMonitor: { https: false } },
-                    kubeScheduler: { serviceMonitor: { https: false } },
+                    kubeProxy: { enabled: false },
+                    kubeScheduler: { enabled: false },
                     kubeStateMetrics: { enabled: true },
                     kubelet: {
                         enabled: true,
@@ -150,8 +184,6 @@ export class Prometheus extends pulumi.ComponentResource {
                         },
                         prometheusSpec: {
                             affinity: this.nodes.getAffinity(),
-                            hostNetwork: true,
-                            dnsPolicy: 'ClusterFirstWithHostNet',
                             podMonitorSelectorNilUsesHelmValues: false,
                             probeSelectorNilUsesHelmValues: false,
                             ruleSelectorNilUsesHelmValues: false,
@@ -159,12 +191,26 @@ export class Prometheus extends pulumi.ComponentResource {
                             storageSpec: {
                                 volumeClaimTemplate: this.createVolumeClaimTemplate(),
                             },
+                            resources: {
+                                requests: { cpu: '500m', memory: '2Gi' },
+                                limits: { cpu: '2', memory: '4Gi' },
+                            },
                         },
                     },
-                    'prometheus-node-exporter': { affinity: this.nodes.getAffinity() },
+                    'prometheus-node-exporter': {
+                        affinity: this.nodes.getAffinity(),
+                        resources: {
+                            requests: { cpu: '10m', memory: '64Mi' },
+                            limits: { cpu: '500m', memory: '128Mi' },
+                        },
+                    },
                     prometheusOperator: {
                         enabled: true,
                         affinity: this.nodes.getAffinity(),
+                        resources: {
+                            requests: { cpu: '50m', memory: '128Mi' },
+                            limits: { cpu: '500m', memory: '256Mi' },
+                        },
                         tls: { enabled: false },
                     },
                 },
@@ -172,9 +218,22 @@ export class Prometheus extends pulumi.ComponentResource {
             { dependsOn: this.app.storage },
         );
 
-        this.alertmanagerEndpointUrl = alertManagerHttpEndpoint.url;
-        this.grafanaEndpointUrl = grafanaHttpEndpoint.url;
-        this.prometheusEndpointUrl = prometheusHttpEndpoint.url;
+        if (config.getBoolean(name, 'smtp/enabled') ?? false) {
+            const smtp = this.app.smtp.getSettings();
+            assert(smtp.enabled);
+            createAlertmanagerEmail({
+                name,
+                namespace: this.app.metadata.namespace,
+                parent: this,
+                smtp,
+            });
+        }
+
+        // The chart brings its own Ingress objects, so the automatic port
+        // handling never sees these three hostnames.
+        this.app.network.addEndpoint('alertmanager', alertManagerHttpEndpoint.url);
+        this.app.network.addEndpoint('grafana', grafanaHttpEndpoint.url);
+        this.app.network.addEndpoint('prometheus', prometheusHttpEndpoint.url);
     }
 
     // https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/platform/storage.md
@@ -185,13 +244,16 @@ export class Prometheus extends pulumi.ComponentResource {
         return {
             spec: {
                 storageClassName: storage.getStorageClass(componentName),
-                resources: { requests: { storage: storage.getStorageSize(componentName) } },
+                resources: {
+                    requests: { storage: storage.getStorageSize(componentName) },
+                },
                 ...(!isDynamic
                     ? {
                           selector: {
                               matchLabels: {
                                   'app.kubernetes.io/name': 'prometheus',
-                                  'app.kubernetes.io/component': componentName ?? 'default',
+                                  'app.kubernetes.io/component':
+                                      componentName ?? 'default',
                               },
                           },
                       }

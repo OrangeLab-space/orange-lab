@@ -45,7 +45,8 @@ export class Rustfs extends pulumi.ComponentResource {
                 metadata: this.app.metadata,
                 rootUser: this.rootUser,
                 rootPassword: this.users[this.rootUser],
-                s3EndpointUrl: this.app.network.clusterEndpoints[`${this.name}-console`],
+                adminEndpointUrl: this.app.network.clusterEndpoints[`${this.name}-console`],
+                s3EndpointUrl: this.app.network.clusterEndpoints[`${this.name}-api`],
             },
             { parent: this },
         );
@@ -69,6 +70,10 @@ export class Rustfs extends pulumi.ComponentResource {
             },
             commandArgs: ['/data'],
             volumeMounts: [{ name: 'data', mountPath: '/data' }],
+            resources: {
+                requests: { cpu: '1500m', memory: '4Gi' },
+                limits: { cpu: '4', memory: '16Gi' },
+            },
         });
     }
 

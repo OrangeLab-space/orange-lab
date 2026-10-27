@@ -1,4 +1,4 @@
-import { config } from '@orangelab/pulumi';
+import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'assert';
 import { BitcoinCore } from './components/bitcoin-core/bitcoin-core';
@@ -65,19 +65,12 @@ const bitcoinUserPasswords = Object.fromEntries(
     ]),
 );
 
-export const endpoints = {
-    ...bitcoinCore?.app.network.endpoints,
-    ...bitcoinKnots?.app.network.endpoints,
-    ...electrs?.app.network.endpoints,
-    ...mempool?.app.network.endpoints,
-};
-
-export const clusterEndpoints = {
-    ...bitcoinCore?.app.network.clusterEndpoints,
-    ...bitcoinKnots?.app.network.clusterEndpoints,
-    ...electrs?.app.network.clusterEndpoints,
-    ...mempool?.app.network.clusterEndpoints,
-};
+export const endpoints = mergeEndpointExports(
+    bitcoinCore,
+    bitcoinKnots,
+    electrs,
+    mempool,
+);
 
 export const apps = {
     mempool: mempool ? { db: mempool.dbConfig } : undefined,

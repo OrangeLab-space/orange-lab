@@ -26,7 +26,29 @@ blast radius — what merging/pulling the change would actually affect.
   actual code path and the relevant upstream docs/source (Kubernetes API semantics,
   operator webhooks, chart docs). Check whether the commit message is accurate.
 
-### 3. Review for OrangeLab Principles
+### 3. Scan for secrets and identifying info
+
+This check applies to every change, including markdown/doc-only diffs.
+
+- **Secrets**: Scan the diff, added files, code comments, docs, and the commit
+  message / PR body for pasted credentials — tokens, API keys, passwords, private
+  keys, kubeconfigs, cookies, and output from `pulumi config get` or
+  `--show-secrets`. Watch for high-entropy strings and real-looking values in
+  examples.
+
+    ```bash
+    rg -n -i 'token|secret|password|passwd|api[_-]?key|BEGIN .*PRIVATE KEY|kubeconfig|authorization:' <changed-files>
+    ```
+
+- **Identifying info**: No real infrastructure details in committed docs, comments,
+  examples, or commit messages — use `example.com`, `<domain>`, `<node>`, `<vps-ip>`.
+  Flag real hostnames/domains, public/internal/tailnet IPs, node and machine names,
+  provider identifiers, and account or group names.
+
+When something is found, **flag it in the review output only** — do not rotate,
+edit, or rewrite history.
+
+### 4. Review for OrangeLab Principles
 
 - **Simplicity (KISS/YAGNI)**: Does the solution avoid over-engineering? Is it only implementing what's needed now?
 - **Loose Coupling**: Are components independent? Any new circular or implicit
@@ -35,16 +57,16 @@ blast radius — what merging/pulling the change would actually affect.
   raised for discussion, not introduced silently.
 - **Single Responsibility**: Do classes follow the established patterns (Metadata for labels, Network for ingress, etc.)?
 
-### 4. Technical Review
+### 5. Technical Review
 
 - **TypeScript**: Strict type checking enforced? Any `any` types that should be replaced?
 - **Infrastructure (Pulumi)**: Are new resources using the `Application` class? Are names and tags (like `tag:orangelab` for Tailscale) consistent?
 - **Security**: Sensitive data handled via `envSecret` in `ContainerSpec`? No hardcoded secrets or passwords in command args?
 - **Style**: camelCase for variables/functions, PascalCase for types/classes?
 
-### 5. Blast Radius
+### 6. Blast Radius
 
-Answer concretely: *if this is merged and pulled here, what actually changes?*
+Answer concretely: _if this is merged and pulled here, what actually changes?_
 
 **a. Source scope** — `packages/pulumi/src/` is the `@orangelab/pulumi` library → every
 stack imports it (npm workspace, symlinked; `main` points at `dist/`). `stacks/<module>/`
@@ -61,10 +83,10 @@ until `npm run build`. What would `pulumi preview --diff` show: which resources
 create/update/delete, which are untouched? (Prefer running it read-only; get approval
 before `up`.) For comment/doc-only changes there is nothing to preview or rebuild.
 
-**d. Retroactivity & live verification** — does it affect only *future* resource
-creation or *existing* deployed resources? Check immutability rules (e.g. PVC
+**d. Retroactivity & live verification** — does it affect only _future_ resource
+creation or _existing_ deployed resources? Check immutability rules (e.g. PVC
 `dataSource` is immutable and invalid values are silently dropped; CNPG only rejects
-storage *shrink*). Verify assumptions against the live cluster with read-only `kubectl`,
+storage _shrink_). Verify assumptions against the live cluster with read-only `kubectl`,
 because intent and the object actually created can differ: the object's real spec/name,
 whether a pre-created or operator-created resource wins, implicit Pulumi dependency
 ordering (an `Output`-derived arg forces the referenced resource to be created first),
@@ -76,12 +98,12 @@ deleting resources / restoring data? Does it drop or migrate data?
 
 Never read `Pulumi.*.yaml` directly (secrets); use `pulumi config`.
 
-### 6. Verification
+### 7. Verification
 
 - **Comment/doc-only changes**: If the diff changes no code semantics — markdown, or a
   comment/doc-comment edit in a `.ts` file — skip both `npm test` and `pulumi preview`.
   There is no runtime or infrastructure impact; just confirm the comment matches the code
-  it documents.
+  it documents, and still run the Step 3 leak scan.
 - **Linting/Tests**: Run `npm test` to ensure code matches project standards. Skip for
   comment/doc-only changes.
 - **Infrastructure Preview**: Run `pulumi preview --diff` to verify intended infrastructure changes. Skip for comment/doc-only changes.
@@ -95,6 +117,9 @@ Never read `Pulumi.*.yaml` directly (secrets); use `pulumi config`.
 ✅ Use `Application` class for K8s resources
 ❌ Don't use "refactor:" for breaking changes
 ❌ Don't expose passwords in command line arguments
+❌ Don't echo secret values or environment-identifying details in review output — cite file:line
+❌ Real hostnames, IPs, or machine names in committed docs, comments, or commit messages — use `example.com` / `<node>`
+❌ Don't rotate, edit, or rewrite history for a leaked secret — flag it in the review
 ❌ Avoid `any` type
 ❌ Don't introduce new cross-dependencies or assumptions silently — raise them for discussion
 
@@ -115,6 +140,9 @@ Brief overview of the changes and alignment with OrangeLab principles.
 ### 🔴 Critical Issues
 
 - Security risks (exposed secrets, missing `envSecret`)
+- Leaked secrets or environment-identifying info (real hostnames/domains, IPs, node
+  names) in the diff, docs, or commit messages — flag only; do not rotate, edit, or
+  rewrite history
 - Breaking changes labeled incorrectly
 - Violation of Single Responsibility or KISS principles
 - Linting/Type errors

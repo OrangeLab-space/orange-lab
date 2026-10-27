@@ -112,8 +112,8 @@ cd stacks/apps
 CLIENT_ID=$(pulumi config get nextcloud:auth/clientId)
 CLIENT_SECRET=$(pulumi config get nextcloud:auth/clientSecret)
 NEXTCLOUD_OIDC_GROUP_WHITELIST_REGEX=$(pulumi config get nextcloud:groupProvisioningWhitelist)
-DISCOVERY_URL=$(pulumi --cwd ../.. stack output --json | jq -er '.security.oidcProviderUrl')
-NEXTCLOUD_URL=$(pulumi stack output --json | jq -er '.endpoints.nextcloud')
+DISCOVERY_URL=$(pulumi --cwd ../.. stack output --json | jq -er '.security.apps.pocket.oidcProviderUrl')
+NEXTCLOUD_URL=$(pulumi stack output --json | jq -er '.endpoints.private.nextcloud')
 ENDSESSION_ENDPOINT=$(curl -fsSL "$DISCOVERY_URL" | jq -er '.end_session_endpoint')
 POD=$(kubectl get pod -l app.kubernetes.io/name=nextcloud -n nextcloud -o jsonpath='{.items[0].metadata.name}')
 
@@ -147,6 +147,11 @@ pulumi up
 ```
 
 ## Access
+
+Sign-in via Pocket ID is restricted to `admin` and `nextcloud-users`
+(`nextcloud:auth/allowedGroups`). `nextcloud-users` is a new-user default group,
+so every OrangeLab account has it, and it is provisioned as a Nextcloud group on
+login (see `nextcloud:groupProvisioningWhitelist`).
 
 After deployment, access Nextcloud at:
 

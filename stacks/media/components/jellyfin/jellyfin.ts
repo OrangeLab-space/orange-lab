@@ -74,8 +74,8 @@ export class Jellyfin extends pulumi.ComponentResource {
                 ? [this.createInitContainer(volumeMounts)]
                 : undefined,
             resources: {
-                requests: { memory: '512Mi' },
-                limits: { memory: '2Gi' },
+                requests: { cpu: '100m', memory: '512Mi' },
+                limits: { cpu: '2', memory: '2Gi' },
             },
         });
     }

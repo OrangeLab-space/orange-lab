@@ -3,6 +3,26 @@ import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
 import { VolumeAccessMode } from './types';
 
+export interface LonghornVolumeRecurringJobArgs {
+    /**
+     * Whether this recurring job is attached to the volume.
+     */
+    enabled: pulumi.Input<boolean>;
+    /**
+     * Attach the app-specific job instead of the global group.
+     */
+    customSchedule?: boolean;
+    /**
+     * Name of the app-specific RecurringJob.
+     */
+    jobName?: string;
+}
+
+export interface LonghornVolumeRecurringJobsArgs {
+    backup?: LonghornVolumeRecurringJobArgs;
+    snapshot?: LonghornVolumeRecurringJobArgs;
+}
+
 interface LonghornVolumeArgs {
     name: string;
     namespace: pulumi.Output<string> | string;
@@ -21,9 +41,9 @@ interface LonghornVolumeArgs {
      */
     fromVolume?: string;
     /**
-     * Enable automated backups for volume by adding it to "backup" group.
+     * Snapshot and backup recurring job configuration for this volume.
      */
-    enableBackup?: pulumi.Input<boolean>;
+    recurringJobs?: LonghornVolumeRecurringJobsArgs;
     /**
      * Labels to apply to the PVC
      */
@@ -141,16 +161,37 @@ export class LonghornVolume extends pulumi.ComponentResource {
         volumeName?: pulumi.Output<string>;
         storageClassName: pulumi.Output<string> | string;
     }) {
+        const jobs = this.args.recurringJobs;
         const labels = pulumi
-            .output(this.args.enableBackup ?? false)
-            .apply(enabled => {
+            .output({
+                backup: jobs?.backup?.enabled ?? false,
+                snapshot: jobs?.snapshot?.enabled ?? false,
+            })
+            .apply(({ backup, snapshot }) => {
                 const labels = { ...(this.args.labels ?? {}) };
 
                 labels['recurring-job.longhorn.io/source'] = 'enabled';
-                labels['recurring-job-group.longhorn.io/default'] = 'enabled';
+                if (jobs?.snapshot?.customSchedule) {
+                    labels['recurring-job.longhorn.io/trim'] = 'enabled';
+                    if (snapshot && jobs.snapshot.jobName) {
+                        labels[
+                            `recurring-job.longhorn.io/${jobs.snapshot.jobName}`
+                        ] = 'enabled';
+                    }
+                } else {
+                    labels['recurring-job-group.longhorn.io/default'] = 'enabled';
+                }
 
-                if (enabled) {
-                    labels['recurring-job-group.longhorn.io/backup'] = 'enabled';
+                if (backup) {
+                    if (jobs?.backup?.customSchedule) {
+                        if (jobs.backup.jobName) {
+                            labels[
+                                `recurring-job.longhorn.io/${jobs.backup.jobName}`
+                            ] = 'enabled';
+                        }
+                    } else {
+                        labels['recurring-job-group.longhorn.io/backup'] = 'enabled';
+                    }
                 }
 
                 return labels;

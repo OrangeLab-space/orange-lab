@@ -35,16 +35,17 @@ Each module stack must reference the deployed core stack so it can consume share
 outputs such as the Pocket ID OIDC provider URL:
 
 ```sh
-# From the core stack directory, list the stack and its Pulumi Cloud URL
+# From the core stack directory, print the fully-qualified stack name
 cd /
-pulumi stack ls
-# Use the organization/project/stack path from the URL column
-# Example URL: https://app.pulumi.com/example-org/orangelab/lab
+pulumi stack ls -Q
+# Pulumi Cloud: example-org/orangelab/lab
+# local or RustFS: organization/orangelab/lab
+# Ignore the trailing * that marks the current stack
 
 cd stacks/<module>
 
 # Use the value printed above
-pulumi config set orangelab:coreStackRef example-org/orangelab/lab
+pulumi config set orangelab:coreStackRef <stack-ref>
 ```
 
 The value must identify the deployed core stack in
@@ -109,7 +110,10 @@ Shared and module dependency config keys:
 Traefik domain and backup policy are read from the core stack when
 `orangelab:coreStackRef` is configured. Set
 `longhorn:backupAllVolumes` in a module stack to override the core policy.
-Individual applications can override it with their `<app>:backupVolume` setting.
+Individual applications can override it with their `<app>:storage/backupEnabled`
+setting, or override schedules and retention with `<app>:storage/snapshot*` and
+`<app>:storage/backup*` settings. Components can override the app with
+`<app>:<component>/storage/*`. Unset values are inherited from the core stack.
 
 Database operator settings are module dependencies and are included only in
 stacks with applications that use them. Keep them disabled unless an

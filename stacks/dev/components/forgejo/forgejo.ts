@@ -4,6 +4,7 @@ import {
     DatabaseConfig,
     HttpEndpointInfo,
     OidcAuthConfig,
+    requireOutput,
     SmtpSecurity,
     SmtpSettings,
 } from '@orangelab/pulumi';
@@ -21,8 +22,6 @@ const smtpProtocol: Record<SmtpSecurity, string> = {
 
 export class Forgejo extends pulumi.ComponentResource {
     public readonly app: Application;
-    public readonly serviceUrl?: pulumi.Input<string>;
-    public readonly sshUrl?: pulumi.Input<string>;
 
     private readonly adminSecret?: kubernetes.core.v1.Secret;
     private readonly oidcSecret?: kubernetes.core.v1.Secret;
@@ -63,8 +62,11 @@ export class Forgejo extends pulumi.ComponentResource {
 
         this.createHelmChart({ httpEndpointInfo, redisConfig, dbConfig, auth, smtp });
 
-        this.serviceUrl = httpEndpointInfo.url;
-        this.sshUrl = pulumi.interpolate`ssh://git@${httpEndpointInfo.hostname}:${SSH_PORT}`;
+        this.app.network.addEndpoint(this.appName, httpEndpointInfo.url);
+        this.app.network.addEndpoint(
+            `${this.appName}-ssh`,
+            pulumi.interpolate`ssh://git@${httpEndpointInfo.hostname}:${SSH_PORT}`,
+        );
     }
 
     private createHelmChart(args: {
@@ -186,7 +188,10 @@ export class Forgejo extends pulumi.ComponentResource {
                                 ? [
                                       {
                                           adminGroup: args.auth.adminGroup,
-                                          autoDiscoverUrl: args.auth.providerUrl,
+                                          autoDiscoverUrl: requireOutput(
+                                              args.auth.providerUrl,
+                                              'Forgejo: OIDC enabled (forgejo:auth) but the OIDC provider URL is unavailable. Set orangelab:coreStackRef to a deployed core stack with the auth provider enabled, or set forgejo:auth/providerUrl.',
+                                          ),
                                           existingSecret: this.oidcSecret.metadata.name,
                                           groupClaimName: 'groups',
                                           name: args.auth.providerName ?? 'SSO',
@@ -207,7 +212,6 @@ export class Forgejo extends pulumi.ComponentResource {
                         tls: [
                             {
                                 hosts: [args.httpEndpointInfo.hostname],
-                                secretName: args.httpEndpointInfo.tlsSecretName,
                             },
                         ],
                     },
@@ -215,6 +219,10 @@ export class Forgejo extends pulumi.ComponentResource {
                         enabled: true,
                         create: false,
                         claimName: this.app.storage?.getClaimName(),
+                    },
+                    resources: {
+                        requests: { cpu: '100m', memory: '256Mi' },
+                        limits: { cpu: '1', memory: '512Mi' },
                     },
                     service: {
                         ssh: {

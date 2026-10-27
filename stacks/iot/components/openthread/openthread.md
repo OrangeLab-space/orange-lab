@@ -46,7 +46,7 @@ URL:
 
 ```sh
 # From stacks/iot
-pulumi stack output endpoints --json | jq -r '.openThreadRestApi'
+pulumi stack output endpoints --json | jq -r '.cluster."openthread-rest"'
 # http://openthread.openthread:8081
 ```
 

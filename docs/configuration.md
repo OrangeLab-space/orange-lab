@@ -19,16 +19,17 @@ Configure it in each module stack before deploying applications that depend on
 core outputs:
 
 ```sh
-# From the core stack directory, list the stack and its Pulumi Cloud URL
+# From the core stack directory, print the fully-qualified stack name
 cd /
-pulumi stack ls
-# Use the organization/project/stack path from the URL column
-# Example URL: https://app.pulumi.com/example-org/orangelab/lab
+pulumi stack ls -Q
+# Pulumi Cloud: example-org/orangelab/lab
+# local or RustFS: organization/orangelab/lab
+# Ignore the trailing * that marks the current stack
 
 cd stacks/<module>
 
 # Use the value printed above
-pulumi config set orangelab:coreStackRef example-org/orangelab/lab
+pulumi config set orangelab:coreStackRef <stack-ref>
 ```
 
 The referenced core stack must be deployed first. For example, applications
@@ -58,8 +59,10 @@ pulumi up
 # or
 pulumi up -r # --refresh Pulumi state if out of sync
 
-# Show the app's external endpoint URL
-pulumi stack output --show-secrets --json | jq -r '.endpoints.<app>'
+# Show the app's external endpoint URL. Apps with `network/public: true` answer
+# on the internet and live under `endpoints.public`; everything else is
+# tailnet-only and lives under `endpoints.private`.
+pulumi stack output --show-secrets --json | jq -r '.endpoints.private.<app>'
 # Make request to provision HTTP certificate and activate endpoint
 curl https://<app>.<domain>/
 ```
@@ -89,29 +92,41 @@ pulumi up
 
 The following settings are supported by most applications in OrangeLab:
 
-| Setting               | Description                                                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------- |
-| `enabled`             | Enable or disable the application                                                            |
-| `hostname`            | Hostname for the HTTPS endpoint, used with Tailscale for access                              |
-| `routingProvider`     | Override global routing provider (`tailscale` or `traefik`) for this application             |
-| `version`             | Lock Helm chart version to a specific release (uses latest if not specified)                 |
-| `storageOnly`         | Disable application but retain storage (useful for temporarily disabling while keeping data) |
-| `storageSize`         | Expand default storage size if needed (e.g., for large models)                               |
-| `fromVolume`          | Attach existing Longhorn volume instead of creating new one                                  |
-| `storageClass`        | Force specific storage class used by the application                                         |
-| `preferredNodeLabel`  | Deploy to node with specified label if exists (soft constraint)                              |
-| `requiredNodeLabel`   | Deploy only to node with specified label (hard constraint)                                   |
-| `excludeNodeLabel`    | Do not deploy to nodes with specified label (hard constraint)                                |
-| `requiredVolumeLabel` | Pin volume to specific node(s). Immutable - requires app redeploy to change                  |
-| `backupVolume`        | Enable volume backups to S3-compatible storage                                               |
-| `auth`                | Enable OIDC authentication with the selected provider                                         |
-| `auth/clientId`       | OIDC client ID                                                                                |
-| `auth/clientSecret`   | OIDC client secret (not required by apps using a public/PKCE client)                        |
-| `auth/providerUrl`    | Override the OIDC discovery URL                                                               |
-| `auth/providerName`   | Name of the OIDC provider, used in the login button label                                     |
-| `auth/groupMap`       | App role -> Pocket ID groups, for apps with native role mapping (object)                      |
-| `auth/adminGroup`     | Pocket ID group granting the app's admin role (overrides `orangelab:auth/adminGroup`)         |
-| `auth/allowedGroups`  | Comma-separated Pocket ID groups allowed to sign in; unset keeps the client unrestricted      |
+| Setting                      | Description                                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `enabled`                    | Enable or disable the application                                                            |
+| `hostname`                   | Hostname for the HTTPS endpoint, used with Tailscale for access                              |
+| `routingProvider`            | Override global routing provider (`tailscale` or `traefik`) for this application             |
+| `network/public`             | Expose this application to the public internet (see [Public services](./public-services.md)) |
+| `version`                    | Lock Helm chart version to a specific release (uses latest if not specified)                 |
+| `storageOnly`                | Disable application but retain storage (useful for temporarily disabling while keeping data) |
+| `storageSize`                | Expand default storage size if needed (e.g., for large models)                               |
+| `fromVolume`                 | Attach existing Longhorn volume instead of creating new one                                  |
+| `storageClass`               | Force specific storage class used by the application                                         |
+| `preferredNodeLabel`         | Deploy to node with specified label if exists (soft constraint)                              |
+| `requiredNodeLabel`          | Deploy only to node with specified label (hard constraint)                                   |
+| `excludeNodeLabel`           | Do not deploy to nodes with specified label (hard constraint)                                |
+| `requiredVolumeLabel`        | Pin volume to specific node(s). Immutable - requires app redeploy to change                  |
+| `storage/snapshotEnabled`    | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                    |
+| `storage/snapshotCron`       | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                      |
+| `storage/snapshotRetain`     | Snapshot retention (defaults to `longhorn:snapshotRetain`)                                   |
+| `storage/backupEnabled`      | Enable/disable backup participation (unset inherits `longhorn:backupAllVolumes`)             |
+| `storage/backupCron`         | Backup schedule (defaults to `longhorn:backupCron`)                                          |
+| `storage/backupRetain`       | Backup retention (defaults to `longhorn:backupRetain`)                                       |
+| `storage/backupFullInterval` | Full-backup interval (defaults to `longhorn:backupFullInterval`)                             |
+| `auth`                       | Enable OIDC authentication with the selected provider                                        |
+| `auth/clientId`              | OIDC client ID                                                                               |
+| `auth/clientSecret`          | OIDC client secret (not required by apps using a public/PKCE client)                         |
+| `auth/providerUrl`           | Override the OIDC discovery URL                                                              |
+| `auth/providerName`          | Name of the OIDC provider, used in the login button label                                    |
+| `auth/groupMap`              | App role -> Pocket ID groups, for apps with native role mapping (object)                     |
+| `auth/adminGroup`            | Pocket ID group granting the app's admin role (defaults to `<app>-admin`)                    |
+| `auth/allowedGroups`         | Comma-separated Pocket ID groups allowed to sign in; unset keeps the client unrestricted     |
+
+The `storage/*` keys can also be prefixed with a component/volume name, e.g.
+`nextcloud:data/storage/backupEnabled`. Component values override app-level
+values, which override the global `longhorn:*` defaults. `backupVolume` was
+removed; use `storage/backupEnabled` instead.
 
 ### Custom Hostnames
 
@@ -136,6 +151,30 @@ pulumi config set nextcloud:routingProvider traefik
 When using `traefik`, ensure `orangelab:customDomain` is set in the current
 stack or inherited from a deployed core stack via `orangelab:coreStackRef`.
 When using `tailscale`, ensure `tailscale:tailnet` is set.
+
+### Public exposure
+
+Applications are private by default. To reach one from the public internet:
+
+```sh
+pulumi config set <app>:network/public true
+pulumi up
+```
+
+Under **Traefik**, this adds a second route under the application's normal
+`<app>.<domain>` name; under **Tailscale**, it enables
+[Tailscale Funnel](../components/network/tailscale/tailscale.md#public-exposure-with-funnel)
+on the existing `<app>.<tailnet>.ts.net` name. Turning it off removes the public
+route; the private name is unaffected.
+
+Public exposure is optional. The recommended setups require it only for
+Headscale, Pocket ID and, with Tailscale + Pocket ID, Caddy's WebFinger endpoint.
+TCP and UDP ports marked `public: true` are published at `<port> + 10000`. See
+[Public services](./public-services.md) for both gateway methods, DNS, and port
+forwarding.
+
+See [Network module](../components/network/NETWORK.md) for choosing between
+routing providers and mesh VPN control planes.
 
 ### Version Pinning
 
@@ -228,25 +267,42 @@ pulumi up
 pulumi config set ollama:storageOnly true
 pulumi up
 
-# Expand storage size to 200GB
-# Pulumi only updates the PVC size, it does not expand the Longhorn volume itself.
-# Dynamic volumes expand on the next deploy; existing volumes (fromVolume) must be
-# detached and the volume expanded directly - see the resize-storage skill below.
-# For local volumes it's not enforced by Kubernetes (used for scheduling only)
+# Expand storage size to 200GB (dynamic volumes)
+# Pulumi updates the PVC size on the next deploy; Longhorn expands the volume.
+# For local volumes the size is used for scheduling only.
+# A static volume (fromVolume) is bound by name and its PVC cannot be resized:
+# disable the app, patch the Longhorn volume, then re-enable - see the
+# resize-storage skill below.
 pulumi config set ollama:storageSize 200Gi
 
 # Attach existing Longhorn volume to an application.
 # Volumes can be cloned or restored from a backup using Longhorn UI.
 pulumi config set ollama:fromVolume existing-volume-name
 
-# Enable backups to S3-compatible storage
-# Ignored when `longhorn:backupAllVolumes` is enabled
-pulumi config set ollama:backupVolume true
+# Enable backups for this application (uses the global backup job)
+pulumi config set ollama:storage/backupEnabled true
+
+# Optional app-level snapshot/backup schedule and retention
+# Unset values fall back to the global `longhorn:` settings
+pulumi config set ollama:storage/snapshotEnabled true
+pulumi config set ollama:storage/snapshotCron '0 */6 * * *'
+pulumi config set ollama:storage/backupCron '0 2 * * *'
+pulumi config set ollama:storage/backupRetain 14
+
+# Optional per-component overrides
+# Use the component name passed to addStorage({ name: ... })
+pulumi config set <app>:<component>/storage/backupEnabled false
+pulumi config set <app>:<component>/storage/backupCron '0 3 * * *'
 ```
 
 This approach allows you to safely disable applications without losing data, even during breaking changes.
 
-Expanding storage is the one operation where the Pulumi setting alone is not enough, and the procedure differs depending on whether the volume is dynamic or attached with `fromVolume`. Agents: see the [resize-storage skill](/.agents/skills/resize-storage/SKILL.md) for the full procedure.
+Expanding storage is the one operation where the Pulumi setting alone is not
+enough. A dynamic volume expands on the next deploy. A volume attached with
+`fromVolume` is statically bound, so Kubernetes will not resize its PVC: disable
+the app, patch the Longhorn volume, then re-enable it. Agents: see the
+[resize-storage skill](/.agents/skills/resize-storage/SKILL.md) for the full
+procedure.
 
 #### Using Static Volume Names
 

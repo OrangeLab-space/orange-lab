@@ -1,4 +1,10 @@
-import { Application, config, createPassword, OidcProviderSettings } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    createPassword,
+    OidcProviderSettings,
+    requireOutput,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import bcrypt from 'bcryptjs';
 
@@ -16,8 +22,8 @@ export interface ZotArgs {
 }
 
 export class Zot extends pulumi.ComponentResource {
-    public readonly endpointUrl: pulumi.Input<string>;
     public readonly users: Record<string, pulumi.Output<string>>;
+    public readonly app: Application;
 
     constructor(
         private name: string,
@@ -26,21 +32,21 @@ export class Zot extends pulumi.ComponentResource {
     ) {
         super('orangelab:network:Zot', name, args, opts);
 
-        const app = new Application(this, name, { oidc: args.oidc }).addStorage();
+        this.app = new Application(this, name, { oidc: args.oidc }).addStorage();
         const hostname = config.require(name, 'hostname');
-        const externalUrl = app.network.getHttpEndpointInfo(hostname).url;
+        const externalUrl = this.app.network.getHttpEndpointInfo(hostname).url;
 
         const adminPassword =
             config.getSecret(name, 'adminPassword') ??
             createPassword(this, `${name}-admin-password`);
         this.users = { admin: adminPassword };
 
-        app.addConfigVolume({
-            files: { 'config.json': createConfigJson(app, name, externalUrl) },
-            secretFiles: createSecretFiles(app, name, this, adminPassword),
+        this.app.addConfigVolume({
+            files: { 'config.json': createConfigJson(this.app, name, externalUrl) },
+            secretFiles: createSecretFiles(this.app, name, this, adminPassword),
         });
 
-        app.addDeployment({
+        this.app.addDeployment({
             ports: [{ name: 'http', port: 5000, hostname }],
             healthCheck: { httpGet: { path: '/v2/' } },
             volumeMounts: [
@@ -48,12 +54,10 @@ export class Zot extends pulumi.ComponentResource {
                 { mountPath: '/var/lib/registry' },
             ],
             resources: {
-                requests: { cpu: '500m', memory: '256Mi' },
-                limits: { memory: '2Gi' },
+                requests: { cpu: '600m', memory: '1Gi' },
+                limits: { cpu: '2', memory: '2Gi' },
             },
         });
-
-        this.endpointUrl = externalUrl;
     }
 }
 
@@ -88,30 +92,59 @@ function createConfigJson(
     name: string,
     externalUrl: pulumi.Input<string>,
 ): pulumi.Output<string> {
-    const providerUrl = app.oidc?.providerBaseUrl;
     const providerName = app.oidc?.providerName ?? '';
+    const issuer = app.oidc
+        ? requireOutput(
+              app.oidc.providerBaseUrl,
+              'Zot: SSO enabled (zot:auth) but the OIDC provider base URL is unavailable. Enable the security module in this stack, then deploy.',
+          )
+        : undefined;
+    const syncRegistries = config.requireObject(name, 'registries') as SyncRegistry[];
 
-    return pulumi
-        .all([externalUrl, pulumi.output(providerUrl)])
-        .apply(([url, issuer]) => {
-            if (app.oidc && !issuer) {
-                throw new Error(
-                    'Zot: SSO enabled (zot:auth) but the OIDC provider base URL is unavailable. Enable the security module in this stack, then deploy.',
-                );
-            }
-            return JSON.stringify({
-                storage: {
-                    rootDirectory: '/var/lib/registry',
-                    dedupe: true,
-                    gc: true,
-                },
-                http: createHttpConfig(url, issuer, providerName),
-                extensions: createExtensions(
-                    config.require(name, 'scanInterval'),
-                    config.requireObject(name, 'registries') as SyncRegistry[],
+    return pulumi.all([externalUrl, issuer]).apply(([url, issuer]) =>
+        JSON.stringify({
+            storage: createStorageConfig(
+                syncRegistries,
+                config.getNumber(name, 'retentionKeepTags'),
+            ),
+            http: createHttpConfig(url, issuer, providerName),
+            extensions: createExtensions(
+                config.require(name, 'scanInterval'),
+                syncRegistries,
+            ),
+        }),
+    );
+}
+
+/**
+ * Retention only applies to the mirrored upstream destinations; a repository that
+ * matches no policy keeps every tag, so images pushed to Zot directly are never
+ * pruned. Evicting a cached tag costs a re-sync from upstream on the next pull.
+ * An unset or zero keep count leaves retention off.
+ */
+function createStorageConfig(syncRegistries: SyncRegistry[], keepTags?: number) {
+    return {
+        rootDirectory: '/var/lib/registry',
+        dedupe: true,
+        gc: true,
+        ...(keepTags
+            ? { retention: createRetentionConfig(syncRegistries, keepTags) }
+            : {}),
+    };
+}
+
+function createRetentionConfig(syncRegistries: SyncRegistry[], keepTags: number) {
+    return {
+        delay: '24h',
+        policies: [
+            {
+                repositories: syncRegistries.map(
+                    ({ destination }) => `${destination}/**`,
                 ),
-            });
-        });
+                keepTags: [{ patterns: ['.*'], mostRecentlyPulledCount: keepTags }],
+            },
+        ],
+    };
 }
 
 function createHttpConfig(

@@ -17,7 +17,7 @@ if [ -z "$ZOT_URL" ]; then
         echo "error: failed to read Pulumi stack outputs (wrong directory, no stack selected, or stack locked)" >&2
         exit 1
     }
-    ZOT_URL=$(echo "$STACK_OUTPUT" | jq -er '.network.endpoints.zot') || {
+    ZOT_URL=$(echo "$STACK_OUTPUT" | jq -er '.network.endpoints.private.zot') || {
         echo "error: network.endpoints.zot is not in the stack outputs; is zot:enabled true and deployed in this stack?" >&2
         exit 1
     }

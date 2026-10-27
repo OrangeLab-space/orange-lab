@@ -47,6 +47,8 @@ pulumi up
 
 Immich uses a generated configuration file for OAuth, machine-learning, and SMTP settings. The file is mounted as a Secret and configured on every deployment. Because Immich treats the file as authoritative, all Immich system settings are read-only in the administration UI; settings not included in the file use Immich defaults. This requires [Pocket ID](../../../../components/security/pocket/pocket.md) to be deployed for OAuth.
 
+Sign-in is restricted to `admin` and `immich-users` (`immich:auth/allowedGroups`); Immich administrators are promoted inside Immich.
+
 ### Create the Pocket ID client
 
 Run the helper from the media stack directory after deploying Pocket ID and configuring the core stack's `pocket:apiKey`:
@@ -88,7 +90,7 @@ pulumi config set immich:smtp/enabled true
 pulumi config set immich:smtp/host smtp.example.com
 pulumi config set immich:smtp/port 587
 pulumi config set immich:smtp/secure starttls # none | starttls | smtps
-pulumi config set immich:smtp/from "OrangeLab Immich <admin@orangelab.space>"
+pulumi config set immich:smtp/from "OrangeLab Immich <admin@example.com>"
 pulumi config set immich:smtp/username admin@example.com
 pulumi config set immich:smtp/password <smtp-password> --secret
 pulumi up

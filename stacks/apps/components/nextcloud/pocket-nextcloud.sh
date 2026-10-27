@@ -7,13 +7,16 @@ set -euo pipefail
 #
 app_name=nextcloud
 client_name="Nextcloud"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.nextcloud')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.nextcloud')
 launch_url="${launch_url%/}"
 callback_urls=("$launch_url/apps/user_oidc/code")
 logout_callback_urls=("$launch_url/apps/user_oidc/backchannel-logout/PocketID")
 dark_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/nextcloud.svg
 light_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/nextcloud.svg
 pkce_enabled=true
+
+# Pocket ID groups allowed to sign in; unset = unrestricted (available to everyone).
+allowed_groups=$(pulumi config get "${app_name}:auth/allowedGroups" 2>/dev/null || true)
 
 #
 # Shared invocation - identical in every app wrapper.
@@ -26,4 +29,5 @@ exec "$(git rev-parse --show-toplevel)/scripts/pocket-client.sh" \
     --logout-callback-urls "${logout_callback_urls[*]}" \
     --dark-icon-url "$dark_icon_url" \
     --light-icon-url "$light_icon_url" \
-    --pkce-enabled "$pkce_enabled"
+    --pkce-enabled "$pkce_enabled" \
+    --restrict-access "$allowed_groups"

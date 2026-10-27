@@ -7,7 +7,7 @@ set -euo pipefail
 #
 app_name=immich
 client_name="Immich"
-launch_url=$(pulumi stack output --json | jq -er '.endpoints.immich')
+launch_url=$(pulumi stack output --json | jq -er '.endpoints.private.immich')
 launch_url="${launch_url%/}"
 callback_urls=(
     "$launch_url/auth/login"
@@ -18,6 +18,9 @@ logout_callback_urls=()
 dark_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/immich-dark.svg
 light_icon_url=https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/immich.svg
 pkce_enabled=true
+
+# Pocket ID groups allowed to sign in; unset = unrestricted.
+allowed_groups=$(pulumi config get "${app_name}:auth/allowedGroups" 2>/dev/null || true)
 
 #
 # Shared invocation - identical in every app wrapper.
@@ -30,4 +33,5 @@ exec "$(git rev-parse --show-toplevel)/scripts/pocket-client.sh" \
     --logout-callback-urls "${logout_callback_urls[*]}" \
     --dark-icon-url "$dark_icon_url" \
     --light-icon-url "$light_icon_url" \
-    --pkce-enabled "$pkce_enabled"
+    --pkce-enabled "$pkce_enabled" \
+    --restrict-access "$allowed_groups"

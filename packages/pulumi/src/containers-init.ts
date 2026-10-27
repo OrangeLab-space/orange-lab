@@ -1,6 +1,7 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Metadata } from './metadata';
+import { INIT_CONTAINER_RESOURCES } from './resources';
 import { Storage, resolveVolumeName } from './storage';
 import { ContainerSpec, InitContainerSpec, VolumeMount } from './types';
 import { config } from './config';
@@ -32,6 +33,7 @@ export class InitContainers {
             image: initContainer.image ?? 'busybox:latest',
             command: initContainer.command,
             imagePullPolicy: 'IfNotPresent',
+            resources: INIT_CONTAINER_RESOURCES,
             securityContext: this.createSecurityContext(),
             volumeMounts: this.createVolumeMounts(
                 initContainer.volumeMounts ?? spec.volumeMounts,

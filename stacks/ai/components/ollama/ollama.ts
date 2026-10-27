@@ -2,10 +2,9 @@ import { Application, config, HttpEndpointInfo } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export class Ollama extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
     public readonly serviceUrl?: string;
 
-    private readonly app: Application;
+    public readonly app: Application;
 
     constructor(
         private name: string,
@@ -22,8 +21,9 @@ export class Ollama extends pulumi.ComponentResource {
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
         this.createHelmRelease(httpEndpointInfo);
 
-        this.endpointUrl = httpEndpointInfo.url;
         this.serviceUrl = `http://${hostname}.ollama:11434`;
+        this.app.network.addEndpoint(name, httpEndpointInfo.url);
+        this.app.network.addClusterEndpoint(name, this.serviceUrl);
     }
 
     private createHelmRelease(httpEndpointInfo: HttpEndpointInfo) {
@@ -111,7 +111,6 @@ export class Ollama extends pulumi.ComponentResource {
                         tls: [
                             {
                                 hosts: [httpEndpointInfo.hostname],
-                                secretName: httpEndpointInfo.tlsSecretName,
                             },
                         ],
                     },
@@ -139,6 +138,12 @@ export class Ollama extends pulumi.ComponentResource {
                         existingClaim: this.app.storage?.getClaimName(),
                     },
                     replicaCount: 1,
+                    resources: {
+                        requests: { cpu: '1', memory: '8Gi' },
+                        // No memory limit: the resident model determines the footprint
+                        // and the available models differ in size by more than 10x.
+                        limits: { cpu: '4' },
+                    },
                     securityContext:
                         gpu === 'amd' || gpu === 'intel'
                             ? { privileged: true }

@@ -37,8 +37,8 @@ pulumi config set orangelab:coreStackRef example-org/orangelab/lab
 pulumi config set home-assistant:auth pocket
 pulumi config set home-assistant:auth/clientId <client-id>
 
-# Optional: override the Home Assistant admin group (default: orangelab:auth/adminGroup, i.e. admin)
-# pulumi config set home-assistant:auth/adminGroup admin
+# Optional: override the Home Assistant admin group (default: home-assistant-admin)
+# pulumi config set home-assistant:auth/adminGroup home-assistant-admin
 
 pulumi up
 ```
@@ -139,7 +139,7 @@ Integration → MQTT**). The broker cannot be configured from `configuration.yam
 ```sh
 # Password
 cd stacks/iot
-pulumi stack output mqtt --show-secrets --json | jq -r '.password'
+pulumi stack output apps --show-secrets --json | jq -r '.mosquitto.password'
 ```
 
 Frigate publishes its events to the same broker and its entities show up through

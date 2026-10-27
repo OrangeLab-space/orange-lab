@@ -36,18 +36,24 @@ Open project in VSCode. It will install the required dependencies and recommende
 
 ### Backend
 
-Pulumi backend is used to store current state of your infrastructure. The easiest option is to create _Pulumi Cloud_ account (free).
-
-More info at https://www.pulumi.com/docs/iac/concepts/state-and-backends/
-
-Once you have an account, create access token at https://app.pulumi.com/account/tokens
-
-Next step is to login:
+The backend stores stack state, history and encrypted secrets. Pulumi Cloud is
+the default and quickest start:
 
 ```sh
-# Login to Pulumi cloud. Used to store stack state.
+# Login to Pulumi Cloud. Used to store stack state.
+# Or paste an access token from https://app.pulumi.com/account/tokens
 pulumi login
 ```
+
+| Backend          | Depends on               | Notes                                      |
+| ---------------- | ------------------------ | ------------------------------------------ |
+| Pulumi Cloud     | Pulumi account, internet | Default, easiest; no backups to manage     |
+| Local filesystem | nothing                  | Recommended; no account, back up the state |
+
+The local filesystem backend is recommended when you want no account and no
+third-party dependency: state stays in `~/pulumi-state` and secrets are
+encrypted with a passphrase. Setup, backups and switching:
+[Pulumi backend and state](./pulumi.md#local-filesystem).
 
 ### Stack
 
@@ -65,14 +71,66 @@ pulumi stack init <stack-name>
 pulumi stack select <stack-name>
 ```
 
-## Tailscale
+## VPN
 
 Used for remote access to your cluster as well as communication channel between distributed Kubernetes nodes.
 
-Start Tailscale service:
+Pick one control plane. The trade-offs of each combination are in
+[Choosing a setup](../components/network/NETWORK.md#choosing-a-setup). A node
+belongs to one control plane, so this is decided once, before any node joins.
+
+### Tailscale
+
+The default. Start Tailscale service:
 
 ```sh
 sudo tailscale up --reset --operator=$USER --accept-routes
 ```
 
 This will also need to be run on each cluster node. Check [Installation - Linux node configuration](./install-linux.md#tailscale) for more information.
+
+Signing up defaults to a Google, Microsoft or GitHub account. To use your own
+[Pocket ID](../components/security/pocket/pocket.md) instead, see
+[Signing in without Google, Microsoft or GitHub](../components/network/tailscale/tailscale.md#signing-in-without-google-microsoft-or-github).
+
+Join your client devices, then follow [Installation - K3s cluster](./install-k3s.md)
+to add cluster nodes to this tailnet.
+
+### Headscale
+
+Self-hosted control plane, so no third-party coordination server or identity
+provider is in the path. Sign in with
+[Pocket ID](../components/security/pocket/pocket.md).
+
+Deploy it and make it reachable from outside the LAN, since clients off-LAN
+complete sign-in through it:
+
+```sh
+pulumi config set headscale:enabled true
+pulumi config set headscale:network/public true
+pulumi config set headscale:baseDomain vpn.example.com
+
+pulumi up
+```
+
+It also needs an explicit `headscale.<customDomain>` DNS record pointing at the
+public IP. See [Headscale](../components/network/headscale/headscale.md) for
+prerequisites and signing in, and [Public services](./public-services.md) for
+exposing the gateway with a router forward or a VPS proxy.
+
+Nodes register with a reusable, tags-only preauth key rather than an interactive
+login, since a headless server has no browser:
+
+```sh
+./components/network/headscale/exec-headscale.sh \
+    preauthkeys create --tags tag:cluster --reusable --expiration 24h
+tailscale up --login-server https://headscale.<customDomain> --authkey <key>
+```
+
+The tag is what places the node under the cluster policy; a `--user` key makes
+the node personal and subject to key expiry.
+
+Then follow [Installation - K3s cluster](./install-k3s.md) to add cluster nodes.
+
+Already running Tailscale and moving over? That is a destructive cutover, not a
+toggle — read [Migrating nodes to Headscale](./headscale-migration.md) first.

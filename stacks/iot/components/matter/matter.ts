@@ -2,8 +2,7 @@ import { Application, config } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 export class MatterServer extends pulumi.ComponentResource {
-    public readonly endpointUrl?: pulumi.Input<string>;
-    public readonly websocketUrl?: pulumi.Input<string>;
+    public readonly app: Application;
 
     constructor(name: string, opts?: pulumi.ResourceOptions) {
         super('orangelab:iot:MatterServer', name, {}, opts);
@@ -12,23 +11,21 @@ export class MatterServer extends pulumi.ComponentResource {
         const bluetoothAdapter = config.getNumber(name, 'bluetoothAdapter') ?? 0;
         const bluetoothEnabled = bluetoothAdapter >= 0;
         const primaryInterface = config.get(name, 'primaryInterface');
-        const app = new Application(this, name).addStorage();
+        this.app = new Application(this, name).addStorage();
 
-        if (app.storageOnly) return;
-
-        const httpEndpointInfo = app.network.getHttpEndpointInfo();
+        if (this.app.storageOnly) return;
 
         // Host's D-Bus socket for Bluetooth (BlueZ) access, used to commission
         // Matter devices over BLE without a phone.
         if (bluetoothEnabled) {
-            app.storage?.addDeviceMount({
+            this.app.storage?.addDeviceMount({
                 name: 'dbus',
                 hostPath: '/run/dbus',
                 type: 'Directory',
             });
         }
 
-        app.addDeployment({
+        this.app.addDeployment({
             hostNetwork: true,
             image,
             runAsUser: 1000,
@@ -50,12 +47,18 @@ export class MatterServer extends pulumi.ComponentResource {
                     ? [{ mountPath: '/run/dbus', name: 'dbus', readOnly: true }]
                     : []),
             ],
+            resources: {
+                requests: { cpu: '100m', memory: '384Mi' },
+                limits: { cpu: '1', memory: '768Mi' },
+            },
         });
 
-        const clusterUrl = app.network.clusterEndpoints[name];
-        this.websocketUrl = clusterUrl
-            ? pulumi.output(clusterUrl).apply(url => `${url.replace(/^http/, 'ws')}/ws`)
-            : undefined;
-        this.endpointUrl = httpEndpointInfo.url;
+        const clusterUrl = this.app.network.clusterEndpoints[name];
+        if (clusterUrl) {
+            this.app.network.addClusterEndpoint(
+                `${name}-websocket`,
+                pulumi.output(clusterUrl).apply(url => `${url.replace(/^http/, 'ws')}/ws`),
+            );
+        }
     }
 }

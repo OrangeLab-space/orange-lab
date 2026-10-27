@@ -2,12 +2,15 @@ import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Metadata } from './metadata';
 import { Nodes } from './nodes';
-import { DatabaseConfig } from './types';
+import { REDIS_RESOURCES, withResources } from './resources';
+import { ContainerResources, DatabaseConfig } from './types';
 
 export interface RedisArgs {
     metadata: Metadata;
     nodes: Nodes;
     image: string;
+    /** Overrides the default cpu and memory requests and limits. */
+    resources?: ContainerResources;
 }
 
 export class Redis extends pulumi.ComponentResource {
@@ -58,14 +61,10 @@ export class Redis extends pulumi.ComponentResource {
                                             name: 'redis',
                                         },
                                     ],
-                                    resources: {
-                                        requests: {
-                                            memory: '64Mi',
-                                        },
-                                        limits: {
-                                            memory: '128Mi',
-                                        },
-                                    },
+                                    resources: withResources(
+                                        REDIS_RESOURCES,
+                                        this.args.resources,
+                                    ),
                                 },
                             ],
                         },

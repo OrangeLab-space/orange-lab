@@ -33,19 +33,19 @@ is required and must be stable, so every consumer (Frigate, Home Assistant) can
 authenticate. Retrieve it with:
 
 ```sh
-pulumi stack output mqtt --show-secrets --json | jq -r '.password'
+pulumi stack output apps --show-secrets --json | jq -r '.mosquitto.password'
 ```
 
 ## Wiring to Home Assistant
 
 Add the **MQTT** integration in Home Assistant with:
 
-| Setting  | Value                    |
-| -------- | ------------------------ |
-| Broker   | `mosquitto.mosquitto`    |
-| Port     | `1883`                   |
+| Setting  | Value                             |
+| -------- | --------------------------------- |
+| Broker   | `mosquitto.mosquitto`             |
+| Port     | `1883`                            |
 | Username | `mosquitto:user` (default `mqtt`) |
-| Password | value from `mqtt` output |
+| Password | value from `apps.mosquitto`       |
 
 Frigate connects automatically when both components are enabled.
 

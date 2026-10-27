@@ -33,7 +33,7 @@ pulumi up
 
 The Traefik dashboard is read-only - it exposes no secrets and no destructive actions - so it is **not** protected by Pocket ID. The dashboard is reachable without authentication.
 
-It is still registered as a Pocket ID app so it appears in **My Apps** for `admin` and `power-user` groups. From the repo root, create the launcher client:
+It is still registered as a Pocket ID app so it appears in **My Apps** for the `admin` group. From the repo root, create the launcher client:
 
 ```sh
 ./components/network/traefik/pocket-traefik.sh
@@ -44,6 +44,38 @@ pulumi config set traefik:auth/clientId <client-id>
 pulumi config set traefik:auth/clientSecret <client-secret> --secret
 pulumi up
 ```
+
+## Public exposure
+
+By default everything Traefik serves is private — reachable only over the
+tailnet, because the wildcard DNS record points at a tailnet IP. An application
+opts into internet-facing traffic with a single setting:
+
+```sh
+pulumi config set <app>:network/public true
+pulumi up
+```
+
+That does three things: labels the application's namespace
+`orangelab.space/public=true`, adds an HTTPRoute on the public gateway, and keeps
+the private route untouched. Removing the setting reverses all three.
+
+Three layers keep public and private apart:
+
+1. **Ports.** Public terminates on `10443`, private on `443`. Expose the public
+   listener with a router port forward or a VPS proxy — see
+   [Public services](../../../docs/public-services.md).
+2. **Gateway listener.** `traefik-gateway-public` only accepts routes from
+   namespaces labelled `orangelab.space/public`, so an app cannot become public
+   by accident.
+3. **Separate route objects.** Each public route is a distinct HTTPRoute
+   (`<app>-http-public`) from its private counterpart, so dropping public
+   exposure cannot disturb internal routing.
+
+TCP and UDP follow the same split. A port marked `public` in a publicly exposed
+application gets a second LoadBalancer publishing it at `<port> + 10000`; see
+[TCP and UDP ports](../../../docs/public-services.md#tcp-and-udp-ports) for the
+forward band and the VPS alternative.
 
 ## Uninstall
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<EOF
-Usage: $0 --app-name <name> --client-name <name> --launch-url <url> --callback-url <url> [options]
+Usage: $0 --app-name <name> --client-name <name> --callback-url <url> [options]
 
 Create or refresh a Pocket ID OIDC client for the application stack in the current directory.
 Existing clients are reused and their secrets are not rotated.
@@ -11,11 +11,12 @@ Existing clients are reused and their secrets are not rotated.
 Required parameters:
   --app-name <name>          Pulumi endpoint and config name, e.g. open-webui
   --client-name <name>       Pocket ID client display name, e.g. "Open WebUI"
-  --launch-url <url>         Public application URL and Pocket ID launch URL
   --callback-url <url>       OIDC callback URL; may be specified multiple times
   --callback-urls <urls>     Comma- or space-separated OIDC callback URLs
 
 Optional parameters:
+  --launch-url <url>               Public application URL and Pocket ID launch URL
+                                   (omit when the client has no web UI to launch)
   --logout-callback-url <url>      Logout callback URL; may be specified multiple times
   --logout-callback-urls <urls>    Comma- or space-separated logout callback URLs
   --dark-icon-url <url>      URL for the dark-theme client icon
@@ -104,7 +105,7 @@ done
 #
 # Validation
 #
-for parameter in app_name client_name launch_url; do
+for parameter in app_name client_name; do
     if [[ -z "${!parameter}" ]]; then
         printf 'Missing required parameter: --%s\n\n' "${parameter//_/-}" >&2
         usage >&2
@@ -151,7 +152,7 @@ if ! pocket_api_key=$(pulumi --cwd "$root_stack" config get pocket:apiKey 2>/dev
     exit 1
 fi
 
-POCKET_ID_URL=$(stack_output "$root_stack" | jq -er '.security.endpoints.pocket')
+POCKET_ID_URL=$(stack_output "$root_stack" | jq -er '.security.endpoints.public.pocket')
 POCKET_ID_URL="${POCKET_ID_URL%/}"
 launch_url="${launch_url%/}"
 callback_urls_json=$(printf '%s\n' "${callback_urls[@]}" | jq -R -s 'split("\n") | map(select(length > 0))')
@@ -162,25 +163,26 @@ else
 fi
 
 #
-# API helper with retry (Pocket ID intermittently answers 400/5xx)
+# API helper. Fails fast: a non-2xx answer is reported as-is instead of being
+# retried, because retrying hides the real cause and can duplicate a write.
 #
 pocket_api() {
     local method="$1"
     local endpoint="$2"
     shift 2
-    local attempt response status=1
-    for attempt in 1 2 3 4 5; do
-        if response=$(curl --fail-with-body --silent --show-error -X "${method}" \
-            "${POCKET_ID_URL}${endpoint}" "$@" 2>&1); then
-            printf '%s' "${response}"
-            return 0
-        fi
-        status=1
-        printf 'Pocket ID request failed (attempt %s/5): %s %s\n' "${attempt}" "${method}" "${endpoint}" >&2
-        printf '%s\n' "${response}" >&2
-        sleep 3
-    done
-    return "${status}"
+    local response status body
+    if ! response=$(curl --silent --show-error -w $'\n%{http_code}' -X "${method}" \
+        "${POCKET_ID_URL}${endpoint}" "$@" 2>&1); then
+        printf 'Pocket ID request failed: %s %s\n%s\n' "${method}" "${endpoint}" "${response}" >&2
+        return 1
+    fi
+    status="${response##*$'\n'}"
+    body="${response%$'\n'*}"
+    if ((status >= 400)); then
+        printf 'Pocket ID returned HTTP %s: %s %s\n%s\n' "${status}" "${method}" "${endpoint}" "${body}" >&2
+        return 1
+    fi
+    printf '%s' "${body}"
 }
 
 #
@@ -309,12 +311,12 @@ if [[ -z "${client_id}" ]]; then
                 name: $name,
                 callbackURLs: $callback_urls,
                 logoutCallbackURLs: $logout_callback_urls,
-                launchURL: $launch_url,
+                launchURL: (if $launch_url == "" then null else $launch_url end),
                 isPublic: $is_public,
                 pkceEnabled: $pkce_enabled,
                 skipConsent: true
             }')"); then
-        printf 'Error: could not create the client after 5 attempts - re-run the script.\n' >&2
+        printf 'Error: could not create the client - fix the error above and re-run the script.\n' >&2
         exit 1
     fi
     client_id=$(jq -er '.id' <<<"${client_response}")
@@ -360,7 +362,7 @@ else
 fi
 
 #
-# Sync callback URLs on reused clients (merged, other settings untouched)
+# Sync callback URLs and launch URL on reused clients (callback URLs merged, other settings untouched)
 #
 if [[ "${callback_urls_json}" != '[]' || "${logout_callback_urls_json}" != '[]' ]]; then
     existing_client=$(jq -c --arg name "${client_name}" \
@@ -373,11 +375,13 @@ if [[ "${callback_urls_json}" != '[]' || "${logout_callback_urls_json}" != '[]' 
         --argjson existing "${existing_client}" \
         --argjson requested "${logout_callback_urls_json}" \
         '$requested - ($existing.logoutCallbackURLs // [])')
+    existing_launch_url=$(jq -r '.launchURL // ""' <<<"${existing_client}")
     existing_pkce_enabled=$(jq -r '.pkceEnabled // false' <<<"${existing_client}")
     existing_is_public=$(jq -r '.isPublic // false' <<<"${existing_client}")
-    if [[ "${missing_callback_urls}" != '[]' || "${missing_logout_urls}" != '[]' || "${existing_pkce_enabled}" != "${pkce_enabled}" || "${existing_is_public}" != "${public_client}" ]]; then
+    if [[ "${missing_callback_urls}" != '[]' || "${missing_logout_urls}" != '[]' || "${existing_launch_url}" != "${launch_url}" || "${existing_pkce_enabled}" != "${pkce_enabled}" || "${existing_is_public}" != "${public_client}" ]]; then
         update_body=$(jq -c -n \
             --argjson existing "${existing_client}" \
+            --arg launch_url "${launch_url}" \
             --argjson requested_callbacks "${callback_urls_json}" \
             --argjson requested_logout "${logout_callback_urls_json}" \
             --argjson pkce_enabled "${pkce_enabled}" \
@@ -392,7 +396,7 @@ if [[ "${callback_urls_json}" != '[]' || "${logout_callback_urls_json}" != '[]' 
                 requiresReauthentication: ($existing.requiresReauthentication // false),
                 requiresPushedAuthorizationRequests: ($existing.requiresPushedAuthorizationRequests // false),
                 skipConsent: ($existing.skipConsent // false),
-                launchURL: $existing.launchURL,
+                launchURL: (if $launch_url == "" then null else $launch_url end),
                 hasLogo: ($existing.hasLogo // false),
                 hasDarkLogo: ($existing.hasDarkLogo // false),
                 isGroupRestricted: ($existing.isGroupRestricted // false),

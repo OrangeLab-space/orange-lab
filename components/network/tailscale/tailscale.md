@@ -14,7 +14,96 @@ The operator manages cluster ingress endpoints on Tailnet as well as adds Tailsc
 - **Use Tailscale** when you don't have a custom domain or public IP, and want secure access via Tailscale mesh VPN
 - **Optional** when using [Traefik](../traefik/traefik.md) with a custom domain - TCP services will use k3s ServiceLB instead
 
+## Signing in without Google, Microsoft or GitHub
+
+The tailnet itself is created through Tailscale's signup, which defaults to
+Google/Microsoft/GitHub. You can instead sign up with your own
+[Pocket ID](../../security/pocket/pocket.md) instance, so nodes and
+devices only need an OrangeLab account. The account that signs up first becomes
+the tailnet owner.
+
+Prerequisites: Pocket ID deployed, publicly reachable over HTTPS, and a
+[WebFinger](../caddy/caddy.md) endpoint at the apex of your custom domain. The
+WebFinger step is what proves domain ownership to Tailscale; without it, signup
+cannot proceed.
+
+Create the OIDC client:
+
+```sh
+./components/network/tailscale/pocket-tailscale.sh
+```
+
+The script prints a client ID and secret. **The secret is shown only once** -
+store it somewhere safe.
+
+Then sign up at <https://login.tailscale.com/start/oidc>:
+
+| Field | Value |
+| ----- | ----- |
+| Email address | your admin address, e.g. `admin@example.com` |
+| Client ID | printed by the script |
+| Client secret | printed by the script |
+
+Tailscale reads the issuer URL from your WebFinger endpoint - click **Get OIDC
+Issuer** and it should populate with your Pocket ID URL.
+
+> [!IMPORTANT]
+> The email address must match the WebFinger subject exactly. If Pocket ID
+> authenticates you as a different user than the address you typed, signup fails
+> with an account-mismatch error. Sign out of Pocket ID first, or use a private
+> window.
+
+The client is restricted to `admin` and `vpn-users` by default
+(`tailscale:auth/allowedGroups: admin,vpn-users`). Tailscale does no user or
+group provisioning with custom OIDC, so tailnet membership is the set of allowed
+Pocket ID groups - the same population that joins the
+[Headscale](../headscale/headscale.md) mesh. Both groups must exist in Pocket ID
+before running the script; everyone else is refused at sign-in.
+
+The client has no launch URL, so it adds no **My Apps** tile - members sign in to
+the tailnet through Tailscale itself (`tailscale up`), not through a launcher.
+Admins open the console directly at <https://login.tailscale.com/admin>.
+
 When custom domain is configured, Traefik replaces Tailscale for application endpoints.
+
+## Public exposure with Funnel
+
+Public exposure is optional; see [Public services](../../../docs/public-services.md)
+for when it is required and the Traefik alternatives.
+
+When Tailscale is the routing provider, `<app>:network/public: true` enables
+[Tailscale Funnel](https://tailscale.com/kb/1223/tailscale-funnel) on that app's
+ingress by adding the `tailscale.com/funnel: "true"` annotation.
+
+Funnel does **not** replace the `ts.net` name. The app is still served at
+`<app>.<tailnet>.ts.net` inside the tailnet; Funnel additionally publishes that
+same name to the public internet through Tailscale's relay servers. One hostname,
+reachable both ways, and your home IP stays hidden.
+
+### Requirements
+
+Funnel needs a node attribute in the tailnet policy file granting it to the
+operator's tag — the `tag:orangelab` this component applies by default:
+
+```json
+"nodeAttrs": [
+  { "target": ["tag:orangelab"], "attr": ["funnel"] },
+]
+```
+
+`autogroup:member` does not cover tagged devices, so granting it to members
+alone is not enough.
+
+### Limitations
+
+- Only ports **443**, **8443** and **10000**, HTTPS only.
+- Traffic is relayed through Tailscale, which cannot read it but does see
+  connection metadata.
+- Serve and Funnel cannot share a port: whichever ran last wins, so a port
+  configured for Serve becomes fully private again.
+
+With Traefik as the routing provider, `network/public` is handled by Traefik's
+public gateway instead and Funnel is not used.
 
 ## Installation
 
