@@ -132,11 +132,11 @@ class Config {
         if (this.get('longhorn', 'backupAccessKeySecret')) {
             console.warn('longhorn:backupAccessKeySecret is deprecated.');
         }
-        if (this.get('longhorn', 'backupBucket')) {
-            console.warn(
-                'longhorn:backupBucket is deprecated. Use longhorn:backupTarget instead.',
-            );
-        }
+        this.assertNotConfigured(
+            'longhorn',
+            'backupBucket',
+            'longhorn:backupBucket is no longer supported. Use longhorn:backupTarget instead, e.g. pulumi config set longhorn:backupTarget s3://backup-longhorn@lab/.',
+        );
         if (this.get('longhorn', 'backupBucketCreate')) {
             console.warn('longhorn:backupBucketCreate is deprecated.');
         }
