@@ -81,9 +81,9 @@ config:
 
     mempool:enabled: false
     mempool:frontend/hostname: mempool
-    mempool:frontend/image: mempool/frontend:v3.3.1
+    mempool:frontend/image: mempool/frontend:v3.3.2
     mempool:backend/hostname: mempool-backend
-    mempool:backend/image: mempool/backend:v3.3.1
+    mempool:backend/image: mempool/backend:v3.3.2
     mempool:db/storageSize: 1Gi
     # Database cpu and memory requests and limits, overriding the library default.
     # mempool:db/resources:
