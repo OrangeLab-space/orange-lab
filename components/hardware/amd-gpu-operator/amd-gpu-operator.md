@@ -64,7 +64,7 @@ AMD GPU dashboards and metrics for Prometheus are automatically installed when c
 - AMD - Job
 - AMD - Compute Node
 
-The metrics exporter image can be customized with `amd-gpu-operator:metricsExporter/image` (default `docker.io/rocm/device-metrics-exporter:v1.5.0`).
+The metrics exporter image can be customized with `amd-gpu-operator:metricsExporter/image` (default `docker.io/rocm/device-metrics-exporter:v1.5.3`).
 
 ```sh
 pulumi config set prometheus:enableComponentMonitoring true

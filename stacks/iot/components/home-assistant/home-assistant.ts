@@ -154,7 +154,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
     private getOidcInstallContainer(name: string) {
         return {
             name: 'install-oidc-auth',
-            image: 'alpine:3.21',
+            image: 'alpine:3.24',
             command: ['/bin/sh', '-c'],
             resources: INIT_CONTAINER_RESOURCES,
             env: [
@@ -200,7 +200,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
     private getFrigateInstallContainer(name: string) {
         return {
             name: 'install-frigate-integration',
-            image: 'alpine:3.21',
+            image: 'alpine:3.24',
             command: ['/bin/sh', '-c'],
             resources: INIT_CONTAINER_RESOURCES,
             env: [

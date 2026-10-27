@@ -54,7 +54,7 @@ export class Traefik extends pulumi.ComponentResource {
                         plugins: {
                             'traefik-oidc-auth': {
                                 moduleName: 'github.com/sevensolutions/traefik-oidc-auth',
-                                version: 'v0.21.0',
+                                version: 'v0.22.0',
                             },
                         },
                     },

@@ -67,7 +67,7 @@ config:
     # caddy:webfingerSubject: acct:admin@example.com
 
     headscale:enabled: false
-    headscale:image: headscale/headscale:v0.29.5
+    headscale:image: headscale/headscale:v0.29.6
     headscale:hostname: headscale
     headscale:storageSize: 1Gi
     headscale:network/public: true
@@ -113,7 +113,7 @@ config:
     # Requires headscale:enabled. Create the API key first with
     # components/network/headplane/headscale-apikey.sh
     headplane:enabled: false
-    headplane:image: ghcr.io/tale/headplane:0.8.0
+    headplane:image: ghcr.io/tale/headplane:0.8.2
     headplane:hostname: headplane
     headplane:storageSize: 1Gi
     # Sign in with Pocket ID. Roles come from a group custom claim
@@ -252,7 +252,7 @@ config:
 
     amd-gpu-operator:enabled: false
     amd-gpu-operator:version: v1.5.1
-    amd-gpu-operator:metricsExporter/image: docker.io/rocm/device-metrics-exporter:v1.5.1
+    amd-gpu-operator:metricsExporter/image: docker.io/rocm/device-metrics-exporter:v1.5.3
 
     ### Data ###
 
@@ -304,7 +304,7 @@ config:
 
     pocket:enabled: false
     pocket:hostname: pocket
-    pocket:image: pocketid/pocket-id:v2.18.0
+    pocket:image: pocketid/pocket-id:v2.19.1
     pocket:storageSize: 1Gi
     # pocket:encryptionKey:
     #   secure: ENCRYPTION_KEY
