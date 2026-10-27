@@ -4,16 +4,18 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "6.0",
     "module": "commonjs",
     "moduleResolution": "node",
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
-    "outDir": "../../bin/stacks/iot",
+    "outDir": "../../bin",
     "paths": {
       "@orangelab/pulumi": ["../../packages/pulumi/src/index.ts"]
     },
     "pretty": true,
     "resolveJsonModule": true,
+    "rootDir": "../..",
     "sourceMap": true,
     "strict": true,
     "target": "es2016"

@@ -20,7 +20,6 @@ export default defineConfig(
                 projectService: {
                     allowDefaultProject: ['*.mjs'],
                 },
-                tsconfigRootDir: import.meta.dirname,
             },
         },
     },
