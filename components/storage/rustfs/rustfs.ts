@@ -78,9 +78,13 @@ export class Rustfs extends pulumi.ComponentResource {
     }
 
     private getBaseEnv() {
+        // Unset leaves RustFS's default (enabled). Disable it for write-once
+        // stores on slow disks, where the metadata walk competes with backups.
+        const scannerEnabled = config.getBoolean(this.name, 'scanner/enabled');
         return {
             RUSTFS_ACCESS_KEY: this.rootUser,
             RUSTFS_CONSOLE_ENABLE: 'true',
+            RUSTFS_SCANNER_ENABLED: scannerEnabled?.toString(),
         };
     }
 

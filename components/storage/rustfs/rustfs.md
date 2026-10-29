@@ -48,6 +48,16 @@ pulumi config set rustfs:fixVolumePermissions "-R"
 pulumi config set rustfs:fixVolumePermissions "-Rv"
 ```
 
+## Background scanner
+
+RustFS's background scanner is unset by default, leaving RustFS's own default (enabled). Disable it on write-once stores with slow disks, where the continuous metadata walk competes with backups:
+
+```sh
+pulumi config set rustfs:scanner/enabled false
+```
+
+Console usage figures are not refreshed while the scanner is off.
+
 ## CLI
 
 RustFS provides the `rc` CLI tool for S3 operations:

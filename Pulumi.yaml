@@ -240,6 +240,8 @@ config:
     rustfs:image: rustfs/rustfs:1.0.4
     rustfs:provisioner/image: rustfs/rc:latest
     # rustfs:fixVolumePermissions: '-Rv'
+    # Disable the background scanner on slow disks (unset = RustFS default)
+    # rustfs:scanner/enabled: false
 
     ### Hardware ###
 
