@@ -101,13 +101,15 @@ export class Redis extends pulumi.ComponentResource {
     }
 
     getConfig(): DatabaseConfig {
+        const hostname = pulumi.interpolate`${this.serviceName}.${this.args.metadata.namespace}`;
         return {
             name: 'redis',
-            hostname: pulumi.interpolate`${this.serviceName}.${this.args.metadata.namespace}`,
+            hostname,
             database: '',
             username: '',
             password: '',
             port: 6379,
+            connectionString: pulumi.interpolate`redis://${hostname}:6379`,
         };
     }
 }

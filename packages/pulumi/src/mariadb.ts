@@ -127,6 +127,8 @@ export class MariaDbCluster extends pulumi.ComponentResource {
     }
 
     getConfig(): DatabaseConfig {
+        const encode = (value: pulumi.Input<string>) =>
+            pulumi.output(value).apply(encodeURIComponent);
         return {
             name: this.args.name,
             hostname: this.clusterName,
@@ -134,6 +136,7 @@ export class MariaDbCluster extends pulumi.ComponentResource {
             username: this.appName,
             password: this.dbPassword,
             port: 3306,
+            connectionString: pulumi.interpolate`mysql://${encode(this.appName)}:${encode(this.dbPassword)}@${this.clusterName}:3306/${encode(this.appName)}`,
         };
     }
 }

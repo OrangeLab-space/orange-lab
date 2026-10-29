@@ -157,7 +157,7 @@ export class Databases {
 
     /**
      * Returns the config for MariaDB, PostgreSQL, or Redis instance for this app.
-     * Includes: hostname, database, username, password
+     * Includes: hostname, port, database, username, password, connectionString
      */
     getConfig(name = 'db'): DatabaseConfig {
         const db = this.databases[name];

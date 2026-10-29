@@ -121,13 +121,17 @@ export class PostgresCluster extends pulumi.ComponentResource {
     }
 
     getConfig(): DatabaseConfig {
+        const hostname = pulumi.interpolate`${this.clusterName}-rw.${this.args.metadata.namespace}`;
+        const encode = (value: pulumi.Input<string>) =>
+            pulumi.output(value).apply(encodeURIComponent);
         return {
             name: this.args.name,
-            hostname: pulumi.interpolate`${this.clusterName}-rw.${this.args.metadata.namespace}`,
+            hostname,
             database: this.appName,
             username: this.dbUser,
             password: this.dbPassword,
             port: 5432,
+            connectionString: pulumi.interpolate`postgresql://${encode(this.dbUser)}:${encode(this.dbPassword)}@${hostname}:5432/${encode(this.appName)}`,
         };
     }
 }

@@ -275,6 +275,8 @@ export interface DatabaseConfig {
     username: pulumi.Input<string>;
     password: pulumi.Input<string>;
     port: pulumi.Input<number>;
+    /** Full connection URL, with credentials URL-encoded. */
+    connectionString: pulumi.Output<string>;
 }
 
 /**
