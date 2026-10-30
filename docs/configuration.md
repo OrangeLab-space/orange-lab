@@ -106,7 +106,7 @@ The following settings are supported by most applications in OrangeLab:
 | `preferredNodeLabel`         | Deploy to node with specified label if exists (soft constraint)                              |
 | `requiredNodeLabel`          | Deploy only to node with specified label (hard constraint)                                   |
 | `excludeNodeLabel`           | Do not deploy to nodes with specified label (hard constraint)                                |
-| `requiredVolumeLabel`        | Pin volume to specific node(s). Immutable - requires app redeploy to change                  |
+| `requiredVolumeLabel`        | Pin volume to node(s) it may attach to. Immutable - requires app redeploy to change          |
 | `storage/snapshotEnabled`    | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                    |
 | `storage/snapshotCron`       | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                      |
 | `storage/snapshotRetain`     | Snapshot retention (defaults to `longhorn:snapshotRetain`)                                   |
@@ -212,7 +212,10 @@ pulumi config set nfd:excludeNodeLabel orangelab/alpine
 
 ### Volume Affinity
 
-By default, Longhorn automatically manages volume placement across nodes. Use `requiredVolumeLabel` only when you need to pin volumes to specific nodes (e.g., NAS available on local network).
+`requiredVolumeLabel` controls which nodes may **attach** the volume. It is a
+Kubernetes node label, not a Longhorn storage tag. Use it only when the volume
+must be mounted from specific nodes (e.g., a NAS available on the local
+network); it does not affect where Longhorn stores replicas.
 
 **Important:** Volume affinity is immutable - once set, the field cannot be changed without recreating the volume. This requires redeploying the application.
 
@@ -223,6 +226,41 @@ pulumi config set <app>:requiredVolumeLabel kubernetes.io/hostname=nas
 # Pin database volume specifically (does not affect app volume)
 pulumi config set <app>:db/requiredVolumeLabel kubernetes.io/hostname=nas
 ```
+
+### Volume Placement Tags
+
+Replica placement is a property of the Longhorn volume, not of the Pulumi
+config. For a static volume (`fromVolume`), the PV and `requiredVolumeLabel`
+only decide where the volume may be attached; the data lives on the nodes and
+disks chosen when the volume was created.
+
+Select **Node Tag** and **Disk Tag** in the Longhorn UI when creating, cloning
+or restoring a volume:
+
+- **Clone Volume** copies the source volume's tags; adjust them before confirming.
+- **Restore from backup** starts with both fields empty; set them explicitly.
+- A tag must already exist on the node or disk (_Node → Edit Node and Disks_).
+
+Example tag scheme:
+
+| Tag                   | Use                                                                   |
+| --------------------- | --------------------------------------------------------------------- |
+| `bitcoin`, `jellyfin` | Dedicated volume/disk(s). No fallback only when one disk has the tag. |
+| `hdd`                 | Spinning disks, bulk media                                            |
+| `ssd`                 | Solid-state disks                                                     |
+| `usb`                 | External/USB disks                                                    |
+
+Node tags follow the same pattern; use one only when the disk tag is not
+specific enough (e.g. the same kind of disk exists on several nodes).
+
+Tags are ANDed: `["ssd", "fast"]` requires a disk carrying both. Prefer a
+category tag (`hdd`, `ssd`, `usb`) unless the volume belongs on specific
+disks; if only one disk carries the tag, there is no rebuild target when it
+fails.
+
+Changing tags on an existing volume applies to new replicas only, and moving
+existing data needs a rebuild or clone. See
+[Longhorn volume placement](../spec/longhorn.md#volume-placement-is-a-property-of-the-volume-not-the-pv).
 
 ### GPU
 
@@ -276,7 +314,8 @@ pulumi up
 pulumi config set ollama:storageSize 200Gi
 
 # Attach existing Longhorn volume to an application.
-# Volumes can be cloned or restored from a backup using Longhorn UI.
+# Volumes can be cloned or restored from a backup using Longhorn UI;
+# choose Node/Disk tags there to control where replicas are stored.
 pulumi config set ollama:fromVolume existing-volume-name
 
 # Enable backups for this application (uses the global backup job)
@@ -319,7 +358,9 @@ pulumi up
 pulumi config set <app>:storageOnly true
 pulumi up
 
-# Clone the volume in Longhorn UI and give it descriptive name, f.e. the app name
+# Clone the volume in Longhorn UI and give it descriptive name, f.e. the app name.
+# Select Node/Disk tags in the clone dialog (or in the restore dialog, which
+# starts with empty tags) if the volume should be pinned.
 
 # Attach the cloned/restored volume and start the app
 pulumi config set <app>:fromVolume "<volume>"

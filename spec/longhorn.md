@@ -69,6 +69,90 @@ in `FailedAttachVolume` with `volume ... detached state with some un-schedulable
 replicas`. Repin the volume's `nodeID` to match the PV before investigating the
 attach path.
 
+## Volume placement is a property of the volume, not the PV
+
+Replica placement for a static volume does **not** come from the PV, the
+`longhorn-<volume>` StorageClass, or the app's Pulumi settings. It lives on the
+`volumes.longhorn.io` object:
+
+- `spec.nodeSelector` — Longhorn **node tags** the node must have.
+- `spec.diskSelector` — Longhorn **disk tags** the disk must have.
+
+Both are tag lists and multiple tags are ANDed: `["ssd", "fast"]` requires a
+disk with both tags, not either. These are Longhorn tags set in _Node → Edit
+Node and Disks_, not Kubernetes labels: `kubernetes.io/hostname` is irrelevant
+here. The PV's `nodeAffinity` (`<app>:requiredVolumeLabel`) is a different
+constraint — it decides where the volume may _attach_, not where replicas are
+stored.
+
+Two tag levels are worth keeping:
+
+- **Specific** (`bitcoin`, `jellyfin`): restrict the volume to disks with that
+  tag. Predictable; if only one disk carries the tag, there is no rebuild
+  target when it goes away.
+- **Category** (`hdd`, `ssd`, `usb`): allow any disk in the class, so a rebuild
+  can move to another disk of the same kind.
+
+A tag can be on several disks; the volume treats all of them as candidates. Use
+a specific tag only for a volume that genuinely belongs on those disks.
+
+### Inspect and change
+
+```sh
+kubectl -n longhorn-system get volumes.longhorn.io <volume> \
+  -o jsonpath='{.spec.nodeSelector}{"\n"}{.spec.diskSelector}{"\n"}'
+
+kubectl -n longhorn-system patch volumes.longhorn.io <volume> --type merge \
+  -p '{"spec":{"diskSelector":["<tag>"]}}'
+```
+
+Longhorn 1.13 has no UI action for editing these on an existing volume, but the
+fields are mutable and the patch is accepted while attached. It applies to
+**new replica scheduling only**: existing replicas are not detached, evicted or
+moved. On a healthy single-replica volume the change is a no-op until that
+replica fails or is removed.
+
+StorageClass parameters have the same limit: Longhorn applies them at volume
+creation and does not propagate later edits to existing volumes. A `fromVolume`
+volume already exists, so its PV `volumeAttributes` and static StorageClass
+cannot set placement at all.
+
+### Moving data to another disk
+
+There is no "move replica" operation. Either rebuild in place or clone.
+
+**Rebuild in place** keeps the volume, PV and PVC:
+
+1. Set the target selector.
+2. Raise `spec.numberOfReplicas` by one (UI: _Update Replicas Count_).
+3. Wait for the new replica to reach `running` on the target disk.
+4. Delete the replica on the old disk.
+5. Lower the replica count back.
+
+This needs room for one extra full copy while the rebuild runs. Delete the old
+replica only after the new one is healthy; deleting it first starts a
+replacement rebuild.
+
+**Clone** creates a new volume:
+
+1. Clone the volume in the Longhorn UI and check the _Node Tag_ / _Disk Tag_
+   fields in the clone dialog. They are prefilled from the source volume but
+   can be changed.
+2. Point `<app>:fromVolume` (or `<app>:<component>/fromVolume`) at the clone.
+3. Deploy, verify, then delete the old volume once the clone is proven.
+
+The source can stay attached during a UI clone; it is a full copy, not a
+snapshot reference. Switching `fromVolume` changes the PV's `volumeHandle`;
+expect the workload to restart, and the old volume is retained.
+
+A UI **restore from backup** starts with empty Node/Disk Tag fields — set them
+explicitly. A CSI/PVC clone uses the destination StorageClass's parameters, not
+the source volume's.
+
+Do not evict a shared disk to move one volume: eviction rebuilds every replica
+on the disk, and volumes whose tag exists only on that disk have nowhere to go.
+Move the individual volume instead.
+
 ## Use `replicas.longhorn.io`, not `engines.longhorn.io`
 
 These are not interchangeable, and the second badly under-reports:
