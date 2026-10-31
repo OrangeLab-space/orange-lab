@@ -102,6 +102,7 @@ Even if the change seems straightforward, these signals may indicate the current
 
 Agent-facing operating notes. Read as needed:
 
+- [`spec/agentgateway.md`](spec/agentgateway.md) — prompt guards, MCP backends, and advanced model routing
 - [`spec/headscale.md`](spec/headscale.md) — control plane invariants, CLI gotchas, migration constraints
 - [`spec/longhorn.md`](spec/longhorn.md) — volume provisioning, failure behaviour, recovery
 - [`spec/pocket.md`](spec/pocket.md) — OIDC provider, group model, client scripts, onboarding new apps

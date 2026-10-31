@@ -37,6 +37,24 @@ config:
     # Deploys to any node with selected GPU if requiredNodeLabel NOT specified
     # ollama:requiredNodeLabel: kubernetes.io/hostname=<host>
 
+    agentgateway:enabled: false
+    agentgateway:hostname: agentgateway
+    agentgateway:hostname-llm: ai
+    agentgateway:version: v1.7.0
+    # Map of provider name to {baseUrl, models}; auth uses <provider>/apiKey secrets
+    # agentgateway:providers: see components/agentgateway/agentgateway.md
+    # Cost rates per model for analytics; see components/agentgateway/agentgateway.md
+    # agentgateway:modelCosts: map of providers/models/rates
+    # Virtual models: map name to {strategy, targets: [{model, priority|weight}]}
+    # agentgateway:virtualModels: see components/agentgateway/agentgateway.md
+    # Virtual keys generated per client, exposed in apps.agentgateway.apiKeys
+    agentgateway:clients: default
+    # agentgateway:auth: pocket
+    # agentgateway:auth/clientId: CLIENT_ID
+    # agentgateway:auth/clientSecret: CLIENT_SECRET
+    # agentgateway:auth/allowedGroups: admin
+    # agentgateway:network/public: false
+
     automatic1111:enabled: false
     automatic1111:hostname: 'automatic1111'
     automatic1111:image: universonic/stable-diffusion-webui:full

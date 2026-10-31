@@ -1,4 +1,5 @@
 import { config, mergeEndpointExports } from '@orangelab/pulumi';
+import { Agentgateway } from './components/agentgateway/agentgateway';
 import { Automatic1111 } from './components/automatic1111/automatic1111';
 import { InvokeAi } from './components/invokeai/invokeai';
 import { KubeAi } from './components/kubeai/kubeai';
@@ -8,6 +9,10 @@ import { OpenWebUI } from './components/open-webui/open-webui';
 import { SDNext } from './components/sdnext/sdnext';
 
 const ollama = config.isEnabled('ollama') ? new Ollama('ollama') : undefined;
+
+const agentgateway = config.isEnabled('agentgateway')
+    ? new Agentgateway('agentgateway')
+    : undefined;
 
 const automatic1111 = config.isEnabled('automatic1111')
     ? new Automatic1111('automatic1111')
@@ -40,6 +45,7 @@ const n8n = config.isEnabled('n8n')
     : undefined;
 
 export const endpoints = mergeEndpointExports(
+    agentgateway,
     automatic1111,
     invokeAi,
     kubeAI,
@@ -50,6 +56,12 @@ export const endpoints = mergeEndpointExports(
 );
 
 export const apps = {
+    agentgateway: agentgateway
+        ? {
+              ...agentgateway.links,
+              apiKeys: agentgateway.apiKeys,
+          }
+        : undefined,
     'open-webui': openWebUI
         ? {
               secretKey: openWebUI.secretKey,
