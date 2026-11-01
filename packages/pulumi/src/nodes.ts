@@ -2,6 +2,7 @@ import * as kubernetes from '@pulumi/kubernetes';
 import { config } from './config';
 import { GpuType } from './types';
 
+type NodeSelectorRequirement = kubernetes.types.input.core.v1.NodeSelectorRequirement;
 type NodeSelectorTerm = kubernetes.types.input.core.v1.NodeSelectorTerm;
 
 export interface NodesArgs {
@@ -85,28 +86,36 @@ export class Nodes {
         excludeNodeLabel?: string,
         component?: string,
     ): NodeSelectorTerm[] {
-        const terms: NodeSelectorTerm[] = [];
+        const matchExpressions: NodeSelectorRequirement[] = [];
 
         if (requiredNodeLabel) {
-            terms.push(this.getNodeSelectorTerm(requiredNodeLabel));
+            matchExpressions.push(...this.getNodeSelectorRequirements(requiredNodeLabel));
         } else {
             const gpu = this.getGpu(component);
             if (gpu === 'amd') {
-                terms.push(this.getNodeSelectorTerm('orangelab/gpu-amd=true'));
+                matchExpressions.push(
+                    ...this.getNodeSelectorRequirements('orangelab/gpu-amd=true'),
+                );
             }
             if (gpu === 'nvidia') {
-                terms.push(this.getNodeSelectorTerm('orangelab/gpu-nvidia=true'));
+                matchExpressions.push(
+                    ...this.getNodeSelectorRequirements('orangelab/gpu-nvidia=true'),
+                );
             }
             if (gpu === 'intel') {
-                terms.push(this.getNodeSelectorTerm('orangelab/gpu-intel=true'));
+                matchExpressions.push(
+                    ...this.getNodeSelectorRequirements('orangelab/gpu-intel=true'),
+                );
             }
         }
 
         if (excludeNodeLabel) {
-            terms.push(this.getExclusionNodeSelectorTerm(excludeNodeLabel));
+            matchExpressions.push(
+                ...this.getExclusionNodeSelectorRequirements(excludeNodeLabel),
+            );
         }
 
-        return terms;
+        return matchExpressions.length > 0 ? [{ matchExpressions }] : [];
     }
 
     /**
@@ -122,34 +131,36 @@ export class Nodes {
      * @returns NodeSelectorTerm with appropriate matchExpressions
      */
     private getNodeSelectorTerm(labelSpec: string): NodeSelectorTerm {
-        const [key, value] = labelSpec.split('=');
-        if (!value) {
-            return { matchExpressions: [{ key, operator: 'Exists' }] };
-        }
-        return {
-            matchExpressions: [
-                {
-                    key,
-                    operator: 'In',
-                    values: value.split('|'),
-                },
-            ],
-        };
+        return { matchExpressions: this.getNodeSelectorRequirements(labelSpec) };
     }
 
-    private getExclusionNodeSelectorTerm(labelSpec: string): NodeSelectorTerm {
+    private getNodeSelectorRequirements(labelSpec: string): NodeSelectorRequirement[] {
         const [key, value] = labelSpec.split('=');
         if (!value) {
-            return { matchExpressions: [{ key, operator: 'DoesNotExist' }] };
+            return [{ key, operator: 'Exists' }];
         }
-        return {
-            matchExpressions: [
-                {
-                    key,
-                    operator: 'NotIn',
-                    values: value.split('|'),
-                },
-            ],
-        };
+        return [
+            {
+                key,
+                operator: 'In',
+                values: value.split('|'),
+            },
+        ];
+    }
+
+    private getExclusionNodeSelectorRequirements(
+        labelSpec: string,
+    ): NodeSelectorRequirement[] {
+        const [key, value] = labelSpec.split('=');
+        if (!value) {
+            return [{ key, operator: 'DoesNotExist' }];
+        }
+        return [
+            {
+                key,
+                operator: 'NotIn',
+                values: value.split('|'),
+            },
+        ];
     }
 }
