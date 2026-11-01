@@ -2,13 +2,15 @@ import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
 
-interface LocalVolumeArgs {
+export interface LocalVolumeArgs {
     appName: string;
     volumeName: string;
     localPath?: string;
     hostPath?: string;
     type?: 'Directory' | 'DirectoryOrCreate' | 'FileOrCreate' | 'CharDevice';
     size?: string;
+    /** Create a PV/PVC for hostPath instead of a direct hostPath volume. */
+    claim?: boolean;
     namespace: pulumi.Input<string>;
     labels: Record<string, string>;
     affinity?: kubernetes.types.input.core.v1.VolumeNodeAffinity;
@@ -31,7 +33,9 @@ export class LocalVolume extends pulumi.ComponentResource {
         );
 
         if (this.args.hostPath) {
-            this.volumeDefinition = this.createHostPathVolume();
+            this.volumeDefinition = this.args.claim
+                ? this.createHostPathClaim()
+                : this.createHostPathVolume();
         } else {
             this.volumeDefinition = this.createLocalVolume();
         }
@@ -49,23 +53,52 @@ export class LocalVolume extends pulumi.ComponentResource {
         };
     }
 
-    private createLocalVolume(): kubernetes.types.input.core.v1.Volume {
-        assert(this.args.size, 'size is required when using localPath');
-        const storageClass = this.createStorageClass();
-        const pv = this.createPersistentVolume(storageClass);
-        const pvc = this.createPersistentVolumeClaim(storageClass, pv);
+    private createHostPathClaim(): kubernetes.types.input.core.v1.Volume {
+        const hostPath = this.args.hostPath;
+        assert(hostPath, 'hostPath must be defined');
+        assert(this.args.size, 'size is required when using claim');
+        assert(this.args.affinity, 'affinity is required when using claim');
+
+        const pv = this.createPersistentVolume('', {
+            hostPath: {
+                path: hostPath,
+                type: this.args.type ?? 'Directory',
+            },
+        });
+        const pvc = this.createPersistentVolumeClaim('', pv);
         this.volumeClaimName = pvc.metadata.name;
 
         return {
             name: this.args.volumeName,
-            persistentVolumeClaim: { claimName: this.volumeClaimName },
+            persistentVolumeClaim: { claimName: pvc.metadata.name },
+        };
+    }
+
+    private createLocalVolume(): kubernetes.types.input.core.v1.Volume {
+        const localPath = this.args.localPath;
+        assert(localPath, 'localPath must be defined');
+        assert(this.args.size, 'size is required when using localPath');
+
+        const storageClass = this.createStorageClass();
+        const pv = this.createPersistentVolume(storageClass.metadata.name, {
+            local: { path: localPath },
+        });
+        const pvc = this.createPersistentVolumeClaim(storageClass.metadata.name, pv);
+        this.volumeClaimName = pvc.metadata.name;
+
+        return {
+            name: this.args.volumeName,
+            persistentVolumeClaim: { claimName: pvc.metadata.name },
         };
     }
 
     private createPersistentVolume(
-        storageClass: kubernetes.storage.v1.StorageClass,
+        storageClassName: pulumi.Input<string>,
+        source: Pick<
+            kubernetes.types.input.core.v1.PersistentVolumeSpec,
+            'hostPath' | 'local'
+        >,
     ): kubernetes.core.v1.PersistentVolume {
-        assert(this.args.localPath, 'localPath must be defined');
         return new kubernetes.core.v1.PersistentVolume(
             `${this.name}-pv`,
             {
@@ -77,17 +110,18 @@ export class LocalVolume extends pulumi.ComponentResource {
                     capacity: this.args.size ? { storage: this.args.size } : undefined,
                     accessModes: ['ReadWriteOnce'],
                     persistentVolumeReclaimPolicy: 'Retain',
-                    storageClassName: storageClass.metadata.name,
-                    local: { path: this.args.localPath },
+                    storageClassName,
+                    volumeMode: 'Filesystem',
+                    ...source,
                     nodeAffinity: this.args.affinity,
                 },
             },
-            { parent: this },
+            { deleteBeforeReplace: true, parent: this },
         );
     }
 
     private createPersistentVolumeClaim(
-        storageClass: kubernetes.storage.v1.StorageClass,
+        storageClassName: pulumi.Input<string>,
         pv: kubernetes.core.v1.PersistentVolume,
     ): kubernetes.core.v1.PersistentVolumeClaim {
         return new kubernetes.core.v1.PersistentVolumeClaim(
@@ -100,14 +134,14 @@ export class LocalVolume extends pulumi.ComponentResource {
                 },
                 spec: {
                     accessModes: ['ReadWriteOnce'],
-                    storageClassName: storageClass.metadata.name,
+                    storageClassName,
                     volumeName: pv.metadata.name,
                     resources: this.args.size
                         ? { requests: { storage: this.args.size } }
                         : undefined,
                 },
             },
-            { parent: this },
+            { deleteBeforeReplace: true, parent: this },
         );
     }
 

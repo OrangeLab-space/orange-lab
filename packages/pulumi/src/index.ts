@@ -4,6 +4,7 @@ export { Auth, OidcAuthConfig, OidcProvider, OidcProviderSettings } from './auth
 export { coreStack } from './core-stack';
 export { config } from './config';
 export { GrafanaDashboard } from './grafana-dashboard';
+export { LocalVolume, LocalVolumeArgs } from './local-volume';
 export { Metadata } from './metadata';
 export { Nodes, NodesArgs } from './nodes';
 export {

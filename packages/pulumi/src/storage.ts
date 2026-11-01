@@ -61,15 +61,16 @@ export class Storage extends pulumi.ComponentResource {
         const volume = new LocalVolume(
             `${this.appName}-storage-${volumeName}`,
             {
-                appName: this.appName,
-                volumeName: spec.name,
-                localPath: spec.localPath,
-                hostPath: spec.hostPath,
-                type: spec.type,
-                size: spec.size,
-                namespace: this.args.metadata.namespace,
-                labels: this.args.metadata.get({ component: volumeName }).labels,
                 affinity: this.args.nodes.getLocalVolumeAffinity(),
+                appName: this.appName,
+                claim: spec.claim,
+                hostPath: spec.hostPath,
+                labels: this.args.metadata.get({ component: volumeName }).labels,
+                localPath: spec.localPath,
+                namespace: this.args.metadata.namespace,
+                size: spec.size,
+                type: spec.type,
+                volumeName: spec.name,
             },
             { parent: this },
         );
@@ -265,7 +266,10 @@ export class Storage extends pulumi.ComponentResource {
         );
     }
 
-    private createConfigSecret(name: string, files: Record<string, pulumi.Input<string>>) {
+    private createConfigSecret(
+        name: string,
+        files: Record<string, pulumi.Input<string>>,
+    ) {
         new Secret(
             `${name}-secret`,
             {

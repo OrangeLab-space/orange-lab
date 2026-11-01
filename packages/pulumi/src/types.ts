@@ -157,6 +157,7 @@ export interface SidecarSpec {
 /**
  * Represents a local volume using local-path provisioner or direct hostPath.
  * Use localPath for PV/PVC mode, or hostPath for direct hostPath mode.
+ * Set claim when hostPath should be exposed through a PV/PVC.
  */
 export interface LocalVolumeSpec {
     name: string;
@@ -164,6 +165,7 @@ export interface LocalVolumeSpec {
     hostPath?: string;
     size?: string;
     type?: 'Directory' | 'DirectoryOrCreate' | 'FileOrCreate' | 'CharDevice';
+    claim?: boolean;
 }
 
 /**
@@ -452,10 +454,7 @@ export interface RoutingProvider {
     getHttpEndpointInfo: (hostname: string) => HttpEndpointInfo;
     /** Middleware the application's own routes attach, if the provider has one. */
     readonly routeMiddlewareName?: string;
-    createHttpRoute: (
-        spec: HttpRouteSpec,
-        opts?: pulumi.CustomResourceOptions,
-    ) => void;
+    createHttpRoute: (spec: HttpRouteSpec, opts?: pulumi.CustomResourceOptions) => void;
     createHttpRedirect: (
         spec: HttpRedirectSpec,
         opts?: pulumi.CustomResourceOptions,
