@@ -7,8 +7,11 @@ import { N8n } from './components/n8n/n8n';
 import { Ollama } from './components/ollama/ollama';
 import { OpenWebUI } from './components/open-webui/open-webui';
 import { SDNext } from './components/sdnext/sdnext';
+import { Speaches } from './components/speaches/speaches';
 
 const ollama = config.isEnabled('ollama') ? new Ollama('ollama') : undefined;
+
+const speaches = config.isEnabled('speaches') ? new Speaches('speaches') : undefined;
 
 const agentgateway = config.isEnabled('agentgateway')
     ? new Agentgateway('agentgateway')
@@ -52,6 +55,7 @@ export const endpoints = mergeEndpointExports(
     ollama,
     openWebUI,
     sdnext,
+    speaches,
     n8n,
 );
 
@@ -71,6 +75,14 @@ export const apps = {
         ? {
               encryptionKey: n8n.encryptionKey,
               db: n8n.postgresConfig,
+          }
+        : undefined,
+    speaches: speaches
+        ? {
+              apiUrl: speaches.apiUrl,
+              sttModel: speaches.sttModel,
+              ttsModel: speaches.ttsModel,
+              ttsVoice: speaches.ttsVoice,
           }
         : undefined,
 };

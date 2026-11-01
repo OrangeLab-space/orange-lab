@@ -55,6 +55,17 @@ config:
     # agentgateway:auth/allowedGroups: admin
     # agentgateway:network/public: false
 
+    speaches:enabled: false
+    speaches:sttModel: Systran/faster-whisper-base
+    speaches:ttsModel: speaches-ai/Kokoro-82M-v1.0-ONNX
+    speaches:ttsVoice: af_heart
+    speaches:image: ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cpu
+    speaches:nvidia/image: ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cuda
+    speaches:storagePath: /srv/speaches-cache
+    # Node-local model cache lives on this node; moving nodes re-downloads the models.
+    # speaches:requiredNodeLabel: kubernetes.io/hostname=<host>
+    # speaches:gpu: nvidia  # selects speaches:nvidia/image
+
     automatic1111:enabled: false
     automatic1111:hostname: 'automatic1111'
     automatic1111:image: universonic/stable-diffusion-webui:full

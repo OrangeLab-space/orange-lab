@@ -8,6 +8,7 @@ AI-related components for running large language models, image generation, and w
 
 - [Ollama](./components/ollama/ollama.md) - Local LLM inference server with GPU support.
 - [Agentgateway](./components/agentgateway/agentgateway.md) - OpenAI-compatible gateway for local and external models, with virtual keys and a usage dashboard.
+- [Speaches](./components/speaches/speaches.md) - Local OpenAI-compatible speech-to-text and text-to-speech for voice input and responses.
 - [Open WebUI](./components/open-webui/open-webui.md) - Web interface for LLMs with support for multiple backends.
 - [InvokeAI](./components/invokeai/invokeai.md) - Professional image generation toolkit.
 - [n8n](./components/n8n/n8n.md) - Workflow automation with AI node integration.
