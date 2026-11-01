@@ -23,6 +23,9 @@ firewall-cmd --permanent --zone=$ZONE --add-source=$SERVICE_CIDR
 firewall-cmd --permanent --zone=$ZONE --add-port=6443/tcp
 firewall-cmd --permanent --zone=$ZONE --add-port=10250/tcp
 firewall-cmd --permanent --zone=$ZONE --add-port=41641/udp
+# Flannel VXLAN runs inside tailscale0. Without this port, nodes register but
+# cross-node pod traffic and ClusterIPs time out.
+firewall-cmd --permanent --zone=$ZONE --add-port=8472/udp
 firewall-cmd --permanent --zone=$ZONE --add-interface=tailscale0
 
 firewall-cmd --reload

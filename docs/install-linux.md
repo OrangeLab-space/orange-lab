@@ -48,12 +48,15 @@ firewall-cmd --permanent --add-source=10.43.0.0/16 # Services
 firewall-cmd --permanent --add-port=6443/tcp # API Server
 firewall-cmd --permanent --add-port=10250/tcp # Kubelet metrics
 firewall-cmd --permanent --add-port=41641/udp # Tailscale UDP
+firewall-cmd --permanent --add-port=8472/udp # Flannel VXLAN
 firewall-cmd --permanent --add-interface=tailscale0 # Pod traffic to tailnet addresses
 
 systemctl reload firewalld
 ```
 
 Binding `tailscale0` to the zone is required so firewalld allows forwarded pod traffic to tailnet addresses — without it, pods cannot reach other nodes' Tailscale IPs (e.g. metrics-server cannot scrape kubelets on remote nodes, coredns cannot reach Tailscale MagicDNS).
+
+Flannel's VXLAN packets are carried inside `tailscale0` on UDP 8472. Without that port the node still registers and reports `Ready`, but cross-node pod traffic and ClusterIPs time out.
 
 (Optional) Ports used by apps, open them on the node where the app runs:
 
