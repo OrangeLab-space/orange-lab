@@ -66,6 +66,15 @@ Check for pending operations before and after:
 pulumi stack export | jq '.deployment.pending_operations | length'
 ```
 
+## Re-parenting resources
+
+Moving a resource under a different `ComponentResource` changes its parent URN,
+so Pulumi replaces it even when the spec is unchanged. If the old resource is
+removed from the program and the new one reuses the same cloud name,
+delete/create order can collide. Use new names or aliases, preview the
+delete/create pair, and confirm data lives outside the resource (for example a
+hostPath volume).
+
 ## Local filesystem (recommended)
 
 State lives on the admin machine. No account, no network, nothing else to
