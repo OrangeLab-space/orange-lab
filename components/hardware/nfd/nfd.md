@@ -55,13 +55,17 @@ kubectl label nodes <node_name> orangelab/gpu-intel-
 
 ## Alpine nodes
 
-By default, NFD worker pods exclude nodes with the `orangelab/alpine` label. Label your Alpine nodes after joining the cluster:
-
-```sh
-kubectl label nodes <node-name> orangelab/alpine=true
-```
+By default, NFD worker pods exclude nodes with the `orangelab/alpine` label. Add `orangelab/alpine=true` to your Alpine nodes in `orangelab:nodes` (see [Node topology, labels and taints](../../../docs/configuration.md#node-topology-labels-and-taints)).
 
 To change or disable this exclusion, adjust `nfd:excludeNodeLabel` in your stack config.
+
+## Tainted nodes
+
+If a node is tainted, give the NFD worker a toleration so it can still label the node:
+
+```sh
+pulumi config set nfd:tolerations orangelab/dedicated:NoSchedule
+```
 
 ## Uninstall
 

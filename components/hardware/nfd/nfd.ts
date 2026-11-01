@@ -40,6 +40,7 @@ export class NodeFeatureDiscovery extends pulumi.ComponentResource {
                         privileged: true,
                     },
                     affinity: this.app.nodes.getAffinity(),
+                    tolerations: this.app.nodes.getTolerations(),
                 },
             },
         });

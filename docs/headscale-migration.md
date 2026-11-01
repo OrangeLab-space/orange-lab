@@ -142,13 +142,12 @@ curl -sk -o /dev/null -w "%{http_code}\n" https://headscale.<domain>/health
 
 ```sh
 pulumi config set --stack <stack> k3s:serverIp <new-tailnet-ip>
-./scripts/k3s-server.sh
+./scripts/k3s-server.sh <server-node>
 ```
 
-Copy that script's **output** to the node and run it there. The substitutions
-in it are single-quoted deliberately, so they evaluate where the output is
-pasted — running the generator on a different machine silently produces that
-machine's address and hostname.
+Copy that script's **output** to the node and run it there. The address
+substitutions are single-quoted deliberately, so they evaluate where the output
+is pasted.
 
 Restart k3s. This step restores `--flannel-iface` to the tailnet interface and
 puts the new address back in `--advertise-address`/`--node-ip`.
@@ -173,7 +172,7 @@ temporarily go offline during the restart and must all return.
 One at a time, confirming each before starting the next:
 
 ```sh
-./scripts/k3s-agent.sh      # review its output, then run it on the node
+./scripts/k3s-agent.sh <agent>   # review its output, then run it on the node
 kubectl get nodes
 kubectl uncordon <agent>
 ```

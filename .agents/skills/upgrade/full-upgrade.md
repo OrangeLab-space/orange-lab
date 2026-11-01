@@ -165,14 +165,7 @@ kubectl get nodes --show-labels
 - `topology.kubernetes.io/zone=home` - for location-aware apps like home-assistant
 - GPU nodes are automatically detected and labeled by Node Feature Discovery (NFD)
 
-**If node labels need updating**, show user:
-
-```
-👉 Run in your terminal (or use !command in OpenCode):
-
-   kubectl label nodes <node-name> node-role.kubernetes.io/longhorn=true
-   kubectl label nodes <node-name> topology.kubernetes.io/zone=home
-```
+**If node labels need updating**, add them to `orangelab:nodes` in the core stack config and re-run the node's k3s install script (`scripts/k3s-server.sh <node>` or `scripts/k3s-agent.sh <node>`). Do not label nodes manually. See [`docs/configuration.md`](/docs/configuration.md#node-topology-labels-and-taints).
 
 **Ask user**: "Have you updated your K3s nodes and verified labels? Continue to Step 5: Disable Apps?"
 
@@ -609,6 +602,5 @@ All Pulumi commands run against the stack in the current directory. Use `pulumi 
 - `pulumi config delete ...`
 - `git pull`, `git checkout`, `git stash`
 - `npm install`
-- `kubectl label ...`
 - Any command with `--show-secrets`
 - SSH commands to nodes

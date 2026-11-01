@@ -177,8 +177,11 @@ server address and agent token from Pulumi; piping avoids printing the token:
 
 ```sh
 pulumi stack select <stack>
-./scripts/k3s-agent.sh | ssh root@<node> 'bash -s'
+./scripts/k3s-agent.sh <node> | ssh root@<node> 'bash -s'
 ```
+
+The node must already be in `orangelab:nodes`; add it in step 8 before running
+this script.
 
 Never run `pulumi config get k3s:agentToken` in an agent session. If the generated
 script is written to a file instead, `chmod 600` it and delete it after use.
@@ -244,20 +247,32 @@ Restart `k3s-agent` if its network policy controller was already failing. This
 is a workaround for the current Tailscale/k3s combination; remove it once
 upstream handles the nftables rules.
 
-## 8. Label the node
+## 8. Add the node to the core stack config
 
-Only after the node is `Ready`:
+Add the node's zone, labels and taints to `orangelab:nodes` in the core stack
+config **before** running the install script. The script reads the map and
+passes `--node-label` / `--node-taint` to k3s. Do not label or taint the node
+manually. If the node is already installed, re-run the install script after
+updating the config.
 
-```sh
-# Durable Longhorn storage node:
-kubectl label node <node> node-role.kubernetes.io/longhorn=true
-
-# Only if a zone was agreed:
-kubectl label node <node> topology.kubernetes.io/zone=<zone>
-
-# Temporary node: make sure no zone label remains
-kubectl label node <node> topology.kubernetes.io/zone- 2>/dev/null || true
+```yaml
+orangelab:nodes:
+    <node>:
+        zone: <zone>
+        labels:
+            - node-role.kubernetes.io/longhorn=true
+        taints:
+            - orangelab/dedicated=<role>:NoSchedule
 ```
+
+A workload on a tainted node needs
+`<app>:tolerations: orangelab/dedicated=<role>:NoSchedule`; keep
+`requiredNodeLabel` to pin it. See
+[Configuration](/docs/configuration.md#node-topology-labels-and-taints).
+
+For a temporary node, remove its entry from `orangelab:nodes` so it is not
+reapplied on the next install; existing labels and taints are not removed
+automatically.
 
 Do not add GPU labels manually; NFD does that.
 

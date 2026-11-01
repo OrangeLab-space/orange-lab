@@ -67,6 +67,7 @@ export class Redis extends pulumi.ComponentResource {
                                     ),
                                 },
                             ],
+                            tolerations: this.args.nodes.getTolerations(),
                         },
                     },
                 },

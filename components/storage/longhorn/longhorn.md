@@ -29,8 +29,8 @@ Enable iSCSI service before deploying Longhorn.
 systemctl enable iscsid.service --now
 systemctl enable iscsid.socket --now
 
-# Add tag to storage nodes that will be used by Longhorn
-kubectl label nodes <node-name> node-role.kubernetes.io/longhorn=true
+# Add the storage node to orangelab:nodes with node-role.kubernetes.io/longhorn=true
+# See docs/configuration.md#node-topology-labels-and-taints
 
 # Enable module
 pulumi config set longhorn:enabled true
@@ -53,6 +53,14 @@ pulumi config set longhorn:replicaAutoBalance best-effort
 pulumi config set longhorn:dataLocality best-effort
 
 pulumi up
+```
+
+## Tainted nodes
+
+On a tainted Longhorn node, set `longhorn:tolerations` so the manager and system components can run:
+
+```sh
+pulumi config set longhorn:tolerations "orangelab/dedicated=<role>:NoSchedule"
 ```
 
 ## SSO (Pocket ID)

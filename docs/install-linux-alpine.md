@@ -129,15 +129,11 @@ This sets unlimited retries so Tailscale keeps trying until the network is avail
 
 ## K3s Agent
 
-Run `scripts/k3s-agent-alpine.sh` on the management node and copy the output to the Alpine node.
+Before running the install script, add the node to `orangelab:nodes` (including `orangelab/alpine=true`). Then run `scripts/k3s-agent-alpine.sh <node-name>` on the management node and copy the output to the Alpine node.
 
 ### Node labels
 
-After joining the cluster, label the node to help workloads identify this OS:
-
-```sh
-kubectl label nodes <node-name> orangelab/alpine=true
-```
+The `orangelab/alpine=true` label in `orangelab:nodes` lets workloads identify this OS. See [Node topology, labels and taints](./configuration.md#node-topology-labels-and-taints).
 
 ### K3s agent Tailscale dependency
 

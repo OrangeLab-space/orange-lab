@@ -18,13 +18,25 @@ pulumi config set prometheus:enabled true
 
 # (Recommended) only deploy to labeled nodes
 pulumi config set prometheus:requiredNodeLabel node-role.kubernetes.io/prometheus=true
-kubectl label nodes <node-name> node-role.kubernetes.io/prometheus=true
+# Add node-role.kubernetes.io/prometheus=true to the node in orangelab:nodes
+# See docs/configuration.md#node-topology-labels-and-taints
 
 # (Required) grafana "admin" password
 KEY=$(openssl rand -base64 32)
 pulumi config set prometheus:grafana/password "$KEY" --secret
 
 pulumi up
+```
+
+## Node exporter on tainted nodes
+
+`prometheus-node-exporter` follows `prometheus:requiredNodeLabel`. To collect
+node metrics from tainted nodes too, clear the component pin and add the
+toleration:
+
+```sh
+pulumi config set prometheus:node-exporter/requiredNodeLabel ''
+pulumi config set prometheus:node-exporter/tolerations orangelab/dedicated:NoSchedule
 ```
 
 ## Email alerts

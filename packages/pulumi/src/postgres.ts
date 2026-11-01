@@ -71,6 +71,8 @@ export class PostgresCluster extends pulumi.ComponentResource {
     private createCluster(): kubernetes.apiextensions.CustomResource {
         const metadata = this.args.metadata.get({ component: this.args.name });
         const instances = this.args.instances ?? 1;
+        const affinity = this.args.nodes.getAffinity(this.args.name);
+        const tolerations = this.args.nodes.getTolerations(this.args.name);
         const cluster = new kubernetes.apiextensions.CustomResource(
             this.clusterName,
             {
@@ -78,7 +80,10 @@ export class PostgresCluster extends pulumi.ComponentResource {
                 kind: 'Cluster',
                 metadata,
                 spec: {
-                    affinity: this.args.nodes.getAffinity(this.args.name),
+                    affinity:
+                        affinity || tolerations
+                            ? { ...(affinity ?? {}), tolerations }
+                            : undefined,
                     bootstrap: {
                         initdb: {
                             database: this.appName,

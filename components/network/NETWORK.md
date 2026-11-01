@@ -208,11 +208,7 @@ applications, both gateway methods, DNS records and the TCP/UDP port offset.
 
 ## ServiceLB Configuration
 
-When using Traefik, k3s ServiceLB creates endpoints on port 80/443 on each node. To limit which nodes run the load balancer:
-
-```sh
-kubectl label node <node> svccontroller.k3s.cattle.io/enablelb=true
-```
+When using Traefik, k3s ServiceLB creates endpoints on port 80/443 on each node. To limit which nodes run the load balancer, add `svccontroller.k3s.cattle.io/enablelb=true` to those nodes in `orangelab:nodes` (see [Node topology, labels and taints](../../docs/configuration.md#node-topology-labels-and-taints)).
 
 Adding the first label switches ServiceLB to whitelist-only mode. Without this label, all nodes in the cluster act as load balancer.
 

@@ -85,6 +85,7 @@ Present a concise summary and ask the user to decide on:
 3. **Node / Zone Placement**:
    - Default to **none** (automatic scheduling across available nodes, or automatic GPU node affinity when `<app>:gpu` is set), unless the app uses local storage (`addLocalVolume` / `addDeviceMount` / USB devices) which requires `requiredNodeLabel`.
    - Ask if they want to pin or prefer a specific host (`kubernetes.io/hostname=<node>`) or zone (`topology.kubernetes.io/zone=<zone>`), using `<app>:requiredNodeLabel` (hard constraint — note that setting this overrides automatic GPU node affinity), `<app>:preferredNodeLabel` (soft constraint), or `<app>:requiredVolumeLabel` (volume-only pin).
+   - If the target node is tainted (`orangelab/dedicated=<role>:NoSchedule`), set `<app>:tolerations` to the matching toleration. The toleration only permits; keep `requiredNodeLabel` to pin the app.
 4. **Storage, Static Longhorn Volume(s) & Backups**:
    - **Check existing volumes or backups first**:
      - If candidate detached volumes exist in Longhorn (`<app>` or `<app>-<component>`), ask if the user wants to attach them via `fromVolume`.

@@ -9,8 +9,8 @@ Longhorn only runs on Linux. For MacOS/Windows or single-node setups, use local 
 ## Quick Start
 
 ```sh
-# Label storage nodes
-kubectl label nodes <node-name> node-role.kubernetes.io/longhorn=true
+# Add storage nodes to orangelab:nodes with node-role.kubernetes.io/longhorn=true
+# See docs/configuration.md#node-topology-labels-and-taints
 
 # Enable Longhorn
 pulumi config set longhorn:enabled true

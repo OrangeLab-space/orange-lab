@@ -74,6 +74,7 @@ export class Prometheus extends pulumi.ComponentResource {
                                 volumeClaimTemplate:
                                     this.createVolumeClaimTemplate('alertmanager'),
                             },
+                            tolerations: this.nodes.getTolerations(),
                         },
                         ingress: {
                             enabled: true,
@@ -88,12 +89,12 @@ export class Prometheus extends pulumi.ComponentResource {
                     defaultRules: { rules: { etcd: false } },
                     fullnameOverride: name,
                     grafana: {
-                        enabled: true,
                         adminPassword: this.grafanaPassword,
                         affinity: this.nodes.getAffinity(),
                         // The Grafana volume is ReadWriteOnce, so a rolling update
                         // deadlocks: the new pod cannot attach it while the old pod holds it.
                         deploymentStrategy: { type: 'Recreate' },
+                        enabled: true,
                         ...(this.app.oidc
                             ? {
                                   envRenderSecret: {
@@ -102,20 +103,6 @@ export class Prometheus extends pulumi.ComponentResource {
                                   },
                               }
                             : {}),
-                        ingress: {
-                            enabled: true,
-                            hosts: [grafanaHttpEndpoint.hostname],
-                            ingressClassName: grafanaHttpEndpoint.className,
-                            tls: [{ hosts: [grafanaHttpEndpoint.hostname] }],
-                        },
-                        persistence: {
-                            enabled: true,
-                            existingClaim: this.app.storage?.getClaimName('grafana'),
-                        },
-                        resources: {
-                            requests: { cpu: '100m', memory: '256Mi' },
-                            limits: { cpu: '1', memory: '512Mi' },
-                        },
                         'grafana.ini': {
                             server: {
                                 root_url: pulumi.interpolate`${grafanaHttpEndpoint.url}/`,
@@ -152,6 +139,21 @@ export class Prometheus extends pulumi.ComponentResource {
                                   }
                                 : {}),
                         },
+                        ingress: {
+                            enabled: true,
+                            hosts: [grafanaHttpEndpoint.hostname],
+                            ingressClassName: grafanaHttpEndpoint.className,
+                            tls: [{ hosts: [grafanaHttpEndpoint.hostname] }],
+                        },
+                        persistence: {
+                            enabled: true,
+                            existingClaim: this.app.storage?.getClaimName('grafana'),
+                        },
+                        resources: {
+                            requests: { cpu: '100m', memory: '256Mi' },
+                            limits: { cpu: '1', memory: '512Mi' },
+                        },
+                        tolerations: this.nodes.getTolerations(),
                     },
                     'kube-state-metrics': {
                         affinity: this.nodes.getAffinity(),
@@ -159,6 +161,7 @@ export class Prometheus extends pulumi.ComponentResource {
                             requests: { cpu: '50m', memory: '128Mi' },
                             limits: { cpu: '500m', memory: '256Mi' },
                         },
+                        tolerations: this.nodes.getTolerations(),
                     },
                     kubeApiServer: { enabled: true },
                     // k3s runs the control plane in-process and binds these
@@ -195,14 +198,16 @@ export class Prometheus extends pulumi.ComponentResource {
                                 requests: { cpu: '500m', memory: '2Gi' },
                                 limits: { cpu: '2', memory: '4Gi' },
                             },
+                            tolerations: this.nodes.getTolerations(),
                         },
                     },
                     'prometheus-node-exporter': {
-                        affinity: this.nodes.getAffinity(),
+                        affinity: this.nodes.getAffinity('node-exporter'),
                         resources: {
                             requests: { cpu: '10m', memory: '64Mi' },
                             limits: { cpu: '500m', memory: '128Mi' },
                         },
+                        tolerations: this.nodes.getTolerations('node-exporter'),
                     },
                     prometheusOperator: {
                         enabled: true,
@@ -212,6 +217,7 @@ export class Prometheus extends pulumi.ComponentResource {
                             limits: { cpu: '500m', memory: '256Mi' },
                         },
                         tls: { enabled: false },
+                        tolerations: this.nodes.getTolerations(),
                     },
                 },
             },

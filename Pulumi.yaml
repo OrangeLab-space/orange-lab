@@ -27,6 +27,16 @@ config:
     # Note: add A record for "*" pointing to one of your Tailscale IPs
     # orangelab:customDomain: 'example.com'
 
+    # Node topology, labels and taints are read by the k3s install scripts.
+    # Set this in your stack config; example:
+    # orangelab:nodes:
+    #     "<node>":
+    #         zone: <zone>
+    #         labels:
+    #             - key=value
+    #         taints:
+    #             - key=value:NoSchedule
+
     # Global defaults for storage classes. Apps can override with <app>:storageClass
     orangelab:storageClass: longhorn
     orangelab:postgres/storageClass: longhorn
@@ -199,6 +209,8 @@ config:
     longhorn:enabled: false
     longhorn:version: 1.13.0
     longhorn:hostname: longhorn
+    # Run Longhorn components on tainted Longhorn nodes
+    # longhorn:tolerations: key=value:NoSchedule,key2=value2:NoSchedule
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     longhorn:auth/allowedGroups: admin,longhorn-admin
     # Initial value for default storage. Adjust each volume in Longhorn UI
@@ -248,9 +260,13 @@ config:
     nfd:enabled: false
     nfd:gpu-autodetect: true
     nfd:excludeNodeLabel: orangelab/alpine
+    # Run on tainted nodes so hardware labels stay current
+    # nfd:tolerations: key=value:NoSchedule
 
     nvidia-gpu-operator:enabled: false
     nvidia-gpu-operator:version: v26.7.2
+    # Keep GPU operands running on tainted GPU nodes
+    # nvidia-gpu-operator:tolerations: key=value:NoSchedule
 
     amd-gpu-operator:enabled: false
     amd-gpu-operator:version: v1.5.1
@@ -267,6 +283,11 @@ config:
 
     prometheus:enabled: false
     #prometheus:requiredNodeLabel: node-role.kubernetes.io/prometheus=true
+    #
+    # Run node-exporter on every node, including tainted ones
+    # prometheus:node-exporter/requiredNodeLabel: ''
+    # prometheus:node-exporter/tolerations: key=value:NoSchedule
+    #
     # prometheus:grafana/password: admin # auto-generated if not set
     prometheus:hostname: prometheus
     # Pocket ID groups allowed to sign in (unset = unrestricted)
@@ -299,6 +320,8 @@ config:
     beszel:agent/image: henrygd/beszel-agent:latest
     # Deploy to all nodes by default, even if requiredNodeLabel used on beszel
     beszel:agent/requiredNodeLabel: ''
+    # Tolerate tainted nodes so the agent can monitor them
+    # beszel:agent/tolerations: key=value:NoSchedule
     beszel:storageSize: 5Gi
     beszel:storageOnly: false
 

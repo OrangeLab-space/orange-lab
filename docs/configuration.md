@@ -106,6 +106,7 @@ The following settings are supported by most applications in OrangeLab:
 | `preferredNodeLabel`         | Deploy to node with specified label if exists (soft constraint)                              |
 | `requiredNodeLabel`          | Deploy only to node with specified label (hard constraint)                                   |
 | `excludeNodeLabel`           | Do not deploy to nodes with specified label (hard constraint)                                |
+| `tolerations`                | Allow deployment to tainted nodes (`key=value:Effect`, comma-separated)                      |
 | `requiredVolumeLabel`        | Pin volume to node(s) it may attach to. Immutable - requires app redeploy to change          |
 | `storage/snapshotEnabled`    | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                    |
 | `storage/snapshotCron`       | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                      |
@@ -209,6 +210,40 @@ pulumi config set prometheus:requiredNodeLabel orangelab/prometheus=true
 # Hard exclusion - do not run on nodes with this label
 pulumi config set nfd:excludeNodeLabel orangelab/alpine
 ```
+
+### Node topology, labels and taints
+
+Node topology, labels and taints live in `orangelab:nodes` in the core stack
+config. The k3s install scripts read this map and pass `--node-label` /
+`--node-taint` to the installer, so add the node to the map before running
+`scripts/k3s-server.sh <node>` or `scripts/k3s-agent.sh <node>`. Re-run the
+install script after changing the map.
+
+```yaml
+orangelab:nodes:
+    <node>:
+        zone: <zone> # sets topology.kubernetes.io/zone
+        labels:
+            - key=value
+        taints:
+            - key=value:NoSchedule
+```
+
+A node that is already targeted by another label (for example NFD's
+`orangelab/gpu-nvidia`) does not need a dedicated label; keep the taint and give
+the workload the matching toleration. A toleration is still required for
+workloads on a tainted node:
+
+```sh
+# Allow an app on the tainted node (a toleration only permits, it does not pin)
+pulumi config set <app>:tolerations orangelab/dedicated=<role>:NoSchedule
+# Keep it on that node
+pulumi config set <app>:requiredNodeLabel orangelab/dedicated=<role>
+```
+
+`tolerations` accepts a comma-separated list of `key=value:Effect` entries, or
+`key:Effect` to match any value. Use `NoSchedule`; existing pods are not evicted
+when a taint is added, so restart them after applying it.
 
 ### Volume Affinity
 

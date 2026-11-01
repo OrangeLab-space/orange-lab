@@ -36,6 +36,9 @@ config:
     # ollama:OLLAMA_IGPU_ENABLE: "1"
     # Deploys to any node with selected GPU if requiredNodeLabel NOT specified
     # ollama:requiredNodeLabel: kubernetes.io/hostname=<host>
+    #
+    # Tolerate a tainted GPU node (NVIDIA nodes are targeted by the NFD gpu label)
+    # ollama:tolerations: orangelab/dedicated=<role>:NoSchedule
 
     agentgateway:enabled: false
     agentgateway:hostname: agentgateway

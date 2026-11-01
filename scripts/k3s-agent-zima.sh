@@ -1,24 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 
-# Run this script where Pulumi is configured.
-# Copy and execute the output on each Kubernetes agent.
-#
+# Usage: ./scripts/k3s-agent-zima.sh <node-name> <tailscale-ip>
+# Run this script where Pulumi is configured (jq required).
+# Copy and execute the output on the ZimaOS Kubernetes agent.
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+NODE_NAME=${1:-}
+NODE_IP=${2:-}
+if [ -z "$NODE_NAME" ] || [ -z "$NODE_IP" ]; then
+    echo "Usage: $0 <node-name> <tailscale-ip>" >&2
+    exit 1
+fi
+# shellcheck source=scripts/node-config.sh
+source "$SCRIPT_DIR/node-config.sh" "$NODE_NAME"
+
 echo \# Prerequisite: Complete all steps in docs/install-linux-zima.md first.
 echo
-
-if [ -z "${1:-}" ]; then
-  echo "Usage: $0 <tailscale-ip>" >&2
-  exit 1
-fi
 
 K3S_URL=https://$(pulumi config get k3s:serverIp):6443
 K3S_TOKEN=$(pulumi config get k3s:agentToken)
 
-echo export K3S_URL=$K3S_URL
-echo export NODE_IP=$1
-echo export K3S_TOKEN=$K3S_TOKEN
-echo export K3S_DATA_DIR=/DATA/k3s
+echo "export K3S_URL=$K3S_URL"
+echo "export NODE_IP=$NODE_IP"
+echo "export K3S_TOKEN=$K3S_TOKEN"
+echo "export K3S_DATA_DIR=/DATA/k3s"
 echo
 echo "curl -sfL https://get.k3s.io | sudo -E INSTALL_K3S_BIN_DIR=/opt/bin sh -s - \
 --server \$K3S_URL \
@@ -26,7 +32,7 @@ echo "curl -sfL https://get.k3s.io | sudo -E INSTALL_K3S_BIN_DIR=/opt/bin sh -s 
 --bind-address=0.0.0.0 \
 --flannel-iface=tailscale0 \
 --node-ip=\$NODE_IP \
---selinux"
+--selinux$NODE_ARGS"
 echo
 echo sudo systemctl restart k3s-agent.service
 echo sudo systemctl enable k3s-agent.service --now

@@ -1,4 +1,5 @@
 import * as kubernetes from '@pulumi/kubernetes';
+import assert from 'node:assert';
 import { config } from './config';
 import { GpuType } from './types';
 
@@ -17,6 +18,16 @@ export class Nodes {
             ? config.get(this.args.appName, `${component}/gpu`)
             : config.get(this.args.appName, 'gpu');
         return gpu as GpuType | undefined;
+    }
+
+    getTolerations(
+        component?: string,
+    ): kubernetes.types.input.core.v1.Toleration[] | undefined {
+        const prefix = component ? `${component}/` : '';
+        const spec =
+            config.get(this.args.appName, `${prefix}tolerations`) ??
+            config.get(this.args.appName, 'tolerations');
+        return spec ? this.parseTolerations(spec) : undefined;
     }
 
     getAffinity(component?: string): kubernetes.types.input.core.v1.Affinity | undefined {
@@ -54,6 +65,31 @@ export class Nodes {
                     : undefined,
             },
         };
+    }
+
+    private parseTolerations(
+        spec: string,
+    ): kubernetes.types.input.core.v1.Toleration[] {
+        return spec
+            .split(',')
+            .map(entry => entry.trim())
+            .filter(Boolean)
+            .map(entry => {
+                const [keyValue, effect] = entry.split(':');
+                const [key, value] = keyValue.split('=');
+                assert(key, `Invalid toleration '${entry}': missing key.`);
+                assert(
+                    !effect ||
+                        ['NoSchedule', 'PreferNoSchedule', 'NoExecute'].includes(effect),
+                    `Invalid toleration '${entry}': invalid effect '${effect}'.`,
+                );
+                return {
+                    effect,
+                    key,
+                    operator: value ? 'Equal' : 'Exists',
+                    value,
+                };
+            });
     }
 
     getVolumeAffinity(

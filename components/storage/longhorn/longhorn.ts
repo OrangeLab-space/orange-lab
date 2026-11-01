@@ -148,6 +148,10 @@ export class Longhorn extends pulumi.ComponentResource {
                     }),
                     systemManagedComponentsNodeSelector:
                         'node-role.kubernetes.io/longhorn=true',
+                    taintToleration: config
+                        .get(this.name, 'tolerations')
+                        ?.split(',')
+                        .join(';'),
                     // The CSI components are created by the Longhorn manager, not
                     // by a chart template, so their sizing is a manager Setting.
                     // Changing it restarts the CSI components.
@@ -188,6 +192,7 @@ export class Longhorn extends pulumi.ComponentResource {
                         requests: { cpu: '100m', memory: '1Gi' },
                         limits: { cpu: '1', memory: '2Gi' },
                     },
+                    tolerations: this.app.nodes.getTolerations(),
                 },
                 longhornUI: {
                     replicas: 1,

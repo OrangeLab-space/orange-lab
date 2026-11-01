@@ -118,6 +118,7 @@ export class HomeAssistant extends pulumi.ComponentResource {
                         },
                         privileged: Boolean(args.devices?.length),
                     },
+                    tolerations: this.app.nodes.getTolerations(),
                 },
             },
             { dependsOn: this.app.storage },

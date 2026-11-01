@@ -39,11 +39,7 @@ sudo systemctl restart systemd-resolved
 ss -tlnp | grep ':53'
 ```
 
-2. **Label the node** that will run Technitium DNS through ServiceLB:
-
-```sh
-kubectl label node <node> svccontroller.k3s.cattle.io/enablelb=true
-```
+2. **Label the node** that will run Technitium DNS through ServiceLB: add `svccontroller.k3s.cattle.io/enablelb=true` to the node in `orangelab:nodes` (see [Node topology, labels and taints](../../../docs/configuration.md#node-topology-labels-and-taints)).
 
 This is required to ensure Technitium runs on a specific node with port 53 available. Without this label, the deployment may fail on any node where port 53 is already in use.
 

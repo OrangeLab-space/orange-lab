@@ -59,6 +59,9 @@ config:
     mosquitto:image: eclipse-mosquitto:2
     mosquitto:user: mqtt
     mosquitto:storageSize: 1Gi
+    # Pin to the IoT node; the toleration alone allows other nodes too
+    # mosquitto:requiredNodeLabel: kubernetes.io/hostname=<node>
+    #
     # Required: set with `pulumi config set --secret mosquitto:password <value>`
     # Generate one with: openssl rand -base64 24
 

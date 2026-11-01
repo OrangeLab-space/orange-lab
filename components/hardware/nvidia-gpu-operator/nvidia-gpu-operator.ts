@@ -22,6 +22,18 @@ export class NvidiaGPUOperator extends pulumi.ComponentResource {
                     // NVIDIA Confidential Computing Manager for Kubernetes
                     ccManager: { enabled: false },
                     cdi: { enabled: true, nriPluginEnabled: true },
+                    // Setting this list replaces the chart default, so keep the
+                    // nvidia.com/gpu entry alongside our tolerations.
+                    daemonsets: {
+                        tolerations: [
+                            {
+                                key: 'nvidia.com/gpu',
+                                operator: 'Exists',
+                                effect: 'NoSchedule',
+                            },
+                            ...(this.app.nodes.getTolerations() ?? []),
+                        ],
+                    },
                     // NVidia Data Center GPU Manager - https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/index.html
                     dcgm: { enabled: false },
                     dcgmExporter: { enabled: false },

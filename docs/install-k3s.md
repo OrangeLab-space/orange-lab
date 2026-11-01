@@ -16,7 +16,7 @@ Installing server will also run an agent node on the same machine.
 
 ```sh
 # Run where Pulumi is installed
-./scripts/k3s-server.sh
+./scripts/k3s-server.sh <server-node>
 
 # Copy the generated script
 
@@ -87,7 +87,7 @@ Install K3S agent nodes on any additional physical hardware. Server already runs
 
 ```sh
 # Run where Pulumi is installed
-./scripts/k3s-agent.sh
+./scripts/k3s-agent.sh <agent-node>
 
 # Copy the generated script
 
@@ -102,17 +102,21 @@ systemctl status k3s-agent.service    # Fedora/Bluefin
 rc-service k3s-agent status           # Alpine
 ```
 
-## Node labels
+## Node labels and taints
 
-Set Kubernetes node labels to enable Longhorn storage:
+Node labels and taints are defined in `orangelab:nodes` in the core stack
+config. Add the node's zone, labels and taints to the map **before** running
+the install script; the script passes them to k3s. See
+[Node topology, labels and taints](./configuration.md#node-topology-labels-and-taints).
 
-```sh
-# Deploy Longhorn components on the node
-kubectl label nodes <node-name> node-role.kubernetes.io/longhorn=true
-
-# (Recommended) Set zone, used f.e. by home-assistant to deploy to node on same network as sensors
-# Longhorn distributes replicas across zones.
-kubectl label nodes <node-name> topology.kubernetes.io/zone=home
+```yaml
+orangelab:nodes:
+    <node>:
+        zone: <zone>
+        labels:
+            - node-role.kubernetes.io/longhorn=true
+        taints:
+            - orangelab/dedicated=<role>:NoSchedule
 ```
 
 > Note: GPU nodes are automatically detected and labeled by the [Node Feature Discovery](/components/hardware/nfd/nfd.md) component.

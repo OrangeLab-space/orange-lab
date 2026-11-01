@@ -36,6 +36,14 @@ Make sure to allow traffic to agents on port `45876`:
 firewall-cmd --permanent --add-port=45876/tcp
 ```
 
+## Tainted nodes
+
+The agent is a DaemonSet; on tainted nodes add the toleration so it can monitor them:
+
+```sh
+pulumi config set beszel:agent/tolerations orangelab/dedicated:NoSchedule
+```
+
 ## SSO
 
 Beszel supports OAuth login via [Pocket ID](../../security/pocket/pocket.md), following the [Beszel example](https://pocket-id.org/docs/client-examples/beszel). Beszel keeps its OAuth configuration in PocketBase and has no environment variables for it, so the provider is configured in the superuser interface while the component only handles the client provisioning and disabling password login.

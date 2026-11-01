@@ -20,3 +20,11 @@ pulumi config set nvidia-gpu-operator:enabled true
 pulumi up
 
 ```
+
+## Tainted nodes
+
+On a tainted GPU node, give the GPU operands a toleration so they can run:
+
+```sh
+pulumi config set nvidia-gpu-operator:tolerations orangelab/dedicated:NoSchedule
+```

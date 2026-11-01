@@ -54,10 +54,10 @@ Tailscale IP can also be found by opening the Tailscale application in ZimaOS da
 
 ## K3s Agent
 
-Run [`scripts/k3s-agent-zima.sh`](../scripts/k3s-agent-zima.sh) on the management node, passing the Tailscale IP from the previous step:
+Run [`scripts/k3s-agent-zima.sh`](../scripts/k3s-agent-zima.sh) on the management node, passing the node name and the Tailscale IP from the previous step:
 
 ```sh
-./scripts/k3s-agent-zima.sh <tailscale-ip>
+./scripts/k3s-agent-zima.sh <node-name> <tailscale-ip>
 ```
 
 Copy the generated output to the Zimaboard node and execute it.

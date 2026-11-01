@@ -20,6 +20,7 @@ export interface MariaDbClusterArgs {
     storageClassName?: pulumi.Input<string>;
     storageOnly?: boolean;
     storageSize: pulumi.Input<string>;
+    tolerations?: kubernetes.types.input.core.v1.Toleration[];
     /** Overrides the default cpu and memory requests and limits. */
     resources?: ContainerResources;
 }
@@ -119,6 +120,7 @@ export class MariaDbCluster extends pulumi.ComponentResource {
                         },
                     },
                     suspend: false,
+                    tolerations: this.args.tolerations,
                     username: this.dbUser,
                 },
             },

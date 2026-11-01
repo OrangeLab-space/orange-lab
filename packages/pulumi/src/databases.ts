@@ -60,6 +60,7 @@ export class Databases {
                 storageSize: existingVolume
                     ? this.args.storage.getStorageSize(name)
                     : config.require(this.appName, `${name}/storageSize`),
+                tolerations: this.args.nodes.getTolerations(name),
             },
             this.opts,
         );

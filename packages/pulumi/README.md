@@ -12,6 +12,7 @@ This package is used by OrangeLab stacks. See the [main repository](https://oran
 - provisions databases needed by applications (MySQL, PostgreSQL, Redis)
 - supports Helm charts as well as simple Docker images
 - uses Kubernetes labels to target deployments based on `<app>:requiredNodeLabel` (f.e. `kubernetes.io/hostname` or `topology.kubernetes.io/zone`)
+- supports `<app>:tolerations` so apps and infrastructure can run on tainted nodes
 - supports multiple routing providers and app-specific overrides (Tailscale, Traefik)
 
 ## Configuration

@@ -98,6 +98,7 @@ export class Containers {
                     : undefined,
                 serviceAccountName: spec.serviceAccountName ??
                     this.args.serviceAccount?.metadata.name,
+                tolerations: this.args.nodes.getTolerations(spec.name),
                 volumes,
             },
         };
