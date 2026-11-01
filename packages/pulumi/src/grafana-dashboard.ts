@@ -42,7 +42,7 @@ export class GrafanaDashboard {
                     ),
                 },
             },
-            { parent: opts?.parent },
+            opts,
         );
     }
 }

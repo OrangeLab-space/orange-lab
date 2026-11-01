@@ -10,9 +10,11 @@ export interface AlertmanagerEmailArgs {
 }
 
 /**
- * Routes every alert except the Watchdog to an email receiver. The operator
- * picks the AlertmanagerConfig up from the empty config selectors and reloads
- * Alertmanager, so no chart values are involved.
+ * Routes every alert except the Watchdog and info-level alerts to an email
+ * receiver. Info alerts (and InfoInhibitor, which exists only to inhibit other
+ * info alerts) are dropped: they are dashboard material, not email material.
+ * The operator picks the AlertmanagerConfig up from the empty config selectors
+ * and reloads Alertmanager, so no chart values are involved.
  */
 export function createAlertmanagerEmail({
     name,
@@ -49,9 +51,29 @@ export function createAlertmanagerEmail({
                     groupWait: '30s',
                     matchers: [{ matchType: '!=', name: 'alertname', value: 'Watchdog' }],
                     receiver: 'email',
-                    repeatInterval: '4h',
+                    repeatInterval: '12h',
+                    routes: [
+                        {
+                            // severity=none, so the severity matcher below misses it.
+                            matchers: [
+                                {
+                                    matchType: '=',
+                                    name: 'alertname',
+                                    value: 'InfoInhibitor',
+                                },
+                            ],
+                            receiver: 'null',
+                        },
+                        {
+                            matchers: [
+                                { matchType: '=', name: 'severity', value: 'info' },
+                            ],
+                            receiver: 'null',
+                        },
+                    ],
                 },
                 receivers: [
+                    { name: 'null' },
                     {
                         emailConfigs: [
                             {

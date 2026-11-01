@@ -48,8 +48,10 @@ pulumi up
 
 The smarthost is built as `<host>:<port>`. Port `465` makes Alertmanager use
 implicit TLS; `starttls` requires the server to advertise `STARTTLS`, and
-`none` sends plaintext. Every alert except the `Watchdog` is emailed once per
-group, again on resolve, and repeated every 4 hours while firing.
+`none` sends plaintext. Every warning or critical alert except the `Watchdog`
+is emailed once per group, again on resolve, and repeated every 12 hours while
+firing. Info-level alerts and `InfoInhibitor` go to the null receiver — they
+stay visible in Alertmanager and Grafana but are never emailed.
 
 ## Grafana credentials
 
