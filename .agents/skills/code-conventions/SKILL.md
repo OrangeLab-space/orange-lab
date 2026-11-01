@@ -55,6 +55,7 @@ When a value from `Application` (like `this.app.debug`) is needed during chained
     ```
 
 - After editing, run `shellcheck -x` on every changed script and `bash -n` for syntax; `npm test` does not cover shell.
+- **Generator scripts**: when a script prints a script for another host, single-quote `$(...)` meant for the target and add `# shellcheck disable=SC2016 # evaluated on the target node`. Pass host-specific values as arguments; don't evaluate them on the management node.
 - When a shared script supports multiple providers or control planes, branch user-facing output. Never print Headscale approval commands for a Tailscale deployment; detect the control plane or print both paths.
 
 ## Providers & Control Planes

@@ -242,8 +242,10 @@ pulumi config set <app>:requiredNodeLabel orangelab/dedicated=<role>
 ```
 
 `tolerations` accepts a comma-separated list of `key=value:Effect` entries, or
-`key:Effect` to match any value. Use `NoSchedule`; existing pods are not evicted
-when a taint is added, so restart them after applying it.
+`key:Effect` to match any value (`Exists`). A key-only taint (`key:Effect`) is
+enough for a single reserved node; values (`key=value:Effect`) let you
+distinguish roles on the same key. Use `NoSchedule`; existing pods are not
+evicted when a taint is added, so restart them after applying it.
 
 ### Volume Affinity
 

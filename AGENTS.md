@@ -94,6 +94,7 @@ Even if the change seems straightforward, these signals may indicate the current
 - **Removing or reshaping a non-secret config key**: add a new key, guard the old one with `config.assertNotConfigured` and a migration message, and document the replacement. A removed key must not be silently ignored.
 - **Component names are app names**, not capability names: `speaches`, `ollama`, not `speech`. The name is deployed as the namespace, Service, endpoint and export, so renaming it later recreates resources.
 - **App-managed hostPath data lives under `/srv/<app>-<purpose>`** (e.g. `/srv/kubeai-models`, `/srv/speaches-cache`). Set `requiredNodeLabel` and document that moving nodes loses or re-downloads the data.
+- **Node labels and taints** live in `orangelab:nodes` and are applied by the `scripts/k3s-*.sh` installers; don't edit k3s/rancher config or manage nodes with Pulumi resources. Taints repel, tolerations permit, labels/affinity pin — a toleration does not pin. See [`spec/k3s.md`](spec/k3s.md).
 - **Applications** use the Application class for Kubernetes resources (including namespaces and storage for Helm charts).
 - **Never describe your infrastructure in committed docs or commit messages.** No real hostnames, IPs, or machine names — use `example.com`, `<node>`. Commit messages are read by the same people as the docs.
 - **The library sizes the containers it creates.** A component sizes its own container with `resources`; the init containers, database containers and the database operator's metrics exporter are sized by the constants in `packages/pulumi/src/resources.ts`, so no component specifies them. A deployment can override the database sizing with `<app>:db/resources` and `<app>:redis/resources`.
@@ -109,6 +110,7 @@ Agent-facing operating notes. Read as needed:
 
 - [`spec/agentgateway.md`](spec/agentgateway.md) — prompt guards, MCP backends, and advanced model routing
 - [`spec/headscale.md`](spec/headscale.md) — control plane invariants, CLI gotchas, migration constraints
+- [`spec/k3s.md`](spec/k3s.md) — node config source, labels/taints, install scripts, taint-change gotchas
 - [`spec/longhorn.md`](spec/longhorn.md) — volume provisioning, failure behaviour, recovery
 - [`spec/pocket.md`](spec/pocket.md) — OIDC provider, group model, client scripts, onboarding new apps
 - [`spec/public-proxy.md`](spec/public-proxy.md) — VPS public proxy: passthrough invariants, OS support, DNS cutover, exit node, failure modes

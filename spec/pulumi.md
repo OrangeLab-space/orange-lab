@@ -40,6 +40,17 @@ stack by name **in the backend you are currently using**. A reference to
 `organization/orangelab/lab` only on a DIY backend. Update it after changing
 backends.
 
+## Complex config values
+
+Prefer YAML objects over JSON strings for structured config. `pulumi config set
+--path` writes a readable object; `pulumi config --json` exposes it as
+`objectValue`, while a value set as a string appears under `value`. Scripts that
+read config should handle both:
+
+```jq
+($config.objectValue // ($config.value // "{}" | fromjson)) as $nodes
+```
+
 ## Targeted updates
 
 When the working tree or stack contains another workstream's changes, update only
@@ -59,6 +70,11 @@ pulumi up --yes --target <urn>
   deletion.
 - Resources removed from the program (renames, deletions) are not removed by a
   targeted update; they need a full `pulumi up`. Plan renames as full-up changes.
+
+**Core stack limitation:** targeted updates currently fail with a duplicate
+`ValidatingAdmissionPolicyBinding` URN from the Traefik Gateway API YAML
+(`safe-upgrades.gateway.networking.k8s.io`). Use a full `pulumi preview`/`up` for
+the core stack until the duplicate is removed.
 
 Check for pending operations before and after:
 
