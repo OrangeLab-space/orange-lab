@@ -40,6 +40,32 @@ stack by name **in the backend you are currently using**. A reference to
 `organization/orangelab/lab` only on a DIY backend. Update it after changing
 backends.
 
+## Targeted updates
+
+When the working tree or stack contains another workstream's changes, update only
+the resources you own:
+
+```sh
+pulumi preview --target <urn> --diff
+pulumi up --yes --target <urn>
+```
+
+`--exclude <urn>` is the inverse. Targets accept component URNs and wildcards
+(`**`). Two behaviours matter:
+
+- A targeted update still evaluates the whole program and recomputes stack
+  outputs. An output can disappear because the current program disables the
+  component, even though its resources remain in state — do not read that as a
+  deletion.
+- Resources removed from the program (renames, deletions) are not removed by a
+  targeted update; they need a full `pulumi up`. Plan renames as full-up changes.
+
+Check for pending operations before and after:
+
+```sh
+pulumi stack export | jq '.deployment.pending_operations | length'
+```
+
 ## Local filesystem (recommended)
 
 State lives on the admin machine. No account, no network, nothing else to

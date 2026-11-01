@@ -25,7 +25,7 @@ Scan the repository for all pinned versions across stack configs and component d
 
 1. **Stack `Pulumi.yaml` files and active stack config**:
    - Inspect `Pulumi.yaml` and `stacks/*/Pulumi.yaml` defaults, and run `pulumi config --cwd <dir>` on initialized stacks to read all active values (including stack-level overrides) with secrets redacted:
-   - Container images (`<app>:image`, `<app>:<subcomponent>/image`) with explicit version tags.
+   - Container images (`<app>:image`, `<app>:<gpu>/image` for `nvidia`/`amd`/`intel` variants, and `<app>:<subcomponent>/image`) with explicit version tags.
    - Helm chart versions (`<app>:version`).
    - Integration / CRD URLs and tags (e.g. `<app>:gatewayApiCrdUrl`, `<app>:oidcVersion`, `<app>:frigateVersion`).
 2. **Component TypeScript files** (`components/**/*.ts`, `stacks/*/components/**/*.ts`):

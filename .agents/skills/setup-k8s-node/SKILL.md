@@ -268,6 +268,18 @@ kubectl get nodes -o wide \
     -L topology.kubernetes.io/zone,node-role.kubernetes.io/longhorn,orangelab/gpu-nvidia
 ```
 
+For a Headscale join, confirm the node is a cluster device, not a personal one:
+
+```sh
+tailscale status | grep <node>   # tagged-devices, not a user
+./components/network/headscale/exec-headscale.sh nodes list -o json \
+    | jq '.[] | select(.given_name=="<node>") | .tags'
+```
+
+The output must contain `tag:cluster`. If it is empty, the node was joined with
+a personal key; fix it with `nodes tag` instead of re-registering (see
+[`spec/headscale.md`](/spec/headscale.md)).
+
 For a Longhorn node, confirm the node resource, disk, and pods:
 
 ```sh
@@ -304,6 +316,7 @@ kubectl get nodes.longhorn.io <node> -n longhorn-system
 | Symptom                                     | Check                                                                           |
 | ------------------------------------------- | ------------------------------------------------------------------------------- |
 | Pods cannot resolve DNS or reach ClusterIPs | `8472/udp` open; `ip -s link show flannel.1` has RX; see step 4.                |
+| DNS/ClusterIP fails with `8472/udp` open    | `tailscaled` drops `no rules matched`; node is under a user, not `tagged-devices`; tag it with `nodes tag`; see `spec/headscale.md`. |
 | `iptables-save` nftables error              | Force Tailscale to iptables mode; see step 7.                                   |
 | `NotReady` after reboot                     | Check tailscaled, k3s-agent, guard address, and `tailscale ip -4`; see step 6.  |
 | Longhorn node missing or `Ready=False`      | Longhorn manager logs; check pod networking.                                    |

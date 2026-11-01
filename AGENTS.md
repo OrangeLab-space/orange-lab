@@ -6,6 +6,7 @@
 - Deployment: `pulumi up --yes` (only with user approval)
 - **Recovery from state/cluster divergence**: refresh and re-sync, do not debug individual resources. Run `pulumi refresh --yes` then `pulumi up --yes -r` (replace). Use `-r` freely — the stack should always be reconciled with the manifests, and infra is disposable. Do NOT hand-delete individual resources or try to adopt orphans one at a time; that leaves pending operations in state and costs more attempts than a single replace resolves. Note `pulumi refresh` needs to run interactively to clear a pending CREATE.
 - Preview changes: `pulumi preview --diff` (useful for checking for any unintended changes after major code updates or refactoring)
+- **Unrelated changes in the same stack**: when another workstream's changes are in the tree, deploy with `pulumi up --target <urn>` (or `--exclude <urn>`) instead of a full update. Targeted updates still recompute outputs and do not delete resources removed from the program — see [`spec/pulumi.md`](spec/pulumi.md).
 - Build/Test/TypeCheck (TypeScript only): `npm test`
     - ⚠️ SKIP for markdown/documentation changes - no need to run
 - Build `@orangelab/pulumi` after editing `packages/pulumi/src/`: `npm run build` (must be run before `pulumi up` or `pulumi preview`)
@@ -43,6 +44,7 @@ Follow these phases in order. Do NOT skip to implementation without completing t
 Stay within the requested scope. When you notice out-of-sync or broken things outside it, surface them as a list — don't silently fix them.
 
 - **Before reporting complete:** check `git status --short`; if related docs/specs/skills/scripts are split between staged and untracked, surface it instead of calling the change ready.
+- **Another workstream shares the tree**: stage only your hunks (`git add -p`), and don't stage a file that mixes workstreams.
 
 ### Switching Back to Discussion Mode
 
@@ -88,7 +90,9 @@ Even if the change seems straightforward, these signals may indicate the current
 - **Secrets stay local**: Prefer `pulumi config` (run in the stack folder) or `pulumi config --cwd <stack> --stack <name>` to read config. Note how Pulumi CLI handles secrets:
     - `pulumi config get <key>` **always** prints the plaintext value, even for secrets (and does **not** accept a `--show-secrets` flag). Therefore, agents must **never** run `pulumi config get` on a secret key; give the user `pulumi config get <key>` to run in their own terminal.
     - `pulumi config` (listing all entries) and `pulumi stack output` redact secrets unless `--show-secrets` is passed. Agents must never pass `--show-secrets`; when a secret value is needed by the user, give them `pulumi config get <key>` or `pulumi stack output --show-secrets` to run themselves so plaintext secrets never traverse the session. Reading non-secret config values (paths, sizes, flags) is fine via the agent.
-- **Config defaults live in `Pulumi.yaml` only**, never duplicated in code. If a setting has a default there, read it with the `require*` accessor (`config.requireBoolean`, `config.requireNumber`, …) rather than `config.getBoolean(…) ?? false` — the `??` form leaves the same default in two places where it can drift. Reserve `get*` plus `??` for settings that have no default anywhere.
+- **Config defaults live in `Pulumi.yaml` only**, never duplicated in code. If a setting has a default there, read it with the `require*` accessor (`config.requireBoolean`, `config.requireNumber`, …) rather than `config.getBoolean(…) ?? false` — the `??` form leaves the same default in two places where it can drift. Reserve `get*` plus `??` for settings that have no default anywhere. Image tags are defaults too: `<app>:image` and per-GPU `<app>:<gpu>/image`, never constants in the component.
+- **Component names are app names**, not capability names: `speaches`, `ollama`, not `speech`. The name is deployed as the namespace, Service, endpoint and export, so renaming it later recreates resources.
+- **App-managed hostPath data lives under `/srv/<app>-<purpose>`** (e.g. `/srv/kubeai-models`, `/srv/speaches-cache`). Set `requiredNodeLabel` and document that moving nodes loses or re-downloads the data.
 - **Applications** use the Application class for Kubernetes resources (including namespaces and storage for Helm charts).
 - **Never describe your infrastructure in committed docs or commit messages.** No real hostnames, IPs, or machine names — use `example.com`, `<node>`. Commit messages are read by the same people as the docs.
 - **The library sizes the containers it creates.** A component sizes its own container with `resources`; the init containers, database containers and the database operator's metrics exporter are sized by the constants in `packages/pulumi/src/resources.ts`, so no component specifies them. A deployment can override the database sizing with `<app>:db/resources` and `<app>:redis/resources`.

@@ -318,6 +318,16 @@ them mid-update.
   behaviour when you change the limit. Bitcoin Core auto-tunes its UTXO cache
   from the memory limit, so raising it makes the node use more memory than it
   did before — the request should follow.
+- **A CPU limit far below the app's thread count throttles it into slowness.**
+  A process that sizes its pool from online CPUs (ONNX Runtime in Speaches is
+  one) can spawn ~24 threads on a 24-thread node while the container is held to
+  4 CPUs. The threads spin and contend, so a request burns the whole quota
+  without progress: the same work took 8s at a 4-CPU limit, 3.4s at 8 and 1.5s
+  at 16, while the same inference with 4 threads took 0.25s. Benchmark at the
+  deployed limit. Affinity (`taskset`) is not a fix — it did not reduce the pool
+  to match the quota. Confirm with `cpu.stat` (`nr_throttled`,
+  `throttled_usec`) and per-thread `schedstat`; fix by reducing the app's thread
+  count or raising the limit.
 - **Values are hardcoded in TypeScript**, matching every other component. There
   is no `Pulumi.yaml` config surface for resources; if per-deployment
   tunability is wanted, the defaults belong in `Pulumi.yaml` and the code

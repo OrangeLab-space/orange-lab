@@ -363,6 +363,21 @@ control plane itself, which the node needs in order to rejoin. The service
 manager reports the process as active throughout. **Verify with `kubectl get
 nodes` and a real pod request, never with a process check.**
 
+**A node joined with a personal key is outside the cluster ACL.** It registers
+and looks healthy, but pods cannot resolve DNS or reach ClusterIPs:
+`journalctl -u tailscaled` shows Flannel and kubelet traffic being dropped with
+`no rules matched` (`UDP{...:8472}`, `TCP{...:10250}`), even when the host
+firewall allows those ports. `tailscale status` lists the node under a user
+instead of `tagged-devices`. Tag the existing node; do not re-register it:
+
+```sh
+./components/network/headscale/exec-headscale.sh nodes tag -i <id> -t tag:cluster --force
+```
+
+Verify `tailscale status --json | jq .Self.Tags` is non-null and
+`nodes list -o json` shows `tag:cluster`. A pod already crash-looping on DNS may
+need a restart to pick up the working resolver.
+
 **The control plane can be its own recovery problem.** If it is pinned to a node
 that has gone away, bringing it back means bringing that node back, not
 debugging the control plane.

@@ -54,7 +54,7 @@ pulumi config set speaches:requiredNodeLabel kubernetes.io/hostname=<gpu-node>
 
 Speaches does not support AMD ROCm. On an AMD node it can only run on CPU, so use the default CPU image and do not set `speaches:gpu`.
 
-Models stay loaded while the pod is running. CPU transcription speed depends mostly on the number of available cores and the chosen Whisper model.
+Models stay loaded while the pod is running. STT is fast on CPU. TTS is CPU-heavy and its latency varies much more between nodes; an NVIDIA GPU speeds up STT most, while TTS gains little end-to-end because text processing dominates the request.
 
 ## Reuse from other apps
 
