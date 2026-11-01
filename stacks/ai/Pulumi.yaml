@@ -91,6 +91,8 @@ config:
     # true stores admin-UI config changes in the volume; false keeps Pulumi settings authoritative
     open-webui:ENABLE_PERSISTENT_CONFIG: false
     open-webui:image: ghcr.io/open-webui/open-webui:main-slim
+    # Model backends are configured in the Admin UI. When agentgateway is enabled,
+    # its OpenAI-compatible endpoint is connected automatically.
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     open-webui:auth/allowedGroups: admin,open-webui-users
     # open-webui:debug: false
@@ -101,13 +103,6 @@ config:
     # open-webui:auth/clientSecret: CLIENT_SECRET
     # open-webui:auth/providerUrl: https://pocket.example.com/.well-known/openid-configuration  # optional override; defaults to the core stack's provider export
     # open-webui:auth/providerName: SSO  # optional; label the login button, defaults to "SSO"
-    #
-    # External OpenAI-compatible provider, e.g. OpenCode Zen (https://opencode.ai/inference).
-    # open-webui:openai/baseUrl: https://opencode.ai/inference/v1
-    # open-webui:openai/apiKey: SERVICE_ACCOUNT_KEY
-    #
-    # Models served on the Responses API (GPT, Muse Spark, Grok), comma-separated; requires baseUrl.
-    # open-webui:openai/responsesModels: gpt-6-luna,muse-spark-1.3
 
     kubeai:enabled: false
     kubeai:hostname: kubeai

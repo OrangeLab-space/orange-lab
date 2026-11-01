@@ -29,14 +29,25 @@ const openWebUI = config.isEnabled('open-webui')
     ? new OpenWebUI(
           'open-webui',
           {
-              ollamaUrl: ollama?.serviceUrl,
-              openAiUrl: kubeAI?.serviceUrl,
+              agentgatewayApiKey: agentgateway?.apiKeys['open-webui'],
+              agentgatewayUrl: agentgateway?.apiUrl,
+              speech: speaches
+                  ? {
+                        sttModel: speaches.sttModel,
+                        ttsModel: speaches.ttsModel,
+                        ttsVoice: speaches.ttsVoice,
+                        url: speaches.apiUrl,
+                    }
+                  : undefined,
               automatic1111Url:
                   sdnext?.app.network.clusterEndpoints.sdnext ??
                   automatic1111?.app.network.clusterEndpoints.automatic1111,
+              ollamaUrl: ollama?.serviceUrl,
           },
           {
-              dependsOn: [ollama, kubeAI, automatic1111, sdnext].filter(x => x !== undefined),
+              dependsOn: [agentgateway, ollama, speaches, automatic1111, sdnext].filter(
+                  x => x !== undefined,
+              ),
           },
       )
     : undefined;

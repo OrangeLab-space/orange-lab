@@ -1,10 +1,19 @@
 import { Application, config, OidcAuthConfig, requireOutput } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
+export interface SpeechConnection {
+    url: pulumi.Input<string>;
+    sttModel: string;
+    ttsModel: string;
+    ttsVoice: string;
+}
+
 export interface OpenWebUIArgs {
-    ollamaUrl?: string;
-    openAiUrl?: string;
+    agentgatewayUrl?: pulumi.Input<string>;
+    agentgatewayApiKey?: pulumi.Input<string>;
     automatic1111Url?: pulumi.Input<string>;
+    ollamaUrl?: pulumi.Input<string>;
+    speech?: SpeechConnection;
 }
 
 export class OpenWebUI extends pulumi.ComponentResource {
@@ -27,13 +36,13 @@ export class OpenWebUI extends pulumi.ComponentResource {
         const isTailscale = httpEndpointInfo.className === 'tailscale';
 
         const auth = this.app.auth.getOidc();
-        const openAi = this.getOpenAiConnections();
+        const agentgateway = this.getAgentgatewayConnection();
         const env = this.getEnvironment(
             httpEndpointInfo.url,
             isTailscale,
             auth,
-            openAi.baseUrls,
-            openAi.apiConfigs,
+            agentgateway?.url,
+            this.args.speech,
         );
 
         this.app.addDeployment({
@@ -42,7 +51,7 @@ export class OpenWebUI extends pulumi.ComponentResource {
             env,
             envSecret: {
                 OAUTH_CLIENT_SECRET: auth?.clientSecret,
-                OPENAI_API_KEYS: openAi.apiKeys,
+                OPENAI_API_KEYS: agentgateway?.apiKey,
                 WEBUI_SECRET_KEY: this.secretKey,
             },
             healthCheck: { httpGet: { path: '/health' } },
@@ -54,59 +63,19 @@ export class OpenWebUI extends pulumi.ComponentResource {
     }
 
     /**
-     * OpenAI-compatible backends, index-aligned and semicolon-joined as Open WebUI expects.
-     * The optional Responses-API connection comes first so it claims its model IDs before the
-     * external Chat Completions connection lists the same names (Open WebUI merge is first-wins).
+     * Connect the gateway when it is enabled. Open WebUI discovers its models from
+     * /v1/models; model selection and any other backends are configured in the UI.
      */
-    private getOpenAiConnections(): {
-        baseUrls?: pulumi.Output<string>;
-        apiKeys?: pulumi.Output<string>;
-        apiConfigs?: string;
-    } {
-        const baseUrls: pulumi.Input<string>[] = [];
-        const apiKeys: pulumi.Input<string>[] = [];
-        const apiConfigs: Record<string, object> = {};
-
-        const externalBaseUrl = config.get(this.name, 'openai/baseUrl');
-        const externalApiKey = externalBaseUrl
-            ? config.requireSecret(this.name, 'openai/apiKey')
-            : undefined;
-
-        const responsesModels = config.getCommaSeparated(this.name, 'openai/responsesModels');
-        if (responsesModels) {
-            if (!externalBaseUrl || !externalApiKey) {
-                throw new Error(
-                    'Open WebUI: open-webui:openai/responsesModels is set but open-webui:openai/baseUrl is not.',
-                );
-            }
-            apiConfigs[baseUrls.length.toString()] = {
-                api_type: 'responses',
-                model_ids: responsesModels,
-            };
-            baseUrls.push(externalBaseUrl);
-            apiKeys.push(externalApiKey);
-        }
-
-        if (this.args.openAiUrl) {
-            baseUrls.push(this.args.openAiUrl);
-            apiKeys.push('not-used');
-        }
-
-        if (externalBaseUrl && externalApiKey) {
-            baseUrls.push(externalBaseUrl);
-            apiKeys.push(externalApiKey);
-        }
-
+    private getAgentgatewayConnection():
+        | {
+              apiKey: pulumi.Input<string>;
+              url: pulumi.Input<string>;
+          }
+        | undefined {
+        if (!this.args.agentgatewayUrl) return undefined;
         return {
-            baseUrls: baseUrls.length
-                ? pulumi.all(baseUrls).apply(urls => urls.join(';'))
-                : undefined,
-            apiKeys: apiKeys.length
-                ? pulumi.all(apiKeys).apply(keys => keys.join(';'))
-                : undefined,
-            apiConfigs: Object.keys(apiConfigs).length
-                ? JSON.stringify(apiConfigs)
-                : undefined,
+            apiKey: this.args.agentgatewayApiKey ?? 'not-used',
+            url: this.args.agentgatewayUrl,
         };
     }
 
@@ -114,10 +83,23 @@ export class OpenWebUI extends pulumi.ComponentResource {
         endpointUrl: pulumi.Input<string>,
         isTailscale: boolean,
         auth: OidcAuthConfig | undefined,
-        openAiBaseUrls: pulumi.Input<string> | undefined,
-        openAiApiConfigs: string | undefined,
+        agentgatewayUrl: pulumi.Input<string> | undefined,
+        speech: SpeechConnection | undefined,
     ): Record<string, pulumi.Input<string> | undefined> {
         const env: Record<string, pulumi.Input<string> | undefined> = {
+            ...(speech
+                ? {
+                      AUDIO_STT_ENGINE: 'openai',
+                      AUDIO_STT_MODEL: speech.sttModel,
+                      AUDIO_STT_OPENAI_API_BASE_URL: speech.url,
+                      AUDIO_STT_OPENAI_API_KEY: 'not-needed',
+                      AUDIO_TTS_ENGINE: 'openai',
+                      AUDIO_TTS_MODEL: speech.ttsModel,
+                      AUDIO_TTS_OPENAI_API_BASE_URL: speech.url,
+                      AUDIO_TTS_OPENAI_API_KEY: 'not-needed',
+                      AUDIO_TTS_VOICE: speech.ttsVoice,
+                  }
+                : {}),
             AUTOMATIC1111_BASE_URL: this.args.automatic1111Url,
             BYPASS_MODEL_ACCESS_CONTROL: 'True',
             DEFAULT_MODELS: config.get(this.name, 'DEFAULT_MODELS') ?? '',
@@ -140,8 +122,7 @@ export class OpenWebUI extends pulumi.ComponentResource {
             IMAGE_GENERATION_ENGINE: 'automatic1111',
             LOG_LEVEL: this.app.debug ? 'debug' : undefined,
             OLLAMA_BASE_URLS: this.args.ollamaUrl,
-            OPENAI_API_BASE_URLS: openAiBaseUrls,
-            OPENAI_API_CONFIGS: openAiApiConfigs,
+            OPENAI_API_BASE_URLS: agentgatewayUrl,
             USER_PERMISSIONS_FEATURES_DIRECT_TOOL_SERVERS: 'True',
             USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS: 'True',
             USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS: 'True',
@@ -160,7 +141,9 @@ export class OpenWebUI extends pulumi.ComponentResource {
         return env;
     }
 
-    private addTailscaleEnvironment(env: Record<string, pulumi.Input<string> | undefined>): void {
+    private addTailscaleEnvironment(
+        env: Record<string, pulumi.Input<string> | undefined>,
+    ): void {
         env.WEBUI_AUTH_TRUSTED_EMAIL_HEADER = 'Tailscale-User-Login';
         env.WEBUI_AUTH_TRUSTED_NAME_HEADER = 'Tailscale-User-Name';
     }

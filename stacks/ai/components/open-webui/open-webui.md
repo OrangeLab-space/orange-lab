@@ -32,46 +32,50 @@ pulumi up
 
 ## Models
 
-Model backends are configured through the stack: add a connection below, then run `pulumi up`.
+Model backends are connected by the stack when the matching component is enabled. [Agentgateway](../agentgateway/agentgateway.md) and [Ollama](../ollama/ollama.md) are wired automatically; additional providers can be added in the Open WebUI admin UI.
+
+### Agentgateway
+
+When `agentgateway:enabled` is true, Open WebUI receives the gateway's in-cluster `/v1` endpoint and an `open-webui` virtual key. No model list is set in code; Open WebUI discovers the gateway's models, including virtual models such as `assistant`, `coding`, and `private-assistant`, from `/v1/models`.
+
+`open-webui:DEFAULT_MODELS` pre-selects models for new chats for all users. It is a default, not an access restriction: a user's own default, a group default, or a model URL parameter takes precedence, and users can always pick another model. Models that no longer exist are dropped. Leave it unset to keep the user's own selection or the first available model.
 
 ### Ollama
 
-Enabling the [Ollama](../ollama/ollama.md) component connects it automatically; models are pulled on start from `ollama:models`. `open-webui:DEFAULT_MODELS` selects the model(s) shown by default.
+Enable the [Ollama](../ollama/ollama.md) component when using standalone Ollama instead of [KubeAI](../kubeai/kubeai.md). Open WebUI connects to it through `OLLAMA_BASE_URLS`, and models are pulled on start from `ollama:models`:
 
 ```sh
 pulumi config set ollama:enabled true
 pulumi config set ollama:models gemma4,qwen2.5-coder:1.5b
-
-# Comma-separated; each entry is referenced as <model>:latest
-pulumi config set open-webui:DEFAULT_MODELS gemma4:latest
-
 pulumi up
 ```
 
-If local models stop appearing in Open WebUI, run `pulumi up` to re-apply the Ollama connection from the environment.
+Both connections appear when Agentgateway and Ollama are enabled together, so disable the one you don't use.
 
-### OpenAI-compatible (OpenCode Zen)
+### Other backends
 
-The [kubeAI](../kubeai/kubeai.md) component is connected automatically when enabled. Other OpenAI-compatible providers can be added alongside it; OpenCode Zen serves an OpenAI-compatible API at `https://opencode.ai/inference/v1`:
+Add any OpenAI-compatible provider in **Admin Settings → Connections**.
+
+UI changes only survive restarts when persistent config is enabled:
 
 ```sh
-pulumi config set open-webui:openai/baseUrl https://opencode.ai/inference/v1
-pulumi config set open-webui:openai/apiKey <service-account-key> --secret
-
-pulumi up
+pulumi config set open-webui:ENABLE_PERSISTENT_CONFIG true
 ```
 
-Create a service account key in the [OpenCode Console](https://opencode.ai/console) under **Keys**: **Add Service Account**, open it, then **Add API Key**. Grant only the model-inference permission (**Models → request** in the Console's permission list); it is sufficient for chat. The key is shown once; pass it as `open-webui:openai/apiKey`.
+With persistent config disabled, Open WebUI reloads its configuration from the environment on startup and connections added in the UI are lost.
 
-Setting `openai/baseUrl` requires `openai/apiKey`, and the base URL must include the `/v1` suffix.
+## Voice
 
-Open WebUI sets the protocol on each **connection**, not per model: a connection is Chat Completions unless configured as the Responses API. OpenCode Zen serves Kimi, GLM, DeepSeek, MiniMax and similar models on `/chat/completions`, but GPT, Muse Spark and Grok only on `/responses`, so those fail with `Model does not support this protocol.` through the chat connection. `open-webui:openai/responsesModels` adds a second connection with `api_type: responses` that claims those IDs first, so the chat connection skips them. The list can't be derived automatically — Zen's model list doesn't report which API a model uses.
+Voice uses the [Speaches](../speaches/speaches.md) component instead of models bundled in the Open WebUI image. Enable it and redeploy:
 
 ```sh
-pulumi config set open-webui:openai/responsesModels gpt-6-luna,muse-spark-1.3
-
+pulumi config set speaches:enabled true
 pulumi up
 ```
+
+Open WebUI receives the Speaches endpoint for both STT and TTS. The slim image is sufficient; no Whisper model, audio conversion tooling, or local TTS runs inside Open WebUI.
+
+Speaches provides the default Kokoro voice, and users can choose another voice in **Settings → Audio**. Leave the personal TTS engine set to **Default** to use the server-side voice.
 
 ## OpenID Connect (Pocket ID)
 
@@ -103,12 +107,12 @@ Existing clients are reused without rotating their secret. If the client was del
 
 Create the client in Pocket ID before deploying Open WebUI:
 
-| Field               | Value                                                   |
-| ------------------- | ------------------------------------------------------- |
-| Name                | `Open WebUI`                                            |
-| Callback URL        | `<open-webui-url>/oauth/oidc/callback`                  |
-| Launch URL          | `<open-webui-url>`                                      |
-| Icon                | Optional; see [selfh.st/icons](https://selfh.st/icons/) |
+| Field        | Value                                                   |
+| ------------ | ------------------------------------------------------- |
+| Name         | `Open WebUI`                                            |
+| Callback URL | `<open-webui-url>/oauth/oidc/callback`                  |
+| Launch URL   | `<open-webui-url>`                                      |
+| Icon         | Optional; see [selfh.st/icons](https://selfh.st/icons/) |
 
 Replace `<open-webui-url>` with the public URL provided by the selected routing provider. For the current Traefik configuration, it is `https://webui.<domain>`.
 
