@@ -106,12 +106,16 @@ config:
 
     kubeai:enabled: false
     kubeai:hostname: kubeai
+    # Per-node model PVCs, separate from the Ollama volume
+    kubeai:modelStoragePath: /srv/kubeai-models
+    # Per-node model hosts: storage size and GPU env; see components/kubeai/kubeai.md
+    # kubeai:modelNodes:
+    #     <node>: {storageSize: 50Gi, env: {HSA_OVERRIDE_GFX_VERSION: '11.0.0'}}
     # kubeai:huggingfaceToken: TOKEN
-    # Comma-separated list of models from https://github.com/substratusai/kubeai/blob/main/charts/models/values.yaml
-    # <model>/<profile>/<replicas>
-    kubeai:models: qwen2.5-coder-1.5b-rtx4070-8gb/nvidia,faster-whisper-medium-en-cpu,gemma2-2b-cpu/amd/0
-    # kubeai:HSA_OVERRIDE_GFX_VERSION: '11.0.2'
-    # kubeai:HCC_AMDGPU_TARGETS: 'gfx1103'
+    # Ollama model server and loader image
+    kubeai:ollama/image: ollama/ollama:0.40.12-rocm
+    # kubeai:llamacpp/image: ghcr.io/ggml-org/llama.cpp:server-vulkan-b10680
+    # kubeai:vllm/image: <image>
 
     invokeai:enabled: false
     invokeai:hostname: 'invokeai'

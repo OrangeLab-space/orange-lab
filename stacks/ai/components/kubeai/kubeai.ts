@@ -1,10 +1,30 @@
-import { Application, GrafanaDashboard, config } from '@orangelab/pulumi';
+import {
+    Application,
+    GrafanaDashboard,
+    HttpEndpointInfo,
+    config,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import dashboardJson from './kubeai-dashboard-vllm.json';
+import {
+    ModelNodeSpec,
+    nodeResourceProfile,
+    parseModelDefinitions,
+    parseModelNodes,
+} from './model-config';
+import {
+    createModelLoaders,
+    createModelResources,
+    createModelVolumes,
+} from './model-resources';
+
+interface ModelImages {
+    llamacpp?: string;
+    ollama: string;
+    vllm?: string;
+}
 
 export class KubeAi extends pulumi.ComponentResource {
-    public readonly serviceUrl: string | undefined;
-
     public readonly app: Application;
 
     constructor(
@@ -13,111 +33,138 @@ export class KubeAi extends pulumi.ComponentResource {
     ) {
         super('orangelab:ai:KubeAi', name, {}, opts);
 
+        config.assertNotConfigured(
+            name,
+            'models',
+            `${name}:models was removed. Move catalog models to ${name}:modelDefinitions and ${name}:modelNodes.`,
+        );
+
         const hostname = config.require(name, 'hostname');
         const huggingfaceToken = config.getSecret(name, 'huggingfaceToken');
-        const models = config.getCommaSeparated(name, 'models') ?? [];
+        const modelImages: ModelImages = {
+            llamacpp: config.get(name, 'llamacpp/image'),
+            ollama: config.require(name, 'ollama/image'),
+            vllm: config.get(name, 'vllm/image'),
+        };
 
         this.app = new Application(this, name);
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
-        const kubeAi = this.app.addHelmChart(name, {
+        const nodes = parseModelNodes(name);
+        const definitions = parseModelDefinitions(name, nodes);
+
+        const chart = this.app.addHelmChart(name, {
             chart: 'kubeai',
             repo: 'https://www.kubeai.org',
-            values: {
-                affinity: this.app.nodes.getAffinity(),
-                ingress: {
-                    enabled: true,
-                    className: httpEndpointInfo.className,
-                    rules: [
-                        {
-                            host: httpEndpointInfo.hostname,
-                            paths: [{ path: '/', pathType: 'ImplementationSpecific' }],
-                        },
-                    ],
-                    tls: [{ hosts: [httpEndpointInfo.hostname] }],
-                },
-                metrics: config.enableMonitoring()
-                    ? {
-                          prometheusOperator: {
-                              vLLMPodMonitor: {
-                                  enabled: true,
-                                  labels: {},
-                              },
-                          },
-                      }
-                    : undefined,
-                modelServers: {
-                    OLlama: {
-                        images: {
-                            'amd-gpu': 'ollama/ollama:rocm',
-                        },
-                    },
-                },
-                modelAutoscaling: { timeWindow: '30m' },
-                modelServerPods: {
-                    // required for NVidia detection
-                    securityContext: {
-                        privileged: true,
-                        allowPrivilegeEscalation: true,
-                    },
-                },
-                ['open-webui']: { enabled: false },
-                resourceProfiles: {
-                    nvidia: {
-                        nodeSelector: { 'orangelab/gpu-nvidia': 'true' },
-                    },
-                    amd: {
-                        imageName: 'amd-gpu',
-                        nodeSelector: { 'orangelab/gpu-amd': 'true' },
-                        limits: { 'amd.com/gpu': 1 },
-                    },
-                },
-                secrets: { huggingface: { token: huggingfaceToken } },
-            },
+            values: this.createHelmValues(
+                httpEndpointInfo,
+                huggingfaceToken,
+                nodes,
+                modelImages,
+            ),
         });
 
-        this.app.addHelmChart(
-            `${name}-models`,
-            {
-                chart: 'models',
-                repo: 'https://www.kubeai.org',
-                values: { catalog: this.createModelCatalog(models) },
-            },
-            { dependsOn: [kubeAi] },
-        );
+        const storagePath = config.require(name, 'modelStoragePath');
+        const resourceArgs = {
+            appName: name,
+            chart,
+            namespace: this.app.metadata.namespace,
+            parent: this,
+            storagePath,
+        };
+        const volumes = createModelVolumes({ ...resourceArgs, nodes });
+        const loaders = createModelLoaders({
+            ...resourceArgs,
+            definitions,
+            ollamaImage: modelImages.ollama,
+        });
+        createModelResources({
+            ...resourceArgs,
+            definitions,
+            loaders,
+            nodes,
+            volumes,
+        });
 
         if (config.enableMonitoring()) {
             new GrafanaDashboard(name, { configJson: dashboardJson }, { parent: this });
         }
 
-        this.serviceUrl = `http://${hostname}.kubeai/openai/v1`;
+        const serviceUrl = pulumi.interpolate`http://${hostname}.kubeai/openai/v1`;
         this.app.network.addEndpoint(name, httpEndpointInfo.url);
-        this.app.network.addClusterEndpoint(name, this.serviceUrl);
+        this.app.network.addClusterEndpoint(name, serviceUrl);
     }
 
-    private createModelCatalog(models: string[]): Record<string, object> {
-        const gfxVersion = config.get(this.name, 'HSA_OVERRIDE_GFX_VERSION');
-        const amdTargets = config.get(this.name, 'HCC_AMDGPU_TARGETS');
-        const modelProfiles = new Map<string, object>();
-        modelProfiles.set('amd', {
-            enabled: true,
-            resourceProfile: 'amd:1',
-            minReplicas: 0,
-            env: {
-                HSA_OVERRIDE_GFX_VERSION: gfxVersion,
-                ...(amdTargets ? { HCC_AMDGPU_TARGETS: amdTargets } : {}),
+    private createHelmValues(
+        httpEndpointInfo: HttpEndpointInfo,
+        huggingfaceToken: pulumi.Input<string> | undefined,
+        nodes: Map<string, ModelNodeSpec>,
+        modelImages: ModelImages,
+    ): pulumi.Inputs {
+        return {
+            affinity: this.app.nodes.getAffinity(),
+            ingress: {
+                enabled: true,
+                className: httpEndpointInfo.className,
+                rules: [
+                    {
+                        host: httpEndpointInfo.hostname,
+                        paths: [{ path: '/', pathType: 'ImplementationSpecific' }],
+                    },
+                ],
+                tls: [{ hosts: [httpEndpointInfo.hostname] }],
             },
-        });
-        modelProfiles.set('nvidia', {
-            enabled: true,
-            resourceProfile: 'nvidia:1',
-            minReplicas: 0,
-        });
-        const modelList = models.map(model => {
-            const [modelName, profile, minReplicas = 0] = model.split('/');
-            const info = { ...modelProfiles.get(profile || 'nvidia'), minReplicas };
-            return { [modelName]: info };
-        });
-        const catalog = Object.assign({}, ...modelList) as Record<string, object>;
-        return catalog;
+            metrics: config.enableMonitoring()
+                ? {
+                      prometheusOperator: {
+                          vLLMPodMonitor: {
+                              enabled: true,
+                              labels: {},
+                          },
+                          llamaCppPodMonitor: {
+                              enabled: true,
+                              labels: {},
+                          },
+                      },
+                  }
+                : undefined,
+            modelAutoscaling: { timeWindow: '30m' },
+            // Single-GPU nodes cannot schedule a surge pod while the old
+            // model pod still holds the GPU.
+            modelRollouts: { surge: 0 },
+            modelServerPods: {
+                securityContext: {
+                    allowPrivilegeEscalation: false,
+                    capabilities: { drop: ['ALL'] },
+                    readOnlyRootFilesystem: false,
+                    runAsGroup: 0,
+                    runAsUser: 0,
+                },
+            },
+            modelServers: this.createModelServers(modelImages),
+            nodeSelector: { 'orangelab/gpu-amd': 'true' },
+            ['open-webui']: { enabled: false },
+            resourceProfiles: Object.fromEntries(
+                [...nodes.values()].map((node): [string, object] => [
+                    nodeResourceProfile(node.name),
+                    {
+                        imageName: 'amd-gpu',
+                        limits: { 'amd.com/gpu': 1 },
+                        nodeSelector: { 'kubernetes.io/hostname': node.name },
+                    },
+                ]),
+            ),
+            secrets: { huggingface: { token: huggingfaceToken } },
+        };
+    }
+
+    private createModelServers(images: ModelImages): Record<string, object> {
+        const servers: Record<string, object> = {
+            OLlama: { images: { 'amd-gpu': images.ollama } },
+        };
+        if (images.llamacpp) {
+            servers.LlamaCpp = { images: { 'amd-gpu': images.llamacpp } };
+        }
+        if (images.vllm) servers.VLLM = { images: { 'amd-gpu': images.vllm } };
+        return servers;
     }
 }
