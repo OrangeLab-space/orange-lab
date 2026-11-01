@@ -111,14 +111,17 @@ config:
     kubeai:hostname: kubeai
     # Per-node model PVCs, separate from the Ollama volume
     kubeai:modelStoragePath: /srv/kubeai-models
-    # Per-node model hosts: storage size and GPU env; see components/kubeai/kubeai.md
+    # Per-node model hosts: required GPU type, storage size and GPU env; see components/kubeai/kubeai.md
     # kubeai:modelNodes:
-    #     <node>: {storageSize: 50Gi, env: {HSA_OVERRIDE_GFX_VERSION: '11.0.0'}}
+    #     <node>: {gpu: amd, storageSize: 50Gi, env: {HSA_OVERRIDE_GFX_VERSION: '11.0.0'}}
     # kubeai:huggingfaceToken: TOKEN
-    # Ollama model server and loader image
-    kubeai:ollama/image: ollama/ollama:0.40.12-rocm
-    # kubeai:llamacpp/image: ghcr.io/ggml-org/llama.cpp:server-vulkan-b10680
-    # kubeai:vllm/image: <image>
+    # Model server images per engine and GPU. This is a YAML block string because
+    # Pulumi project config does not accept object values. Overrides replace the
+    # whole map: copy these entries and add yours. See components/kubeai/kubeai.md.
+    kubeai:images: |
+        ollama:
+            amd: ollama/ollama:0.40.12-rocm
+            nvidia: ollama/ollama:0.40.12
 
     invokeai:enabled: false
     invokeai:hostname: 'invokeai'

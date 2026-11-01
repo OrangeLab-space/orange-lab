@@ -2,7 +2,12 @@ import { LocalVolume } from '@orangelab/pulumi';
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
-import { ModelDefinition, ModelNodeSpec, nodeResourceProfile } from './model-config';
+import {
+    ModelDefinition,
+    ModelGpu,
+    ModelNodeSpec,
+    nodeResourceProfile,
+} from './model-config';
 
 interface ModelVolumeArgs {
     appName: string;
@@ -18,9 +23,11 @@ interface ModelLoaderArgs {
     chart: pulumi.Resource;
     definitions: ModelDefinition[];
     namespace: pulumi.Input<string>;
-    ollamaImage: string;
+    nodes: Map<string, ModelNodeSpec>;
+    ollamaImages: Partial<Record<ModelGpu, string>>;
     parent: pulumi.Resource;
     storagePath: string;
+    tolerations?: kubernetes.types.input.core.v1.Toleration[];
 }
 
 interface ModelResourceArgs {
@@ -89,17 +96,25 @@ export function createModelLoaders(
 
     const loaders = new Map<string, kubernetes.batch.v1.Job>();
     for (const [node, sources] of sourcesByNode) {
-        loaders.set(node, createModelLoaderJob(args, node, sources));
+        const spec = args.nodes.get(node);
+        assert(spec, `Unknown model node '${node}'.`);
+        const image = args.ollamaImages[spec.gpu];
+        assert(
+            image,
+            `${args.appName}:images.ollama.${spec.gpu} is required for Ollama models on '${spec.name}'. Copy the default kubeai:images entries and add your own.`,
+        );
+        loaders.set(node, createModelLoaderJob(args, spec, sources, image));
     }
     return loaders;
 }
 
 function createModelLoaderJob(
     args: ModelLoaderArgs,
-    node: string,
+    node: ModelNodeSpec,
     sources: Set<string>,
+    image: string,
 ): kubernetes.batch.v1.Job {
-    const name = `${args.appName}-model-loader-${node}`;
+    const name = `${args.appName}-model-loader-${node.name}`;
     return new kubernetes.batch.v1.Job(
         name,
         {
@@ -107,7 +122,7 @@ function createModelLoaderJob(
             spec: {
                 activeDeadlineSeconds: 7200,
                 backoffLimit: 2,
-                template: { spec: loaderPodSpec(args, node, sources) },
+                template: { spec: loaderPodSpec(args, node, sources, image) },
             },
         },
         { deleteBeforeReplace: true, dependsOn: [args.chart], parent: args.parent },
@@ -116,13 +131,16 @@ function createModelLoaderJob(
 
 function loaderPodSpec(
     args: ModelLoaderArgs,
-    node: string,
+    node: ModelNodeSpec,
     sources: Set<string>,
+    image: string,
 ): kubernetes.types.input.core.v1.PodSpec {
     return {
-        containers: [loaderContainer(args, sources)],
-        nodeSelector: { 'kubernetes.io/hostname': node },
+        containers: [loaderContainer(sources, image)],
+        nodeSelector: { 'kubernetes.io/hostname': node.name },
         restartPolicy: 'Never',
+        securityContext: { seLinuxOptions: { type: 'spc_t' } },
+        ...(args.tolerations ? { tolerations: args.tolerations } : {}),
         volumes: [
             {
                 hostPath: {
@@ -136,8 +154,8 @@ function loaderPodSpec(
 }
 
 function loaderContainer(
-    args: ModelLoaderArgs,
     sources: Set<string>,
+    image: string,
 ): kubernetes.types.input.core.v1.Container {
     return {
         args: ['-c', loaderScript, 'model-loader', ...sources],
@@ -147,7 +165,7 @@ function loaderContainer(
             { name: 'OLLAMA_HOST', value: '127.0.0.1:11434' },
             { name: 'OLLAMA_MODELS', value: '/model' },
         ],
-        image: args.ollamaImage,
+        image,
         name: 'loader',
         resources: { requests: { cpu: '1', memory: '1Gi' } },
         securityContext: {
@@ -236,7 +254,7 @@ function modelSpec(
         ...(definition.image ? { image: definition.image } : {}),
         maxReplicas: 1,
         minReplicas: 1,
-        resourceProfile: `${nodeResourceProfile(node.name)}:1`,
+        resourceProfile: `${nodeResourceProfile(node)}:1`,
         url,
     };
 }

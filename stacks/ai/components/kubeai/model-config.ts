@@ -1,6 +1,13 @@
 import { config } from '@orangelab/pulumi';
+import { parse as parseYaml } from 'yaml';
 
 export type ModelEngine = 'OLlama' | 'LlamaCpp' | 'VLLM';
+export type ModelEngineKey = 'llamacpp' | 'ollama' | 'vllm';
+export type ModelGpu = 'amd' | 'nvidia';
+
+export type ModelImages = Partial<
+    Record<ModelEngineKey, Partial<Record<ModelGpu, string>>>
+>;
 
 export interface ModelDefinition {
     args?: string[];
@@ -14,6 +21,7 @@ export interface ModelDefinition {
 
 export interface ModelNodeSpec {
     env: Record<string, string>;
+    gpu: ModelGpu;
     name: string;
     storageSize: string;
 }
@@ -21,6 +29,16 @@ export interface ModelNodeSpec {
 type ModelDefinitionFields = Pick<ModelDefinition, 'args' | 'image' | 'source' | 'url'>;
 
 const engines: readonly ModelEngine[] = ['OLlama', 'LlamaCpp', 'VLLM'];
+const engineKeys: readonly ModelEngineKey[] = ['ollama', 'llamacpp', 'vllm'];
+const gpus: readonly ModelGpu[] = ['amd', 'nvidia'];
+
+export const modelEngineKeys = engineKeys;
+export const modelEngineNames: Record<ModelEngineKey, ModelEngine> = {
+    llamacpp: 'LlamaCpp',
+    ollama: 'OLlama',
+    vllm: 'VLLM',
+};
+
 const dnsSubdomain = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
 
 export function parseModelNodes(appName: string): Map<string, ModelNodeSpec> {
@@ -45,11 +63,52 @@ function parseModelNode(
         fail(`${appName}:modelNodes`, `has invalid node name '${name}'.`);
     }
     if (!isRecord(value)) fail(path, 'must be an object.');
-    const { env, storageSize } = value;
+    const { env, gpu, storageSize } = value;
     if (typeof storageSize !== 'string' || !storageSize) {
         fail(`${path}.storageSize`, 'must be a non-empty string.');
     }
-    return [name, { env: parseEnv(env, `${path}.env`), name, storageSize }];
+    return [
+        name,
+        {
+            env: parseEnv(env, `${path}.env`),
+            gpu: parseGpu(gpu, `${path}.gpu`),
+            name,
+            storageSize,
+        },
+    ];
+}
+
+export function parseModelImages(appName: string): ModelImages {
+    const raw = getImagesConfig(appName);
+    if (raw === undefined) return {};
+    if (!isRecord(raw)) {
+        fail(`${appName}:images`, 'must be a map of engine to GPU images.');
+    }
+
+    const images: ModelImages = {};
+    for (const [engine, value] of Object.entries(raw)) {
+        if (!isModelEngineKey(engine)) {
+            fail(`${appName}:images`, `has invalid engine '${engine}'.`);
+        }
+        if (!isRecord(value)) {
+            fail(`${appName}:images.${engine}`, 'must be an object.');
+        }
+        const byGpu: Partial<Record<ModelGpu, string>> = {};
+        for (const [gpu, image] of Object.entries(value)) {
+            if (gpu !== 'amd' && gpu !== 'nvidia') {
+                fail(
+                    `${appName}:images.${engine}.${gpu}`,
+                    `must be one of: ${gpus.join(', ')}.`,
+                );
+            }
+            if (typeof image !== 'string' || !image) {
+                fail(`${appName}:images.${engine}.${gpu}`, 'must be a non-empty string.');
+            }
+            byGpu[gpu] = image;
+        }
+        images[engine] = byGpu;
+    }
+    return images;
 }
 
 export function parseModelDefinitions(
@@ -147,8 +206,8 @@ function validateModelSource(
     }
 }
 
-export function nodeResourceProfile(node: string): string {
-    return `amd-${node}`;
+export function nodeResourceProfile(node: ModelNodeSpec): string {
+    return `${node.gpu}-${node.name}`;
 }
 
 function parseEngine(value: unknown, key: string): ModelEngine {
@@ -159,8 +218,33 @@ function parseEngine(value: unknown, key: string): ModelEngine {
     return engine;
 }
 
+function getImagesConfig(appName: string): unknown {
+    try {
+        return config.getObject(appName, 'images');
+    } catch {
+        const value = config.get(appName, 'images');
+        if (value === undefined) return undefined;
+        return parseYaml(value);
+    }
+}
+
 function isModelEngine(value: string): value is ModelEngine {
     return (engines as readonly string[]).includes(value);
+}
+
+function isModelEngineKey(value: string): value is ModelEngineKey {
+    return (engineKeys as readonly string[]).includes(value);
+}
+
+function parseGpu(value: unknown, key: string): ModelGpu {
+    if (typeof value !== 'string' || !isModelGpu(value)) {
+        fail(key, `must be one of: ${gpus.join(', ')}.`);
+    }
+    return value;
+}
+
+function isModelGpu(value: string): value is ModelGpu {
+    return (gpus as readonly string[]).includes(value);
 }
 
 function parseEnv(value: unknown, key: string): Record<string, string> {

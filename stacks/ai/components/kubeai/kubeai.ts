@@ -4,12 +4,17 @@ import {
     HttpEndpointInfo,
     config,
 } from '@orangelab/pulumi';
+import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import dashboardJson from './kubeai-dashboard-vllm.json';
 import {
+    ModelImages,
     ModelNodeSpec,
+    modelEngineKeys,
+    modelEngineNames,
     nodeResourceProfile,
     parseModelDefinitions,
+    parseModelImages,
     parseModelNodes,
 } from './model-config';
 import {
@@ -17,12 +22,6 @@ import {
     createModelResources,
     createModelVolumes,
 } from './model-resources';
-
-interface ModelImages {
-    llamacpp?: string;
-    ollama: string;
-    vllm?: string;
-}
 
 export class KubeAi extends pulumi.ComponentResource {
     public readonly app: Application;
@@ -38,16 +37,20 @@ export class KubeAi extends pulumi.ComponentResource {
             'models',
             `${name}:models was removed. Move catalog models to ${name}:modelDefinitions and ${name}:modelNodes.`,
         );
+        for (const engine of modelEngineKeys) {
+            config.assertNotConfigured(
+                name,
+                `${engine}/image`,
+                `${name}:${engine}/image was removed. Use ${name}:images.${engine}.<gpu> instead (amd|nvidia).`,
+            );
+        }
 
         const hostname = config.require(name, 'hostname');
         const huggingfaceToken = config.getSecret(name, 'huggingfaceToken');
-        const modelImages: ModelImages = {
-            llamacpp: config.get(name, 'llamacpp/image'),
-            ollama: config.require(name, 'ollama/image'),
-            vllm: config.get(name, 'vllm/image'),
-        };
+        const images = parseModelImages(name);
 
         this.app = new Application(this, name);
+        const tolerations = this.app.nodes.getTolerations();
         const httpEndpointInfo = this.app.network.getHttpEndpointInfo();
         const nodes = parseModelNodes(name);
         const definitions = parseModelDefinitions(name, nodes);
@@ -59,7 +62,8 @@ export class KubeAi extends pulumi.ComponentResource {
                 httpEndpointInfo,
                 huggingfaceToken,
                 nodes,
-                modelImages,
+                images,
+                tolerations,
             ),
         });
 
@@ -75,7 +79,9 @@ export class KubeAi extends pulumi.ComponentResource {
         const loaders = createModelLoaders({
             ...resourceArgs,
             definitions,
-            ollamaImage: modelImages.ollama,
+            nodes,
+            ollamaImages: images.ollama ?? {},
+            tolerations,
         });
         createModelResources({
             ...resourceArgs,
@@ -98,7 +104,8 @@ export class KubeAi extends pulumi.ComponentResource {
         httpEndpointInfo: HttpEndpointInfo,
         huggingfaceToken: pulumi.Input<string> | undefined,
         nodes: Map<string, ModelNodeSpec>,
-        modelImages: ModelImages,
+        images: ModelImages,
+        tolerations: kubernetes.types.input.core.v1.Toleration[] | undefined,
     ): pulumi.Inputs {
         return {
             affinity: this.app.nodes.getAffinity(),
@@ -138,33 +145,42 @@ export class KubeAi extends pulumi.ComponentResource {
                     readOnlyRootFilesystem: false,
                     runAsGroup: 0,
                     runAsUser: 0,
+                    seLinuxOptions: { type: 'spc_t' },
                 },
             },
-            modelServers: this.createModelServers(modelImages),
+            modelServers: this.createModelServers(images),
             nodeSelector: { 'orangelab/gpu-amd': 'true' },
             ['open-webui']: { enabled: false },
             resourceProfiles: Object.fromEntries(
                 [...nodes.values()].map((node): [string, object] => [
-                    nodeResourceProfile(node.name),
+                    nodeResourceProfile(node),
                     {
-                        imageName: 'amd-gpu',
-                        limits: { 'amd.com/gpu': 1 },
+                        imageName: `${node.gpu}-gpu`,
+                        limits: { [`${node.gpu}.com/gpu`]: 1 },
                         nodeSelector: { 'kubernetes.io/hostname': node.name },
+                        ...(tolerations ? { tolerations } : {}),
                     },
                 ]),
             ),
             secrets: { huggingface: { token: huggingfaceToken } },
+            tolerations,
         };
     }
 
     private createModelServers(images: ModelImages): Record<string, object> {
-        const servers: Record<string, object> = {
-            OLlama: { images: { 'amd-gpu': images.ollama } },
-        };
-        if (images.llamacpp) {
-            servers.LlamaCpp = { images: { 'amd-gpu': images.llamacpp } };
+        const servers: Record<string, object> = {};
+        for (const engine of modelEngineKeys) {
+            const engineImages = images[engine];
+            if (!engineImages) continue;
+            servers[modelEngineNames[engine]] = {
+                images: Object.fromEntries(
+                    Object.entries(engineImages).map(([gpu, image]) => [
+                        `${gpu}-gpu`,
+                        image,
+                    ]),
+                ),
+            };
         }
-        if (images.vllm) servers.VLLM = { images: { 'amd-gpu': images.vllm } };
         return servers;
     }
 }
