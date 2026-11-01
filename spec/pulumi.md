@@ -42,14 +42,31 @@ backends.
 
 ## Complex config values
 
-Prefer YAML objects over JSON strings for structured config. `pulumi config set
---path` writes a readable object; `pulumi config --json` exposes it as
-`objectValue`, while a value set as a string appears under `value`. Scripts that
+Stack config (`Pulumi.<stack>.yaml`) supports YAML objects: `pulumi config set
+--path` writes a readable object, and `pulumi config --json` exposes it as
+`objectValue`. A value written as a string appears under `value`. Scripts that
 read config should handle both:
 
 ```jq
 ($config.objectValue // ($config.value // "{}" | fromjson)) as $nodes
 ```
+
+Project config (`Pulumi.yaml`) only accepts scalar values; the schema rejects
+object defaults. For a complex default, use a YAML block scalar and parse it in
+the component:
+
+```yaml
+kubeai:images: |
+    ollama:
+        amd: ollama/ollama:0.40.12-rocm
+        nvidia: ollama/ollama:0.40.12
+```
+
+`pulumi.Config.getObject()` parses stack objects and JSON strings, but throws on
+a YAML block string. Read it with `config.get()` and `yaml.parse()` as a
+fallback; the component still accepts a stack-config object override. Add `yaml`
+to the stack's dependencies when using this. A stack override replaces the whole
+project default — there is no deep merge.
 
 ## Targeted updates
 

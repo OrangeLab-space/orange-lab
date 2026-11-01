@@ -46,6 +46,21 @@ is the idiomatic fully-qualified form; the repo uses the existing
 `orangelab/<key>` prefix. Keep one convention; migrate all keys together if that
 changes.
 
+## Applying tolerations
+
+`<app>:tolerations` is read by the library's container, database and
+init-container helpers. It is **not** injected into Helm charts, custom
+resources, or raw Jobs/Pods created by a component. Pass it explicitly to chart
+values, resource profiles and pod specs:
+
+- Helm chart: `tolerations: this.app.nodes.getTolerations()` in the values.
+- Raw Job/DaemonSet: `tolerations` on the pod spec.
+- Controller-created pods: the chart/profile field (e.g. KubeAI resource
+  profiles).
+
+A missing toleration on one of these shows up as `0/N nodes are available: ...
+had untolerated taint(s)`, even though the app-level config is set.
+
 ## Changing a taint value
 
 `kubectl taint node <node> key=old:NoSchedule-` removes all taints with that key
@@ -58,3 +73,20 @@ kubectl patch node <node> --type=merge \
 
 Then update the app tolerations and any infrastructure tolerations that must run
 on the node (Longhorn, NFD, Beszel, node-exporter, Prometheus).
+
+## SELinux and host paths
+
+On SELinux nodes a root container still gets `permission denied` writing a
+hostPath when the file label does not match. Pods created by `Application` with
+local storage get `seLinuxOptions: { type: 'spc_t' }` automatically. Raw Jobs,
+Helm-chart pods and controller-created pods that mount a hostPath or node-local
+PVC must set it themselves:
+
+```yaml
+securityContext:
+    seLinuxOptions:
+        type: spc_t
+```
+
+KubeAI's model loader Job failed with `mkdir /model/blobs: permission denied`
+on Fedora until the loader and model server pods used `spc_t`.
