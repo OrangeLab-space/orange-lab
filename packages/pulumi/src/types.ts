@@ -84,7 +84,9 @@ export interface ContainerSpec {
     name?: string;
     /**
      * Docker image (e.g., "nginx:latest").
-     * If not provided, defaults to reading from config key `<app>:image`.
+     * If not provided, `config.getImage()` selects the GPU-specific image
+     * (`<app>:<gpu>/image`) when configured, falling back to `<app>:image`.
+     * Named containers use `<app>:<name>/<gpu>/image` and `<app>:<name>/image`.
      */
     image?: string;
     ports?: ServicePort[];

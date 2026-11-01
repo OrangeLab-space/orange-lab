@@ -41,11 +41,7 @@ export class Containers {
                 ? { 'checksum/config': this.args.storage.configFilesHash }
                 : undefined,
         });
-        const image =
-            spec.image ??
-            (spec.name
-                ? config.require(this.appName, `${spec.name}/image`)
-                : config.require(this.appName, 'image'));
+        const image = spec.image ?? config.getImage(this.appName, gpu, spec.name);
         const sidecars = spec.sidecars ?? [];
         const volumeMounts = this.createVolumeMounts(spec.volumeMounts, gpu);
         const sidecarVolumeMounts = sidecars.flatMap(sidecar =>

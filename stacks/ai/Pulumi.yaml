@@ -120,7 +120,7 @@ config:
     invokeai:enabled: false
     invokeai:hostname: 'invokeai'
     invokeai:image: ghcr.io/invoke-ai/invokeai:latest
-    # invokeai:image: ghcr.io/invoke-ai/invokeai:main-rocm  # AMD ROCm
+    invokeai:amd/image: ghcr.io/invoke-ai/invokeai:main-rocm
     invokeai:storageSize: 20Gi
     invokeai:storageClass: longhorn-gpu
     invokeai:gpu: nvidia

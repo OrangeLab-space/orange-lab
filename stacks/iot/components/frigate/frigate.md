@@ -89,18 +89,18 @@ disabled placeholder camera is used so Frigate starts normally.
 ## Detectors and hardware acceleration
 
 - **USB Coral** — `frigate:coral true` mounts the Coral and configures the `edgetpu` detector.
-- **NVIDIA GPU** — `frigate:gpu nvidia` selects the `-tensorrt` image, GPU device access, and a node labelled `orangelab/gpu-nvidia`.
-- **AMD GPU** — `frigate:gpu amd` selects the `-rocm` image, GPU device access, and a node labelled `orangelab/gpu-amd`.
-- **Intel GPU** — `frigate:gpu intel` keeps the default image, mounts `/dev/dri`, schedules onto a node with an Intel GPU, and runs the OpenVINO detector on the iGPU (takes precedence over `frigate:coral`).
+- **NVIDIA GPU** — `frigate:gpu nvidia` selects `frigate:nvidia/image` (default `:stable-tensorrt`), GPU device access, and a node labelled `orangelab/gpu-nvidia`.
+- **AMD GPU** — `frigate:gpu amd` selects `frigate:amd/image` (default `:stable-rocm`), GPU device access, and a node labelled `orangelab/gpu-amd`.
+- **Intel GPU** — `frigate:gpu intel` keeps `frigate:image`, mounts `/dev/dri`, schedules onto a node with an Intel GPU, and runs the OpenVINO detector on the iGPU (takes precedence over `frigate:coral`).
 - **CPU** — fallback when no accelerator is configured.
 
-With `frigate:gpu` set the image tag is managed for you (`-tensorrt` / `-rocm` appended); to control the tag yourself, leave `frigate:gpu` unset and set the full tag in `frigate:image`.
+Frigate's NVIDIA and AMD builds each have their own image default. Override `frigate:nvidia/image` or `frigate:amd/image` to pin a different tag; `frigate:image` applies to CPU and Intel.
 
 For NVIDIA/AMD, object detection is configured in the Frigate UI (**Settings → System → Detectors and model**): add an **ONNX** detector (device `AUTO`) and, on the **Custom Model** tab, use path `/config/model_cache/yolo.onnx`, label map `/labelmap/coco-80.txt`, `320x320`, `rgb` / `nchw` / `float`, model type `yolo-generic`. Export the model first (see the [Frigate guide](https://docs.frigate.video/configuration/object_detectors/#onnx)) and put it in `/config/model_cache/` — Frigate loads local ONNX files only; on `-rocm` it is converted to MIGraphX on first start.
 
 ### AMD (ROCm)
 
-`frigate:gpu amd` uses the `:stable-rocm` image and mounts `/dev/kfd` / `/dev/dri`. ROCm does not officially support integrated GPUs; if it fails to initialise, override the chipset, e.g. `pulumi config set frigate:HSA_OVERRIDE_GFX_VERSION 11.0.0`.
+`frigate:gpu amd` uses `frigate:amd/image` (default `:stable-rocm`) and mounts `/dev/kfd` / `/dev/dri`. ROCm does not officially support integrated GPUs; if it fails to initialise, override the chipset, e.g. `pulumi config set frigate:HSA_OVERRIDE_GFX_VERSION 11.0.0`.
 
 ## Storage
 

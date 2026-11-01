@@ -25,9 +25,6 @@ export interface FrigateArgs {
     mqtt?: FrigateMqttConfig;
 }
 
-/** GPUs that map to a Frigate image variant. Other accelerators use the default image. */
-const IMAGE_VARIANTS: Record<string, string> = { nvidia: 'tensorrt', amd: 'rocm' };
-
 export class Frigate extends pulumi.ComponentResource {
     public readonly app: Application;
     public readonly proxySecret?: pulumi.Input<string>;
@@ -94,7 +91,6 @@ export class Frigate extends pulumi.ComponentResource {
         if (this.app.storageOnly) return;
 
         this.app.addDeployment({
-            image: this.getImage(name, gpu),
             env: { TZ: config.get(name, 'TZ') },
             envSecret: { FRIGATE_MQTT_PASSWORD: args.mqtt?.password },
             healthCheck: { httpGet: { path: '/' } },
@@ -122,18 +118,6 @@ export class Frigate extends pulumi.ComponentResource {
         } else {
             app.addStorage({ name: 'media' });
         }
-    }
-
-    /** Frigate image with the `frigate:gpu` variant appended to the tag. */
-    private getImage(name: string, gpu?: GpuType): string {
-        const image = config.require(name, 'image');
-        if (image.includes('@')) return image;
-        const tag = /:([^/:]+)$/.exec(image)?.[1];
-        const repo = tag ? image.slice(0, -(tag.length + 1)) : image;
-        const base = tag ?? 'stable';
-        const variant = gpu ? IMAGE_VARIANTS[gpu] : undefined;
-        if (!variant || base.endsWith(`-${variant}`)) return `${repo}:${base}`;
-        return `${repo}:${base}-${variant}`;
     }
 
     private createVolumeMounts(

@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import * as pulumi from '@pulumi/pulumi';
+import type { GpuType } from './types';
 
 const moduleDependencies: Record<string, string[]> = {
     data: ['cloudnative-pg', 'mariadb-operator'],
@@ -79,6 +80,16 @@ class Config {
 
     public require(appName: string, key: string): string {
         return this.getConfig(appName).require(key);
+    }
+
+    /**
+     * The app image for the configured GPU, falling back to the default image.
+     * `<app>:<gpu>/image` overrides `<app>:image` when it is configured.
+     */
+    public getImage(appName: string, gpu?: GpuType, component?: string): string {
+        const prefix = component ? `${component}/` : '';
+        const gpuImage = gpu ? this.get(appName, `${prefix}${gpu}/image`) : undefined;
+        return gpuImage ?? this.require(appName, `${prefix}image`);
     }
 
     public getSecret(appName: string, key: string): pulumi.Output<string> | undefined {

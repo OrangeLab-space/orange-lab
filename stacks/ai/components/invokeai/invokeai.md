@@ -17,13 +17,14 @@ Note: Unlike _automatic1111_ and _sdnext_, it doesn't integrate with WebUI.
 ```sh
 pulumi config set invokeai:enabled true
 
-# (Optional) override image for AMD GPU
-# pulumi config set invokeai:image ghcr.io/invoke-ai/invokeai:main-rocm
-
 # (Optional) set token to access gated models
 pulumi config set invokeai:huggingfaceToken <TOKEN> --secret
 pulumi up
 ```
+
+On an AMD node, set `invokeai:gpu amd`. The ROCm image
+`ghcr.io/invoke-ai/invokeai:main-rocm` is selected from `invokeai:amd/image`
+automatically; `invokeai:image` is the CUDA/CPU image.
 
 ## Pocket ID Launcher
 

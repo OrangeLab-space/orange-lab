@@ -266,7 +266,7 @@ existing data needs a rebuild or clone. See
 
 GPU node labeling is automatic with Node Feature Discovery (NFD) enabled.
 
-Switch to ROCm image if needed:
+Set the GPU type; apps with a GPU-specific image select it automatically:
 
 ```sh
 pulumi config set ollama:gpu amd
@@ -274,6 +274,11 @@ pulumi config set ollama:gpu amd
 # component only
 pulumi config set immich:machine-learning/gpu nvidia
 ```
+
+`<app>:image` is the default image. `<app>:nvidia/image`, `<app>:amd/image` and
+`<app>:intel/image` override it for that GPU; named components use
+`<app>:<component>/<gpu>/image`. Override a GPU key only to pin a different
+image.
 
 More details at [/components/hardware/amd-gpu-operator/amd-gpu-operator.md](/components/hardware/amd-gpu-operator/amd-gpu-operator.md)
 

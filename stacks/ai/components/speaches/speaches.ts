@@ -32,8 +32,6 @@ export class Speaches extends pulumi.ComponentResource {
             );
         }
 
-        const image = config.require(name, gpu === 'nvidia' ? 'nvidia/image' : 'image');
-
         this.app = new Application(this, name);
         this.app.addLocalStorage({
             name: storageName,
@@ -69,7 +67,6 @@ export class Speaches extends pulumi.ComponentResource {
                       }),
             },
             healthCheck: { httpGet: { path: '/health' } },
-            image,
             runAsUser: 1000,
             volumeOwnerUserId: 1000,
             resources: {
