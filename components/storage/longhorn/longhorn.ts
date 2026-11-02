@@ -238,10 +238,10 @@ export class Longhorn extends pulumi.ComponentResource {
 
     private createStorageClasses() {
         new kubernetes.storage.v1.StorageClass(
-            `${this.name}-gpu-storage`,
+            `${this.name}-node-local-storage`,
             {
                 metadata: {
-                    name: `${this.name}-gpu`,
+                    name: `${this.name}-node-local`,
                     namespace: this.app.metadata.namespace,
                 },
                 allowVolumeExpansion: true,
@@ -262,10 +262,10 @@ export class Longhorn extends pulumi.ComponentResource {
             },
         );
         new kubernetes.storage.v1.StorageClass(
-            `${this.name}-large-storage`,
+            `${this.name}-single-replica-storage`,
             {
                 metadata: {
-                    name: `${this.name}-large`,
+                    name: `${this.name}-single-replica`,
                     namespace: this.app.metadata.namespace,
                 },
                 allowVolumeExpansion: true,

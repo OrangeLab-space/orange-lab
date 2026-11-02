@@ -33,7 +33,7 @@ config:
     bitcoin-core:enabled: false
     bitcoin-core:hostname: bitcoin
     bitcoin-core:storageSize: 1000Gi
-    bitcoin-core:storageClass: longhorn-large
+    bitcoin-core:storageClass: longhorn-single-replica
     # Inbound P2P. Keep true when Electrs/Mempool are enabled.
     bitcoin-core:listen: true
     # Tor sidecar: onion P2P. Requires listen=true and runAsUser. See bitcoin-core.md.
@@ -59,7 +59,7 @@ config:
     bitcoin-knots:enabled: false
     bitcoin-knots:hostname: bitcoin
     bitcoin-knots:storageSize: 1000Gi
-    bitcoin-knots:storageClass: longhorn-large
+    bitcoin-knots:storageClass: longhorn-single-replica
     bitcoin-knots:prune: 0
     # Inbound P2P. Keep true when Electrs/Mempool are enabled.
     bitcoin-knots:listen: true
@@ -84,7 +84,7 @@ config:
 
     electrs:enabled: false
     electrs:storageSize: 200Gi
-    electrs:storageClass: longhorn-large
+    electrs:storageClass: longhorn-single-replica
     electrs:hostname: electrs
     electrs:image: getumbrel/electrs:v0.11.1
 

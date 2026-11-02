@@ -97,7 +97,7 @@ Present a concise summary and ask the user to decide on:
      - Offer to create new static Longhorn volume(s) via `kubectl apply`, and also show the parameters if they prefer to create/restore them in the Longhorn UI:
        - **Name**: `<app>` (or `<app>-<component>`)
        - **Size**: chosen `storageSize` (converted to bytes in the CR spec, e.g. `1Gi` = `1073741824`, `5Gi` = `5368709120`, `10Gi` = `10737418240`, `50Gi` = `53687091200`)
-       - **Number of Replicas**: `2` (or `longhorn:replicaCount` from core stack config) by default; `1` for large volumes (`storageSize >= 500Gi` or `longhorn-large` / `longhorn-gpu` storage classes) and for reconstructible bulk data such as blockchain data or AI model caches
+       - **Number of Replicas**: `2` (or `longhorn:replicaCount` from core stack config) by default; `1` for large volumes (`storageSize >= 500Gi` or `longhorn-single-replica` / `longhorn-node-local` storage classes) and for reconstructible bulk data such as blockchain data or AI model caches
        - **Frontend**: `blockdev` (`Block Device` in UI)
        - **Data Engine**: `v1`
        - **Access Mode**: `rwo` (`ReadWriteOnce`)

@@ -419,9 +419,9 @@ pulumi up
 
 Default storage classes:
 
-- Regular applications: `longhorn`
-- GPU workloads: `longhorn-gpu`
-- Large volumes: `longhorn-large`
+- Regular applications: `longhorn` (replicated)
+- Node-local workloads (GPU models, caches): `longhorn-node-local` (1 replica, pinned to the consuming node)
+- Large volumes: `longhorn-single-replica` (1 replica, placement follows `longhorn:dataLocality`)
 
 For single node or non-Linux systems, you can use override application to use `local-path` storage class instead:
 

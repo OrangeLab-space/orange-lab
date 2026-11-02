@@ -20,7 +20,7 @@ config:
     ollama:hostname: ollama
     ollama:storageSize: 50Gi
     ollama:storageOnly: false
-    ollama:storageClass: longhorn-gpu
+    ollama:storageClass: longhorn-node-local
     # Set to 'nvidia', 'amd' or 'intel' to enable GPU support, Use '' for CPU-only mode
     ollama:gpu: nvidia
     # ollama:HSA_OVERRIDE_GFX_VERSION: "11.0.2"
@@ -136,7 +136,7 @@ config:
     invokeai:image: ghcr.io/invoke-ai/invokeai:latest
     invokeai:amd/image: ghcr.io/invoke-ai/invokeai:main-rocm
     invokeai:storageSize: 20Gi
-    invokeai:storageClass: longhorn-gpu
+    invokeai:storageClass: longhorn-node-local
     invokeai:gpu: nvidia
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     invokeai:auth/allowedGroups: admin,invokeai-admin
