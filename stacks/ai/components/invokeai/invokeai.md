@@ -12,7 +12,7 @@ Generative AI platform with a clean user interface.
 
 Note: The community edition does not support user authentication so the images you create will be visible to everyone on your Tailnet.
 
-Note: Unlike _sdnext_, it doesn't integrate with WebUI.
+Note: Unlike _ComfyUI_, it doesn't integrate with Open WebUI.
 
 ```sh
 pulumi config set invokeai:enabled true

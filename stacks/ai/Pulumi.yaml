@@ -69,15 +69,6 @@ config:
     # speaches:requiredNodeLabel: kubernetes.io/hostname=<host>
     # speaches:gpu: nvidia  # selects speaches:nvidia/image
 
-    sdnext:enabled: false
-    sdnext:hostname: 'sdnext'
-    sdnext:image: saladtechnologies/sdnext:base
-    sdnext:cliArgs: '--lowvram'
-    sdnext:storageSize: 20Gi
-    sdnext:storageOnly: false
-    sdnext:storageClass: longhorn-gpu
-    sdnext:gpu: nvidia
-
     comfyui:enabled: false
     comfyui:hostname: comfyui
     comfyui:image: yanwk/comfyui-boot:cpu

@@ -185,10 +185,10 @@ on start.
 
 ## Open WebUI
 
-When Open WebUI is enabled, ComfyUI takes precedence over SD.Next for chat
-image generation. Open WebUI runs the model file selected
-with `comfyui:modelFile` (`components/comfyui/models/flux2-klein-4b.json` by
-default), at 1024x1024, 4 steps and cfg 1.
+When Open WebUI is enabled, ComfyUI is its image generation backend. Open WebUI
+runs the model file selected with `comfyui:modelFile`
+(`components/comfyui/models/flux2-klein-4b.json` by default), at 1024x1024, 4
+steps and cfg 1.
 
 Other models need their own model file, set with `comfyui:modelFile`. See
 [Open WebUI](../open-webui/open-webui.md#image-generation).

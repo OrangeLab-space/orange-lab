@@ -6,7 +6,6 @@ import { KubeAi } from './components/kubeai/kubeai';
 import { N8n } from './components/n8n/n8n';
 import { Ollama } from './components/ollama/ollama';
 import { ImageGenerationConnection, OpenWebUI } from './components/open-webui/open-webui';
-import { SDNext } from './components/sdnext/sdnext';
 import { Speaches } from './components/speaches/speaches';
 
 const ollama = config.isEnabled('ollama') ? new Ollama('ollama') : undefined;
@@ -17,29 +16,14 @@ const agentgateway = config.isEnabled('agentgateway')
     ? new Agentgateway('agentgateway')
     : undefined;
 
-const sdnext = config.isEnabled('sdnext') ? new SDNext('sdnext') : undefined;
-
 const comfyui = config.isEnabled('comfyui') ? new ComfyUI('comfyui') : undefined;
 
-/**
- * ComfyUI and SD.Next use different APIs; SD.Next exposes the Automatic1111
- * one. Connect a single backend, in that order of preference.
- */
 function getImageGeneration(): ImageGenerationConnection | undefined {
-    if (comfyui) {
-        return {
-            engine: 'comfyui',
-            model: comfyui.model,
-            url: comfyui.app.network.clusterEndpoints.comfyui,
-        };
-    }
-    if (sdnext) {
-        return {
-            engine: 'automatic1111',
-            url: sdnext.app.network.clusterEndpoints.sdnext,
-        };
-    }
-    return undefined;
+    if (!comfyui) return undefined;
+    return {
+        model: comfyui.model,
+        url: comfyui.app.network.clusterEndpoints.comfyui,
+    };
 }
 
 const kubeAI = config.isEnabled('kubeai') ? new KubeAi('kubeai') : undefined;
@@ -62,7 +46,7 @@ const openWebUI = config.isEnabled('open-webui')
                   : undefined,
           },
           {
-              dependsOn: [agentgateway, ollama, speaches, sdnext, comfyui].filter(
+              dependsOn: [agentgateway, ollama, speaches, comfyui].filter(
                   x => x !== undefined,
               ),
           },
@@ -82,7 +66,6 @@ export const endpoints = mergeEndpointExports(
     kubeAI,
     ollama,
     openWebUI,
-    sdnext,
     speaches,
     n8n,
 );

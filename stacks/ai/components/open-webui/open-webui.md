@@ -36,8 +36,7 @@ Model backends are connected by the stack when the matching component is enabled
 
 ### Image generation
 
-[ComfyUI](../comfyui/comfyui.md) and [SD.Next](../sdnext/sdnext.md) are
-connected automatically, one at a time: ComfyUI first, then SD.Next.
+[ComfyUI](../comfyui/comfyui.md) is connected automatically when it is enabled.
 
 ```sh
 pulumi config set comfyui:enabled true

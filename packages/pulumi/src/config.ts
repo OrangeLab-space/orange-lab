@@ -196,7 +196,6 @@ class Config {
             'electrs',
             'mempool',
             'n8n',
-            'sdnext',
             'rustfs',
             'beszel',
             'invokeai',
@@ -210,8 +209,11 @@ class Config {
         }
         if (this.getBoolean('automatic1111', 'enabled') !== undefined) {
             console.warn(
-                'automatic1111:enabled is deprecated. automatic1111 was removed; use sdnext or comfyui instead.',
+                'automatic1111:enabled is deprecated. automatic1111 was removed; use comfyui instead.',
             );
+        }
+        if (this.getBoolean('sdnext', 'enabled') !== undefined) {
+            console.warn('sdnext:enabled is deprecated. sdnext was removed; use comfyui instead.');
         }
     }
 

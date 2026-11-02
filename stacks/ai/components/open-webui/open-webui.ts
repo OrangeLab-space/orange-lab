@@ -10,7 +10,6 @@ export interface SpeechConnection {
 }
 
 export interface ImageGenerationConnection {
-    engine: 'automatic1111' | 'comfyui';
     /** Model bundle with the ComfyUI workflow, model name and node mapping. */
     model?: ComfyUIModelFile;
     url: pulumi.Input<string>;
@@ -146,39 +145,28 @@ export class OpenWebUI extends pulumi.ComponentResource {
         return env;
     }
 
-    /**
-     * ComfyUI and Automatic1111 use different environment contracts. SD.Next
-     * reuses the Automatic1111 one, so it is reported as that engine.
-     */
     private getImageGenerationEnvironment(): Record<
         string,
         pulumi.Input<string> | undefined
     > {
         const imageGeneration = this.args.imageGeneration;
         if (!imageGeneration) return { ENABLE_IMAGE_GENERATION: 'False' };
-        if (imageGeneration.engine === 'comfyui') {
-            const model = imageGeneration.model;
-            if (!model) {
-                // Workflow and model are configured in Open WebUI's admin UI.
-                return {
-                    COMFYUI_BASE_URL: imageGeneration.url,
-                    ENABLE_IMAGE_GENERATION: 'True',
-                    IMAGE_GENERATION_ENGINE: 'comfyui',
-                };
-            }
+        const model = imageGeneration.model;
+        if (!model) {
+            // Workflow and model are configured in Open WebUI's admin UI.
             return {
                 COMFYUI_BASE_URL: imageGeneration.url,
-                COMFYUI_WORKFLOW: JSON.stringify(model.workflow),
-                COMFYUI_WORKFLOW_NODES: JSON.stringify(model.nodes),
                 ENABLE_IMAGE_GENERATION: 'True',
                 IMAGE_GENERATION_ENGINE: 'comfyui',
-                IMAGE_GENERATION_MODEL: model.model,
             };
         }
         return {
-            AUTOMATIC1111_BASE_URL: imageGeneration.url,
+            COMFYUI_BASE_URL: imageGeneration.url,
+            COMFYUI_WORKFLOW: JSON.stringify(model.workflow),
+            COMFYUI_WORKFLOW_NODES: JSON.stringify(model.nodes),
             ENABLE_IMAGE_GENERATION: 'True',
-            IMAGE_GENERATION_ENGINE: 'automatic1111',
+            IMAGE_GENERATION_ENGINE: 'comfyui',
+            IMAGE_GENERATION_MODEL: model.model,
         };
     }
 

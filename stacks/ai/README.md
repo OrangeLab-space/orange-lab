@@ -14,7 +14,6 @@ AI-related components for running large language models, image generation, and w
 - [ComfyUI](./components/comfyui/comfyui.md) - Image and video generation, and Open WebUI's image backend.
 - [n8n](./components/n8n/n8n.md) - Workflow automation with AI node integration.
 - [KubeAI](./components/kubeai/kubeai.md) - Private AI SDK providing OpenAI-compatible API.
-- [SDNext](./components/sdnext/sdnext.md) - Alternative Stable Diffusion WebUI (deprecated).
 
 ## Migrate from Root Stack
 
@@ -27,7 +26,7 @@ Secrets use different encryption keys so the values have to be exported first.
 Get plaintext values from the root stack:
 
 ```sh
-# copy all settings from: ollama,open-webui,invokeai,n8n,kubeai,sdnext
+# copy all settings from: ollama,open-webui,invokeai,n8n,kubeai
 
 # export secrets
 pulumi config get open-webui:WEBUI_SECRET_KEY

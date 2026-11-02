@@ -150,7 +150,6 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 - [`open-webui`](./stacks/ai/components/open-webui/open-webui.md) - Open WebUI frontend
 - [`comfyui`](./stacks/ai/components/comfyui/comfyui.md) - Image and video generation, Open WebUI image backend
 - [`kubeai`](./stacks/ai/components/kubeai/kubeai.md) - Private AI SDK for Kubernetes with OpenAI-compatible API
-- [`sdnext`](./stacks/ai/components/sdnext/sdnext.md) - (Deprecated) Stable Diffusion WebUI.
 
 [Bitcoin](./stacks/bitcoin/README.md):
 
