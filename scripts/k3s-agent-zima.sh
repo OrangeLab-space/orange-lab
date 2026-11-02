@@ -36,3 +36,6 @@ echo "curl -sfL https://get.k3s.io | sudo -E INSTALL_K3S_BIN_DIR=/opt/bin sh -s 
 echo
 echo sudo systemctl restart k3s-agent.service
 echo sudo systemctl enable k3s-agent.service --now
+echo
+echo "# After the node is Ready, apply its role labels (Pulumi and kubectl required):"
+echo "# $SCRIPT_DIR/k3s-label-node.sh $NODE_NAME"

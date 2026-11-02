@@ -214,10 +214,12 @@ pulumi config set nfd:excludeNodeLabel orangelab/alpine
 ### Node topology, labels and taints
 
 Node topology, labels and taints live in `orangelab:nodes` in the core stack
-config. The k3s install scripts read this map and pass `--node-label` /
-`--node-taint` to the installer, so add the node to the map before running
-`scripts/k3s-server.sh <node>` or `scripts/k3s-agent.sh <node>`. Re-run the
-install script after changing the map.
+config. Add the node to the map before running `scripts/k3s-server.sh <node>` or
+`scripts/k3s-agent.sh <node>`: the installer applies taints and kubelet-safe
+labels. After the node is Ready, run `scripts/k3s-label-node.sh <node>` to apply
+role labels such as `node-role.kubernetes.io/longhorn=true` through the API
+(kubelet refuses them on `--node-label`). Re-run the label script after changing
+role labels; re-run the installer after changing taints or kubelet-safe labels.
 
 ```yaml
 orangelab:nodes:

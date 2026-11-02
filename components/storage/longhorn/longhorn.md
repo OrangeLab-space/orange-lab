@@ -8,7 +8,7 @@
 | StorageClass parameters | https://longhorn.io/docs/1.8.0/references/storage-class-parameters/ |
 | Endpoints               | `https://longhorn.<domain>/`                                        |
 
-Longhorn adds permanent storage that is replicated across multiple nodes. It also supports snapshots and backups of data volumes. The nodes need to be labeled with `node-role.kubernetes.io/longhorn=true` - you need at least one. Volumes stored at `/var/lib/longhorn/`.
+Longhorn adds permanent storage that is replicated across multiple nodes. It also supports snapshots and backups of data volumes. The nodes need to be labeled with `node-role.kubernetes.io/longhorn=true` - you need at least one. Apply it with `./scripts/k3s-label-node.sh <node>` after the node joins. Volumes stored at `/var/lib/longhorn/`.
 
 ## Prerequisites (Bluefin)
 
@@ -30,6 +30,7 @@ systemctl enable iscsid.service --now
 systemctl enable iscsid.socket --now
 
 # Add the storage node to orangelab:nodes with node-role.kubernetes.io/longhorn=true
+# then apply the role labels after the node joins: ./scripts/k3s-label-node.sh <node>
 # See docs/configuration.md#node-topology-labels-and-taints
 
 # Enable module

@@ -19,6 +19,7 @@ pulumi config set prometheus:enabled true
 # (Recommended) only deploy to labeled nodes
 pulumi config set prometheus:requiredNodeLabel node-role.kubernetes.io/prometheus=true
 # Add node-role.kubernetes.io/prometheus=true to the node in orangelab:nodes
+# then apply the role labels after the node joins: ./scripts/k3s-label-node.sh <node>
 # See docs/configuration.md#node-topology-labels-and-taints
 
 # (Required) grafana "admin" password

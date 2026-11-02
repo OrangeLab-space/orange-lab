@@ -250,10 +250,13 @@ upstream handles the nftables rules.
 ## 8. Add the node to the core stack config
 
 Add the node's zone, labels and taints to `orangelab:nodes` in the core stack
-config **before** running the install script. The script reads the map and
-passes `--node-label` / `--node-taint` to k3s. Do not label or taint the node
-manually. If the node is already installed, re-run the install script after
-updating the config.
+config **before** running the install script. The installer applies taints and
+kubelet-safe labels. After the node is Ready, run
+`./scripts/k3s-label-node.sh <node>` to apply the role labels
+(`node-role.kubernetes.io/*`; kubelet refuses them on `--node-label`).
+Do not label or taint the node manually. If the node is already installed,
+re-run the label script after changing role labels, or the installer after
+changing taints or kubelet-safe labels.
 
 ```yaml
 orangelab:nodes:
@@ -265,14 +268,19 @@ orangelab:nodes:
             - orangelab/dedicated=<role>:NoSchedule
 ```
 
+```sh
+# After the node is Ready
+./scripts/k3s-label-node.sh <node>
+```
+
 A workload on a tainted node needs
 `<app>:tolerations: orangelab/dedicated=<role>:NoSchedule`; keep
 `requiredNodeLabel` to pin it. See
 [Configuration](/docs/configuration.md#node-topology-labels-and-taints).
 
 For a temporary node, remove its entry from `orangelab:nodes` so it is not
-reapplied on the next install; existing labels and taints are not removed
-automatically.
+reapplied by the next install or label run; existing labels and taints are not
+removed automatically.
 
 Do not add GPU labels manually; NFD does that.
 

@@ -10,6 +10,7 @@ Longhorn only runs on Linux. For MacOS/Windows or single-node setups, use local 
 
 ```sh
 # Add storage nodes to orangelab:nodes with node-role.kubernetes.io/longhorn=true
+# then apply the role labels after the node joins: ./scripts/k3s-label-node.sh <node>
 # See docs/configuration.md#node-topology-labels-and-taints
 
 # Enable Longhorn

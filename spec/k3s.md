@@ -7,19 +7,29 @@ Agent-facing notes for node topology, labels and taints. User-facing setup is in
 ## Source of truth
 
 Node topology, labels and taints live in `orangelab:nodes` in the core stack
-config. They are applied by the `scripts/k3s-server.sh` and
-`scripts/k3s-agent.sh` installers (plus the Alpine/Zima wrappers), which read the
-map through `scripts/node-config.sh` and pass `--node-label` / `--node-taint` to
-the k3s installer.
+config. They are applied in two steps:
+
+1. The `scripts/k3s-server.sh` and `scripts/k3s-agent.sh` installers (plus the
+   Alpine/Zima wrappers) read the map through `scripts/node-config.sh` and pass
+   taints and kubelet-safe labels to k3s as `--node-taint` / `--node-label`.
+2. After the node is Ready, `scripts/k3s-label-node.sh <node>` applies the
+   node's `node-role.kubernetes.io/*` labels through the Kubernetes API.
+
+kubelet rejects `node-role.kubernetes.io/*` labels on `--node-label` because the
+`kubernetes.io` namespace is reserved; a node must not assign itself a role.
+The API step sets them, which keeps the ROLES column in `kubectl get nodes` and
+Headlamp working. Do not pass role labels to the installer.
 
 - Do not edit `/etc/rancher/k3s/config.yaml`: a k3s uninstall wipes it.
 - Do not add a Pulumi resource or dynamic provider that patches nodes. The
-  install scripts are the single application path.
+  install and label scripts are the single application path.
 - The node must be in `orangelab:nodes` before the installer runs. A missing
   entry fails with `Node '<node>' is not defined in orangelab:nodes`; a defined
   but empty entry installs with no extra labels/taints.
-- Re-run the installer after changing the map. Removing an entry does not remove
-  labels or taints from an already-installed node.
+- Re-run `scripts/k3s-label-node.sh <node>` after changing role labels. Re-run
+  the installer after changing taints or kubelet-safe labels, so the kubelet
+  flags match. Removing an entry does not remove labels or taints from an
+  already-installed node.
 
 ## Taints, labels and tolerations
 
@@ -63,13 +73,14 @@ had untolerated taint(s)`, even though the app-level config is set.
 
 ## Changing a taint value
 
-`kubectl taint node <node> key=old:NoSchedule-` removes all taints with that key
-and effect, not just the matching value. Patch the full taints array instead:
+Update the taint in `orangelab:nodes` and re-run the node's install script
+(`scripts/k3s-server.sh <node>` or `scripts/k3s-agent.sh <node>`). kubelet
+re-applies the installer's taints on every start, so a `kubectl taint` or
+`kubectl patch` change is not persistent.
 
-```sh
-kubectl patch node <node> --type=merge \
-  -p '{"spec":{"taints":[{"key":"key","value":"new","effect":"NoSchedule"}]}}'
-```
+If you must repair a taint manually, note that
+`kubectl taint node <node> key=old:NoSchedule-` removes all taints with that key
+and effect, not just the matching value.
 
 Then update the app tolerations and any infrastructure tolerations that must run
 on the node (Longhorn, NFD, Beszel, node-exporter, Prometheus).

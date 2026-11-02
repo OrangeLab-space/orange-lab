@@ -106,7 +106,10 @@ rc-service k3s-agent status           # Alpine
 
 Node labels and taints are defined in `orangelab:nodes` in the core stack
 config. Add the node's zone, labels and taints to the map **before** running
-the install script; the script passes them to k3s. See
+the install script; the installer applies taints and kubelet-safe labels. After
+the node is Ready, run `scripts/k3s-label-node.sh <node>` to apply role labels
+such as `node-role.kubernetes.io/longhorn=true` through the API (kubelet refuses
+them on `--node-label`). See
 [Node topology, labels and taints](./configuration.md#node-topology-labels-and-taints).
 
 ```yaml

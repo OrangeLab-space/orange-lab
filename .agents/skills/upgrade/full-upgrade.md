@@ -165,7 +165,7 @@ kubectl get nodes --show-labels
 - `topology.kubernetes.io/zone=home` - for location-aware apps like home-assistant
 - GPU nodes are automatically detected and labeled by Node Feature Discovery (NFD)
 
-**If node labels need updating**, add them to `orangelab:nodes` in the core stack config and re-run the node's k3s install script (`scripts/k3s-server.sh <node>` or `scripts/k3s-agent.sh <node>`). Do not label nodes manually. See [`docs/configuration.md`](/docs/configuration.md#node-topology-labels-and-taints).
+**If node labels need updating**, add them to `orangelab:nodes` in the core stack config. Run `scripts/k3s-label-node.sh <node>` after changing role labels (they are applied through the API; kubelet refuses them on `--node-label`), or re-run the install script after changing taints or kubelet-safe labels. Do not label nodes manually. See [`docs/configuration.md`](/docs/configuration.md#node-topology-labels-and-taints).
 
 **Ask user**: "Have you updated your K3s nodes and verified labels? Continue to Step 5: Disable Apps?"
 

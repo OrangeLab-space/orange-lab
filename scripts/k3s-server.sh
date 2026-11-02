@@ -50,3 +50,6 @@ echo "curl -sfL https://get.k3s.io |  sh -s - \
 echo
 echo systemctl restart k3s.service
 echo systemctl enable k3s.service --now
+echo
+echo "# After the node is Ready, apply its role labels (Pulumi and kubectl required):"
+echo "# $SCRIPT_DIR/k3s-label-node.sh $NODE_NAME"

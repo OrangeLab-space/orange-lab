@@ -34,3 +34,6 @@ echo "curl -sfL https://get.k3s.io |  sh -s - \
 echo
 echo rc-service k3s-agent start
 echo rc-update add k3s-agent default
+echo
+echo "# After the node is Ready, apply its role labels (Pulumi and kubectl required):"
+echo "# $SCRIPT_DIR/k3s-label-node.sh $NODE_NAME"
