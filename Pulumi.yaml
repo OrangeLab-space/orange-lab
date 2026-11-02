@@ -73,8 +73,17 @@ config:
     caddy:enabled: false
     # Optional redirect for the bare domain. Unset = no redirect, everything else 404s.
     # caddy:rootRedirect: https://example.com
+    #
     # Required. The acct: URI OIDC providers query to prove domain control.
     # caddy:webfingerSubject: acct:admin@example.com
+    #
+    # Optional. NIP-05 map at /.well-known/nostr.json: name -> npub1.../hex.
+    # caddy:nip05/pubkeys:
+    #   alice: npub1...
+    #
+    # Optional. Relays for every name without its own caddy:nip05/relays entry.
+    # caddy:nip05/defaultRelays:
+    #   - wss://relay.example.com
 
     headscale:enabled: false
     headscale:image: headscale/headscale:v0.29.6

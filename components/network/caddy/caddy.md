@@ -1,9 +1,9 @@
 # Caddy (apex)
 
-|               |                                            |
-| ------------- | ------------------------------------------ |
-| Homepage      | https://caddyserver.com/                   |
-| Documentation | https://caddyserver.com/docs/              |
+|               |                               |
+| ------------- | ----------------------------- |
+| Homepage      | https://caddyserver.com/      |
+| Documentation | https://caddyserver.com/docs/ |
 
 Serves the bare custom domain (`https://example.com`) — the one name that cannot
 be a `<hostname>.example.com` subdomain.
@@ -19,11 +19,12 @@ by Caddy; the only ingress is the apex route.
 
 ## What it serves
 
-| Path                            | Response                                                              |
-| ------------------------------- | --------------------------------------------------------------------- |
-| `/.well-known/webfinger`        | WebFinger document naming the OIDC issuer (see below)                 |
-| `/robots.txt`                   | `Disallow: /` — the apex is not a site yet, keep it out of search      |
-| everything else                 | `302` to `caddy:rootRedirect`, or `404` when that is unset            |
+| Path                      | Response                                                          |
+| ------------------------- | ----------------------------------------------------------------- |
+| `/.well-known/webfinger`  | WebFinger document naming the OIDC issuer (see below)             |
+| `/.well-known/nostr.json` | NIP-05 map (see below), when `caddy:nip05/pubkeys` is set         |
+| `/robots.txt`             | `Disallow: /` — the apex is not a site yet, keep it out of search |
+| everything else           | `302` to `caddy:rootRedirect`, or `404` when that is unset        |
 
 ### WebFinger
 
@@ -36,13 +37,13 @@ curl "https://example.com/.well-known/webfinger?resource=acct:admin@example.com"
 
 ```json
 {
-  "subject": "acct:admin@example.com",
-  "links": [
-    {
-      "rel": "http://openid.net/specs/connect/1.0/issuer",
-      "href": "https://pocket.example.com"
-    }
-  ]
+    "subject": "acct:admin@example.com",
+    "links": [
+        {
+            "rel": "http://openid.net/specs/connect/1.0/issuer",
+            "href": "https://pocket.example.com"
+        }
+    ]
 }
 ```
 
@@ -53,6 +54,67 @@ configured URL rather than configured here, so the two cannot drift. Changing
 
 The response is static: the issuer is fixed, so there is nothing to compute from
 the `resource` query parameter and no need to echo it.
+
+### NIP-05
+
+[NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) maps a
+human-readable `name@example.com` handle to a Nostr public key. Clients fetch:
+
+```sh
+curl "https://example.com/.well-known/nostr.json?name=alice"
+```
+
+```json
+{
+    "names": { "alice": "…64 hex characters…" },
+    "relays": { "…64 hex characters…": ["wss://relay.example.com"] }
+}
+```
+
+The document is static: `?name=` is ignored and the whole map is returned, which
+NIP-05 permits. `names` values must be lowercase hex, so `npub1…` is accepted in
+config and converted to hex at deploy time.
+
+`_` is a reserved name meaning the domain itself: `_@example.com` is displayed
+as just `example.com`, and clients resolving a bare domain request
+`?name=_`. Every other key is a normal handle prefix. None of them are
+mailboxes — NIP-05 only points at public keys.
+
+NIP-05 attests control of the domain, not ownership of the key: events are still
+verified against the key's signature, and losing the domain lets someone else
+publish the handle.
+
+`relays` is optional. A name's own list in `caddy:nip05/relays` replaces
+`caddy:nip05/defaultRelays`; an empty list gives that name no hints.
+
+```sh
+# name -> npub1… or 64-character hex
+pulumi config set --path 'caddy:nip05/pubkeys.alice' npub1...
+
+# Optional: used for every name that has no entry of its own
+pulumi config set --path 'caddy:nip05/defaultRelays[0]' wss://relay.example.com
+
+# Optional: this name's relays (replaces the defaults); [] opts out
+pulumi config set --path 'caddy:nip05/relays.alice[0]' wss://relay.example.com
+```
+
+The same values as YAML in `Pulumi.<stack>.yaml`:
+
+```yaml
+config:
+    caddy:nip05/pubkeys:
+        alice: npub1...
+        bob: npub1...
+    caddy:nip05/relays:
+        bob:
+            - wss://relay.example.com
+    caddy:nip05/defaultRelays:
+        - wss://relay.damus.io
+```
+
+`www.example.com` serves the same document, but identifiers should use the apex
+domain, since clients fetch whatever domain the identifier names. The document
+sets `Access-Control-Allow-Origin: *` so browser-based clients can read it.
 
 ## Installation
 
@@ -69,8 +131,11 @@ pulumi config set caddy:network/public true
 pulumi config set caddy:webfingerSubject acct:admin@example.com
 
 # (Optional) Where the apex redirects. Unset means no redirect - the apex serves
-# only WebFinger and robots.txt, and everything else gets a 404.
+# only the .well-known documents and robots.txt, and everything else gets a 404.
 pulumi config set caddy:rootRedirect https://example.com
+
+# (Optional) NIP-05 names, as npub1… or 64-character hex.
+pulumi config set --path 'caddy:nip05/pubkeys.alice' npub1...
 
 pulumi up
 ```
@@ -95,6 +160,7 @@ switch to DNS-only — nothing to delete.
 dig +short example.com A @<authoritative-nameserver>       # WAN IP
 dig +short example.com AAAA @<authoritative-nameserver>    # empty
 curl "https://example.com/.well-known/webfinger?resource=acct:admin@example.com"
+curl -s https://example.com/.well-known/nostr.json | jq .   # when NIP-05 is set
 curl -sI https://www.example.com/                          # same response as the apex
 ```
 

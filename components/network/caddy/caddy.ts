@@ -7,6 +7,7 @@ import {
 import * as pulumi from '@pulumi/pulumi';
 
 import { createCaddyfile } from './caddy-config';
+import { parseNip05 } from './nip05';
 
 export interface CaddyArgs {
     oidc?: OidcProviderSettings;
@@ -20,8 +21,9 @@ export interface CaddyArgs {
  * Service. Nothing about it is reachable except through the apex route.
  *
  * What it serves today is deliberately minimal: a WebFinger document proving
- * domain control for OIDC discovery, a robots.txt that keeps the apex out of
- * search indexes, and a redirect that preserves the previous apex behaviour.
+ * domain control for OIDC discovery, an optional NIP-05 map for Nostr
+ * identifiers, a robots.txt that keeps the apex out of search indexes, and a
+ * redirect that preserves the previous apex behaviour.
  */
 export class Caddy extends pulumi.ComponentResource {
     public readonly app: Application;
@@ -69,6 +71,11 @@ export class Caddy extends pulumi.ComponentResource {
     private createConfig(
         providerBaseUrl: pulumi.Input<string | undefined>,
     ): pulumi.Output<string> {
+        const nip05 = parseNip05(
+            config.getObject(this.name, 'nip05/pubkeys'),
+            config.getObject(this.name, 'nip05/relays'),
+            config.getObject(this.name, 'nip05/defaultRelays'),
+        );
         const issuer = requireOutput(
             providerBaseUrl,
             'caddy: the WebFinger document must name the OIDC issuer, but no provider URL is available. Enable the security module (pocket) in this stack, then deploy.',
@@ -79,6 +86,7 @@ export class Caddy extends pulumi.ComponentResource {
                 issuer: url,
                 subject: config.require(this.name, 'webfingerSubject'),
                 redirect: config.get(this.name, 'rootRedirect'),
+                nip05,
             }),
         );
     }

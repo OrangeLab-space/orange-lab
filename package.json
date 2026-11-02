@@ -26,6 +26,7 @@
         "@pulumi/kubernetes": "4.34.2",
         "@pulumi/pulumi": "3.270.0",
         "@pulumi/random": "4.21.4",
+        "@scure/base": "1.2.6",
         "bcryptjs": "3.0.3"
     },
     "devDependencies": {
