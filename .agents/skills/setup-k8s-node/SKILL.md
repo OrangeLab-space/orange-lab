@@ -180,6 +180,10 @@ pulumi stack select <stack>
 ./scripts/k3s-agent.sh <node> | ssh root@<node> 'bash -s'
 ```
 
+Re-running this on an existing node rewrites its systemd unit and restarts k3s.
+Inspect the generated flags first (the installer filters role labels; see step
+8), and update one node at a time, starting with a non-critical node.
+
 The node must already be in `orangelab:nodes`; add it in step 8 before running
 this script.
 
@@ -347,6 +351,24 @@ kubectl get nodes.longhorn.io <node> -n longhorn-system
 | `KernelModulesLoaded=False`                 | Check host `lsmod`; load `dm_crypt` and `iscsi_tcp`; see step 2.                |
 | Headscale shows offline or stale duplicate  | Confirm it is the old registration, then delete by ID; see step 3.              |
 | Tailscale address changed after a restart   | Reinstall the boot guard with the current address; see step 6.                  |
+| `k3s-agent` crash-loops after reinstall     | Check `journalctl -u k3s-agent` for "failed to validate kubelet flags"; a role label was passed via `--node-label`; use `k3s-label-node.sh`. |
+
+### k3s-agent crash-loops after a reinstall
+
+If the agent does not come back, inspect the generated unit and the failure:
+
+```sh
+ssh root@<node> 'systemctl status k3s-agent --no-pager'
+ssh root@<node> 'journalctl -u k3s-agent -n 100'
+ssh root@<node> 'systemctl cat k3s-agent'
+```
+
+`failed to validate kubelet flags` plus a `node-role.kubernetes.io/*` label in
+`--node-label` means the installer emitted a flag kubelet refuses. Remove the
+flag from the unit, `systemctl daemon-reload`, and restart the agent. That edit
+is temporary; fix `orangelab:nodes`/`node-config.sh` and re-run the installer so
+the generated unit is correct. See
+[Debugging a failed agent start](/spec/k3s.md#debugging-a-failed-agent-start).
 
 ## References
 

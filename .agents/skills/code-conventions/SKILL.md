@@ -57,6 +57,9 @@ When a value from `Application` (like `this.app.debug`) is needed during chained
 
 - After editing, run `shellcheck -x` on every changed script and `bash -n` for syntax; `npm test` does not cover shell.
 - **Generator scripts**: when a script prints a script for another host, single-quote `$(...)` meant for the target and add `# shellcheck disable=SC2016 # evaluated on the target node`. Pass host-specific values as arguments; don't evaluate them on the management node.
+- **Bootstrap generators**: a generator can exit 0 while emitting a command the target rejects. The `scripts/k3s-*.sh` installers rewrite a node's systemd unit and restart k3s, so run them for every node in `orangelab:nodes` and inspect the flags before rollout.
+- **Previously inert config**: when a config key that was never consumed starts feeding a generated command or manifest, exercise it with the real stack values, not an empty/default map. Old values may be invalid for the new consumer.
+- **Kubelet reserved labels**: never pass `node-role.kubernetes.io/*` to `--node-label`; kubelet rejects the `kubernetes.io` namespace. Use `scripts/node-config.sh` / `k3s-label-node.sh` to split installer args from role labels. See `spec/k3s.md`.
 - When a shared script supports multiple providers or control planes, branch user-facing output. Never print Headscale approval commands for a Tailscale deployment; detect the control plane or print both paths.
 
 ## Providers & Control Planes

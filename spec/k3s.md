@@ -20,6 +20,11 @@ kubelet rejects `node-role.kubernetes.io/*` labels on `--node-label` because the
 The API step sets them, which keeps the ROLES column in `kubectl get nodes` and
 Headlamp working. Do not pass role labels to the installer.
 
+Taints and kubelet-safe labels stay in the installer so they are present before
+the node becomes schedulable. kubelet re-applies its flags on every start, so an
+API edit to an installer-managed label or taint is not persistent. The label
+script intentionally handles only role labels.
+
 - Do not edit `/etc/rancher/k3s/config.yaml`: a k3s uninstall wipes it.
 - Do not add a Pulumi resource or dynamic provider that patches nodes. The
   install and label scripts are the single application path.
@@ -30,6 +35,48 @@ Headlamp working. Do not pass role labels to the installer.
   the installer after changing taints or kubelet-safe labels, so the kubelet
   flags match. Removing an entry does not remove labels or taints from an
   already-installed node.
+
+## Debugging a failed agent start
+
+When `k3s-agent` is crash-looping after an install:
+
+```sh
+systemctl status k3s-agent
+journalctl -u k3s-agent -n 100 | grep -E "failed to validate kubelet flags|Error"
+systemctl cat k3s-agent
+```
+
+The journal logs the kubelet command line. Compare it with the last working
+start; a newly added flag that kubelet rejects is the usual regression. A
+`node-role.kubernetes.io/*` label in `--node-label` is the common cause because
+the `kubernetes.io` namespace is reserved.
+
+Remove the offending flag from the unit, then:
+
+```sh
+systemctl daemon-reload
+systemctl restart k3s-agent
+```
+
+A hand-edited unit is a recovery step only; the next installer run overwrites
+it. Fix `orangelab:nodes` or `node-config.sh` so the generated unit is correct,
+then re-run the installer.
+
+## Changing the installers
+
+The installers are bootstrap-critical: a bad flag prevents the agent from
+starting and takes the node out of the cluster. Before rolling out a change:
+
+1. Run the generator for every node in `orangelab:nodes`, not just the target:
+   `scripts/k3s-server.sh <node>` / `scripts/k3s-agent.sh <node>` (plus the
+   Alpine/Zima wrappers).
+2. Check the printed flags: no `--node-label=node-role.kubernetes.io/*`, taints
+   present, zone and custom labels correct.
+3. Roll out one node at a time, starting with a non-critical node, and verify
+   `kubectl get node <node>` is `Ready` before the next.
+
+Run `shellcheck` on the changed scripts after changing `node-config.sh` or the
+installers.
 
 ## Taints, labels and tolerations
 
@@ -101,3 +148,8 @@ securityContext:
 
 KubeAI's model loader Job failed with `mkdir /model/blobs: permission denied`
 on Fedora until the loader and model server pods used `spc_t`.
+
+## Secrets
+
+`scripts/k3s-agent.sh` output and `/etc/systemd/system/k3s-*.service` contain
+the cluster token. Do not paste them into chat, issues or commits.

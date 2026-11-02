@@ -139,17 +139,23 @@ cat ./scripts/k3s-agent.sh
 ```
 👉 Run these steps on your nodes (SSH required):
 
+   Update one node at a time, starting with a non-critical agent, and wait for
+   `kubectl get node <node>` to report Ready before the next. Each reinstall
+   rewrites the node's systemd unit and restarts k3s.
+
    K3s agent update (run on each agent node):
      1. SSH to agent: ssh root@<agent-node>
      2. Copy the agent script content shown above
      3. Execute it
      4. Verify: systemctl status k3s-agent.service
+     5. Apply role labels from the management node: ./scripts/k3s-label-node.sh <agent-node>
 
    K3s server update (run on your server node):
      1. SSH to server: ssh root@<server-node>
      2. Copy the server script content shown above
      3. Execute it
      4. Verify: systemctl status k3s.service
+     5. Apply role labels from the management node: ./scripts/k3s-label-node.sh <server-node>
 ```
 
 **After user confirms nodes updated, verify** by running:
@@ -166,6 +172,10 @@ kubectl get nodes --show-labels
 - GPU nodes are automatically detected and labeled by Node Feature Discovery (NFD)
 
 **If node labels need updating**, add them to `orangelab:nodes` in the core stack config. Run `scripts/k3s-label-node.sh <node>` after changing role labels (they are applied through the API; kubelet refuses them on `--node-label`), or re-run the install script after changing taints or kubelet-safe labels. Do not label nodes manually. See [`docs/configuration.md`](/docs/configuration.md#node-topology-labels-and-taints).
+
+Do not update all nodes in parallel: a failed reinstall takes that node (and its
+Longhorn replicas) out of the cluster. Verify each node is `Ready` before
+starting the next.
 
 **Ask user**: "Have you updated your K3s nodes and verified labels? Continue to Step 5: Disable Apps?"
 
