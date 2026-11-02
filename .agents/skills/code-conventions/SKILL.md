@@ -20,6 +20,10 @@ description: Use when creating or editing TypeScript code or shell scripts in th
 - Prefer standard Kubernetes conventions unless there's a specific reason to deviate (e.g. node-role labels use `true` value to match k3s `control-plane` and `master` roles)
 - Assign the `Application` straight to `this.app` and use `this.app` for the rest of the constructor. `addStorage()`, `addDeployment()` and the other chained calls return the app, so `const app = new Application(...); this.app = app;` buys nothing and splits one reference across two names. Helper functions outside the class keep `app` as a parameter — that's a different thing
 
+## Dependencies
+
+- Pin exact versions (`npm install --save-exact`). The repo emits CommonJS, so check that a new package ships a CJS build — an ESM-only package can fail at `require` on older Node 22 releases.
+
 ## Components
 
 - Follow the established pattern for new modules and components
@@ -76,7 +80,7 @@ When a value from `Application` (like `this.app.debug`) is needed during chained
 - **Complex defaults in `Pulumi.yaml` are YAML block strings.** Project config rejects object values; parse the block with `yaml` and accept a stack-config object override. A stack override replaces the whole default — there is no deep merge. See `spec/pulumi.md`.
 - **Image tags are defaults too**: `<app>:image` is the default image and `<app>:<gpu>/image` overrides it for a GPU type (`nvidia`, `amd`, `intel`); named components use `<app>:<component>/<gpu>/image`. Deployments leave `image` unset and `config.getImage()` selects the key from the configured `gpu`, falling back to the default. Never hardcode image tags as constants in the component.
 - **Helpers share the runtime image key**: a loader, init or upgrade container that runs the same program as the app uses the same image key; don't add a `<purpose>/image` key just because it is a separate container.
-- **Per-entity collections are maps keyed by name**: nodes, models, providers. Don't add `<entity>Foo` scalar keys such as `<node>StorageSize`; they put installation names in `Pulumi.yaml` and cannot be validated as one collection.
+- **Per-entity collections are maps keyed by name**: nodes, models, providers. Don't add `<entity>Foo` scalar keys such as `<node>StorageSize`; they put installation names in `Pulumi.yaml` and cannot be validated as one collection. Keep a name→scalar map flat (`app:map.<name>`); nest an entry only when it genuinely has several fields.
 - **Feature-gated validation**: When a feature is conditionally enabled (e.g., `smtp/enabled`), validate its required settings only when enabled. `Pulumi.yaml` can then carry defaults for optional features without forcing users to set them
 - **Conditional requirements**: When a feature is enabled, all its related settings should typically be required — the `enabled` flag acts as the conditional gate
 - **No installation-specific values as defaults**: `Pulumi.yaml` is published to every user, so a default must be meaningful for anyone. Never put a real domain, hostname, node name, IP, account or group name in it — the developer's own values are not the generic case. Comment the key out with a `#` example value and say whether it is required; it then belongs in the user's `Pulumi.<stack>.yaml`. Required settings use `config.require()` so the deploy fails with a clear message rather than silently substituting the author's environment. Optional ones use `config.get()` and leave the feature genuinely absent when unset — do not invent a fallback URL or redirect that only makes sense for the author (e.g. `caddy:rootRedirect`). Note `pulumi config get` resolves `Pulumi.yaml` defaults, so a default left in place is active, not inert.

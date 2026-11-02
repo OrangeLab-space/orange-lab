@@ -62,6 +62,22 @@ Forward WAN `9735` to the node's `19735` (`port + 10000`, see
 requires the Traefik routing provider; Tailscale Funnel is HTTPS-only and does
 not publish raw TCP.
 
+## Lightning address
+
+The Hub does not serve a lightning address itself. Linking an Alby account adds
+`<user>@getalby.com`, hosted by Alby. A custom-domain address needs a separate
+LNURL-pay server on that domain that creates invoices on the Hub through NWC:
+
+- [Thor](https://github.com/yfaming/thor) — Rust + NWC, config file, no database
+  (no official image).
+- [LNbits](https://lnbits.com) — NWC funding source and LNURLp extension.
+- [BTCPay Server](https://btcpayserver.org) — NWC through its Nostr plugin.
+
+`/.well-known/lnurlp/<name>` is dynamic — it returns a callback that creates an
+invoice per payment — so it cannot be served as a static file. NWC communicates
+over a Nostr relay; use one you control to avoid a public dependency. Receiving
+still needs inbound liquidity, like any other receive path.
+
 ## Single sign-on (Pocket ID)
 
 Alby Hub has no native OIDC. Setting `albyhub:auth pocket` protects the route
