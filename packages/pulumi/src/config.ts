@@ -177,6 +177,11 @@ class Config {
                 'mempool:db/maintenance is deprecated. Use mempool:db/disableAuth instead.',
             );
         }
+        this.assertNotConfigured(
+            'traefik',
+            'additionalCertificateDomains',
+            'traefik:additionalCertificateDomains is no longer supported. Remove it: pulumi config rm traefik:additionalCertificateDomains',
+        );
         if (this.get('tailscale', 'apiKey')) {
             console.warn('tailscale:apiKey is deprecated. Use tailscale OAuth instead.');
         }

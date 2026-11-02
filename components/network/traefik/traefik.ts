@@ -121,11 +121,6 @@ export class Traefik extends pulumi.ComponentResource {
                         },
                         websecure: {
                             port: 8443,
-                            transport: {
-                                respondingTimeouts: {
-                                    readTimeout: '30s',
-                                },
-                            },
                         },
                         publicweb: {
                             expose: { default: true },
@@ -145,11 +140,6 @@ export class Traefik extends pulumi.ComponentResource {
                             expose: { default: true },
                             exposedPort: 10443,
                             port: 10443,
-                            transport: {
-                                respondingTimeouts: {
-                                    readTimeout: '30s',
-                                },
-                            },
                         },
                     },
                     priorityClassName: 'system-cluster-critical',
