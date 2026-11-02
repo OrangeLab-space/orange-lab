@@ -11,6 +11,7 @@ AI-related components for running large language models, image generation, and w
 - [Speaches](./components/speaches/speaches.md) - Local OpenAI-compatible speech-to-text and text-to-speech for voice input and responses.
 - [Open WebUI](./components/open-webui/open-webui.md) - Web interface for LLMs with support for multiple backends.
 - [InvokeAI](./components/invokeai/invokeai.md) - Professional image generation toolkit.
+- [ComfyUI](./components/comfyui/comfyui.md) - Image and video generation, and Open WebUI's image backend.
 - [n8n](./components/n8n/n8n.md) - Workflow automation with AI node integration.
 - [KubeAI](./components/kubeai/kubeai.md) - Private AI SDK providing OpenAI-compatible API (experimental).
 - [Automatic1111](./components/automatic1111/automatic1111.md) - Stable Diffusion WebUI (deprecated).

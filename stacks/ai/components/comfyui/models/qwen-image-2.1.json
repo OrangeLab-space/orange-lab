@@ -1,0 +1,79 @@
+{
+    "model": "qwen_image_2.1_int8_convrot.safetensors",
+    "files": [
+        {
+            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+            "path": "models/diffusion_models/qwen_image_2.1_int8_convrot.safetensors"
+        },
+        {
+            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+            "path": "models/text_encoders/qwen3vl_8b_int8_convrot.safetensors"
+        },
+        {
+            "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+            "path": "models/vae/qwen_image_2.1_vae_bf16.safetensors"
+        }
+    ],
+    "nodes": [
+        { "type": "model", "node_ids": ["1"], "key": "unet_name" },
+        { "type": "prompt", "node_ids": ["4"], "key": "prompt" },
+        { "type": "seed", "node_ids": ["6"], "key": "seed" }
+    ],
+    "workflow": {
+        "1": {
+            "class_type": "UNETLoader",
+            "inputs": {
+                "unet_name": "qwen_image_2.1_int8_convrot.safetensors",
+                "weight_dtype": "default"
+            }
+        },
+        "2": {
+            "class_type": "CLIPLoader",
+            "inputs": {
+                "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+                "type": "qwen_image",
+                "device": "default"
+            }
+        },
+        "3": {
+            "class_type": "VAELoader",
+            "inputs": { "vae_name": "qwen_image_2.1_vae_bf16.safetensors" }
+        },
+        "4": {
+            "class_type": "TextEncodeQwenImage21",
+            "inputs": {
+                "clip": ["2", 0],
+                "prompt": "Prompt",
+                "negative_prompt": "",
+                "resolution": 1024
+            }
+        },
+        "5": {
+            "class_type": "EmptyLatentImage",
+            "inputs": { "width": 1024, "height": 1024, "batch_size": 1 }
+        },
+        "6": {
+            "class_type": "KSampler",
+            "inputs": {
+                "seed": 0,
+                "steps": 25,
+                "cfg": 1,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "denoise": 1,
+                "model": ["1", 0],
+                "positive": ["4", 0],
+                "negative": ["4", 1],
+                "latent_image": ["5", 0]
+            }
+        },
+        "7": {
+            "class_type": "VAEDecode",
+            "inputs": { "samples": ["6", 0], "vae": ["3", 0] }
+        },
+        "8": {
+            "class_type": "SaveImage",
+            "inputs": { "filename_prefix": "qwen-image-2.1", "images": ["7", 0] }
+        }
+    }
+}

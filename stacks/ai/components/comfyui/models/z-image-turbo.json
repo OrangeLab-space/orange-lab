@@ -1,0 +1,82 @@
+{
+    "model": "z_image_turbo_int8_convrot.safetensors",
+    "files": [
+        {
+            "url": "https://huggingface.co/Comfy-Org/Z-Image-Turbo/resolve/main/split_files/diffusion_models/z_image_turbo_int8_convrot.safetensors",
+            "path": "models/diffusion_models/z_image_turbo_int8_convrot.safetensors"
+        },
+        {
+            "url": "https://huggingface.co/Comfy-Org/Z-Image-Turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors",
+            "path": "models/text_encoders/qwen_3_4b.safetensors"
+        },
+        {
+            "url": "https://huggingface.co/Comfy-Org/Z-Image-Turbo/resolve/main/split_files/vae/ae.safetensors",
+            "path": "models/vae/ae.safetensors"
+        }
+    ],
+    "nodes": [
+        { "type": "model", "node_ids": ["1"], "key": "unet_name" },
+        { "type": "prompt", "node_ids": ["4"] },
+        { "type": "seed", "node_ids": ["8"], "key": "seed" }
+    ],
+    "workflow": {
+        "1": {
+            "class_type": "UNETLoader",
+            "inputs": {
+                "unet_name": "z_image_turbo_int8_convrot.safetensors",
+                "weight_dtype": "default"
+            }
+        },
+        "2": {
+            "class_type": "CLIPLoader",
+            "inputs": {
+                "clip_name": "qwen_3_4b.safetensors",
+                "type": "lumina2",
+                "device": "default"
+            }
+        },
+        "3": {
+            "class_type": "VAELoader",
+            "inputs": { "vae_name": "ae.safetensors" }
+        },
+        "4": {
+            "class_type": "CLIPTextEncode",
+            "inputs": { "text": "Prompt", "clip": ["2", 0] }
+        },
+        "5": {
+            "class_type": "ConditioningZeroOut",
+            "inputs": { "conditioning": ["4", 0] }
+        },
+        "6": {
+            "class_type": "EmptySD3LatentImage",
+            "inputs": { "width": 1024, "height": 1024, "batch_size": 1 }
+        },
+        "7": {
+            "class_type": "ModelSamplingAuraFlow",
+            "inputs": { "shift": 3, "model": ["1", 0] }
+        },
+        "8": {
+            "class_type": "KSampler",
+            "inputs": {
+                "seed": 0,
+                "steps": 8,
+                "cfg": 1,
+                "sampler_name": "res_multistep",
+                "scheduler": "simple",
+                "denoise": 1,
+                "model": ["7", 0],
+                "positive": ["4", 0],
+                "negative": ["5", 0],
+                "latent_image": ["6", 0]
+            }
+        },
+        "9": {
+            "class_type": "VAEDecode",
+            "inputs": { "samples": ["8", 0], "vae": ["3", 0] }
+        },
+        "10": {
+            "class_type": "SaveImage",
+            "inputs": { "filename_prefix": "z-image-turbo", "images": ["9", 0] }
+        }
+    }
+}

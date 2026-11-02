@@ -87,13 +87,39 @@ config:
     sdnext:storageClass: longhorn-gpu
     sdnext:gpu: nvidia
 
+    comfyui:enabled: false
+    comfyui:hostname: comfyui
+    comfyui:image: yanwk/comfyui-boot:cpu
+    comfyui:nvidia/image: yanwk/comfyui-boot:cu130-slim-v2
+    comfyui:amd/image: yanwk/comfyui-boot:rocm
+    comfyui:intel/image: yanwk/comfyui-boot:xpu
+    comfyui:storagePath: /srv/comfyui-models
+    # Node-local model cache. requiredNodeLabel must select the node that hosts it;
+    # moving nodes starts with an empty cache and downloads the models again.
+    # comfyui:requiredNodeLabel: kubernetes.io/hostname=<host>
+    comfyui:gpu: nvidia
+    # Extra ComfyUI CLI args, e.g. --lowvram on small GPUs.
+    # comfyui:cliArgs: '--lowvram'
+    # AMD only: override the ROCm chipset when it is not detected.
+    # comfyui:HSA_OVERRIDE_GFX_VERSION: '11.5.0'
+    #
+    # Model bundle Open WebUI runs: a JSON file with the ComfyUI API workflow,
+    # model name, node mapping and files to download. Bundled examples live in
+    # components/comfyui/models; relative paths resolve from stacks/ai.
+    comfyui:modelFile: components/comfyui/models/flux2-klein-4b.json
+    # Other bundled models: replace the line above with one of these.
+    #   z-image-turbo.json     Z-Image Turbo, 8 steps, ~41s warm
+    #   qwen-image-2.1.json    Qwen-Image 2.1, 25 steps, stronger text rendering
+    #   flux1-dev.json         Flux.1 dev fp8, 20 steps, minutes on integrated
+    #                          GPUs; also set comfyui:cliArgs to --fp8_e4m3fn-unet
+
     open-webui:enabled: false
     open-webui:hostname: webui
     open-webui:storageSize: 5Gi
     open-webui:DEFAULT_USER_ROLE: user
     # true stores admin-UI config changes in the volume; false keeps Pulumi settings authoritative
     open-webui:ENABLE_PERSISTENT_CONFIG: false
-    open-webui:image: ghcr.io/open-webui/open-webui:main-slim
+    open-webui:image: ghcr.io/open-webui/open-webui:v0.12.5-slim
     # Model backends are configured in the Admin UI. When agentgateway is enabled,
     # its OpenAI-compatible endpoint is connected automatically.
     # Pocket ID groups allowed to sign in (unset = unrestricted)

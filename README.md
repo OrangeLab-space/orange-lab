@@ -148,6 +148,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 - [`n8n`](./stacks/ai/components/n8n/n8n.md) - AI workflow automation
 - [`ollama`](./stacks/ai/components/ollama/ollama.md) - local large language models
 - [`open-webui`](./stacks/ai/components/open-webui/open-webui.md) - Open WebUI frontend
+- [`comfyui`](./stacks/ai/components/comfyui/comfyui.md) - Image and video generation, Open WebUI image backend
 - [`kubeai`](./stacks/ai/components/kubeai/kubeai.md) - (Experimental) Private AI SDK for Kubernetes with OpenAI-compatible API
 - [`automatic1111`](./stacks/ai/components/automatic1111/automatic1111.md) - (Deprecated) Stable Diffusion WebUI.
 - [`sdnext`](./stacks/ai/components/sdnext/sdnext.md) - (Deprecated) Stable Diffusion WebUI.
