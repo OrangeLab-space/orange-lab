@@ -36,10 +36,8 @@ Model backends are connected by the stack when the matching component is enabled
 
 ### Image generation
 
-[ComfyUI](../comfyui/comfyui.md), [SD.Next](../sdnext/sdnext.md) and
-[Automatic1111](../automatic1111/automatic1111.md) are connected automatically,
-one at a time: ComfyUI first, then SD.Next, then Automatic1111. SD.Next exposes
-the Automatic1111 API, so only one of the two is used.
+[ComfyUI](../comfyui/comfyui.md) and [SD.Next](../sdnext/sdnext.md) are
+connected automatically, one at a time: ComfyUI first, then SD.Next.
 
 ```sh
 pulumi config set comfyui:enabled true
@@ -162,6 +160,13 @@ When OIDC is enabled:
 - The local login form, password authentication, and local signups are disabled.
 - OAuth signup remains enabled so Pocket ID users can be provisioned in Open WebUI.
 - Existing Open WebUI accounts are matched by email automatically.
+
+## Upgrades
+
+`open-webui:image` is pinned (`v0.12.5-slim` by default). Keep it pinned: a
+rolling tag such as `main-slim` lets any `pulumi up` pick up a new version, and a
+minor upgrade runs a database migration as a side effect of an unrelated change.
+Upgrade deliberately by bumping the tag and deploying that on its own.
 
 ## Backup and Restore
 

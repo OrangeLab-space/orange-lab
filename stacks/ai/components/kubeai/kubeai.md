@@ -1,4 +1,4 @@
-# KubeAI (experimental)
+# KubeAI
 
 |                |                                                                |
 | -------------- | -------------------------------------------------------------- |
@@ -11,7 +11,7 @@
 
 KubeAI provides OpenAI-compatible API to Ollama, llama.cpp, and vLLM. It allows autoscalling and more control over the models and inference engines.
 
-It's generally more useful for dedicated GPU clusters or when using an agent deployed with cloud providers. It is included here for experiments as it supports vLLM engine as an alternative to Ollama. It's faster but also uses more VRAM.
+It's generally more useful for dedicated GPU clusters or when using an agent deployed with cloud providers. It supports the vLLM engine as an alternative to Ollama; it's faster but also uses more VRAM.
 
 Models run continuously (`minReplicas: 1`). Longhorn volumes are not used; per-node models live on the host path in `kubeai:modelStoragePath`.
 

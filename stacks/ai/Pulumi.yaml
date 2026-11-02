@@ -69,15 +69,6 @@ config:
     # speaches:requiredNodeLabel: kubernetes.io/hostname=<host>
     # speaches:gpu: nvidia  # selects speaches:nvidia/image
 
-    automatic1111:enabled: false
-    automatic1111:hostname: 'automatic1111'
-    automatic1111:image: universonic/stable-diffusion-webui:full
-    automatic1111:cliArgs: '--lowvram'
-    automatic1111:storageSize: 20Gi
-    automatic1111:storageOnly: false
-    automatic1111:storageClass: longhorn-gpu
-    automatic1111:gpu: nvidia
-
     sdnext:enabled: false
     sdnext:hostname: 'sdnext'
     sdnext:image: saladtechnologies/sdnext:base

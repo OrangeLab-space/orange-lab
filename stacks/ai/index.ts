@@ -1,6 +1,5 @@
 import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import { Agentgateway } from './components/agentgateway/agentgateway';
-import { Automatic1111 } from './components/automatic1111/automatic1111';
 import { ComfyUI } from './components/comfyui/comfyui';
 import { InvokeAi } from './components/invokeai/invokeai';
 import { KubeAi } from './components/kubeai/kubeai';
@@ -18,17 +17,13 @@ const agentgateway = config.isEnabled('agentgateway')
     ? new Agentgateway('agentgateway')
     : undefined;
 
-const automatic1111 = config.isEnabled('automatic1111')
-    ? new Automatic1111('automatic1111')
-    : undefined;
-
 const sdnext = config.isEnabled('sdnext') ? new SDNext('sdnext') : undefined;
 
 const comfyui = config.isEnabled('comfyui') ? new ComfyUI('comfyui') : undefined;
 
 /**
- * ComfyUI and Automatic1111 use different APIs; SD.Next exposes the
- * Automatic1111 one. Connect a single backend, in that order of preference.
+ * ComfyUI and SD.Next use different APIs; SD.Next exposes the Automatic1111
+ * one. Connect a single backend, in that order of preference.
  */
 function getImageGeneration(): ImageGenerationConnection | undefined {
     if (comfyui) {
@@ -42,12 +37,6 @@ function getImageGeneration(): ImageGenerationConnection | undefined {
         return {
             engine: 'automatic1111',
             url: sdnext.app.network.clusterEndpoints.sdnext,
-        };
-    }
-    if (automatic1111) {
-        return {
-            engine: 'automatic1111',
-            url: automatic1111.app.network.clusterEndpoints.automatic1111,
         };
     }
     return undefined;
@@ -73,14 +62,9 @@ const openWebUI = config.isEnabled('open-webui')
                   : undefined,
           },
           {
-              dependsOn: [
-                  agentgateway,
-                  ollama,
-                  speaches,
-                  automatic1111,
-                  sdnext,
-                  comfyui,
-              ].filter(x => x !== undefined),
+              dependsOn: [agentgateway, ollama, speaches, sdnext, comfyui].filter(
+                  x => x !== undefined,
+              ),
           },
       )
     : undefined;
@@ -93,7 +77,6 @@ const n8n = config.isEnabled('n8n')
 
 export const endpoints = mergeEndpointExports(
     agentgateway,
-    automatic1111,
     comfyui,
     invokeAi,
     kubeAI,

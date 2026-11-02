@@ -56,6 +56,19 @@ pulumi config set comfyui:requiredNodeLabel kubernetes.io/hostname=<gpu-node>
 Moving ComfyUI to another node starts with an empty cache and downloads the
 model files again.
 
+## CLI args
+
+`comfyui:cliArgs` is passed to ComfyUI for every model. The value starts with
+`-`, so it needs `--` before the key:
+
+```sh
+pulumi config set -- comfyui:cliArgs --lowvram
+```
+
+`--fp8_e4m3fn-unet` is only needed for Flux.1 on a GPU with ~32 GB of VRAM.
+Leaving it set slows the other models (Z-Image by ~17 s), so remove it when
+switching back.
+
 ## Models
 
 A model file (JSON) describes everything for one model: the files to download,
@@ -172,8 +185,8 @@ on start.
 
 ## Open WebUI
 
-When Open WebUI is enabled, ComfyUI takes precedence over SD.Next and
-Automatic1111 for chat image generation. Open WebUI runs the model file selected
+When Open WebUI is enabled, ComfyUI takes precedence over SD.Next for chat
+image generation. Open WebUI runs the model file selected
 with `comfyui:modelFile` (`components/comfyui/models/flux2-klein-4b.json` by
 default), at 1024x1024, 4 steps and cfg 1.
 

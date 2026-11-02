@@ -197,7 +197,6 @@ class Config {
             'mempool',
             'n8n',
             'sdnext',
-            'automatic1111',
             'rustfs',
             'beszel',
             'invokeai',
@@ -208,6 +207,11 @@ class Config {
         }
         if (this.get('n8n', 'db/imageVersion')) {
             console.warn('n8n:db/imageVersion is deprecated. Use n8n:db/image instead.');
+        }
+        if (this.getBoolean('automatic1111', 'enabled') !== undefined) {
+            console.warn(
+                'automatic1111:enabled is deprecated. automatic1111 was removed; use sdnext or comfyui instead.',
+            );
         }
     }
 

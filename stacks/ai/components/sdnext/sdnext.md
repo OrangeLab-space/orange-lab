@@ -19,6 +19,6 @@ pulumi config set sdnext:storageOnly true
 pulumi up
 ```
 
-SD.Next is another option for image generation with more features and models. The API is compatible with `automatic1111` so if both are enabled then only SD.Next will be integrated with OpenWebUI.
+SD.Next is another option for image generation with more features and models. It exposes the Automatic1111 API, which is how Open WebUI talks to it.
 
 You can either use the website endpoint or OpenWebUI integration to generate images.

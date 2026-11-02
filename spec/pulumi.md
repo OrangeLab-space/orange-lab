@@ -51,6 +51,13 @@ read config should handle both:
 ($config.objectValue // ($config.value // "{}" | fromjson)) as $nodes
 ```
 
+A value that starts with `-` is parsed as a flag, so YAML lists and negative
+numbers need `--` before the key:
+
+```sh
+pulumi config set -- kubeai:images "$(cat images.yaml)"
+```
+
 Project config (`Pulumi.yaml`) only accepts scalar values; the schema rejects
 object defaults. For a complex default, use a YAML block scalar and parse it in
 the component:
@@ -97,6 +104,21 @@ Check for pending operations before and after:
 
 ```sh
 pulumi stack export | jq '.deployment.pending_operations | length'
+```
+
+## First deploy with slow init containers
+
+The Kubernetes provider waits 10 minutes for a Deployment to become Ready. An
+init container that downloads models or other large files can take longer, and
+the update then reports a failure such as `'<app>' timed out waiting to be
+Ready` while the download is still running.
+
+Check the init container before reacting; once it finishes the pod becomes Ready
+and a second `pulumi up` applies the rest in seconds:
+
+```sh
+kubectl -n <app> get pods
+kubectl -n <app> logs <pod> -c <init-container>
 ```
 
 ## Re-parenting resources
