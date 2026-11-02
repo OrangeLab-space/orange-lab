@@ -18,7 +18,7 @@ export class Pocket extends pulumi.ComponentResource {
         this.oidcProviderUrl = pulumi.interpolate`${httpEndpointInfo.url}/.well-known/openid-configuration`;
 
         this.app.addDeployment({
-            ports: [{ name: 'http', port: 1411 }],
+            ports: [{ name: 'http', port: 1411, public: true }],
             env: {
                 APP_URL: httpEndpointInfo.url,
                 TRUST_PROXY: 'true',

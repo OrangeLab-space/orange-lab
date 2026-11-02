@@ -92,37 +92,37 @@ pulumi up
 
 The following settings are supported by most applications in OrangeLab:
 
-| Setting                      | Description                                                                                  |
-| ---------------------------- | -------------------------------------------------------------------------------------------- |
-| `enabled`                    | Enable or disable the application                                                            |
-| `hostname`                   | Hostname for the HTTPS endpoint, used with Tailscale for access                              |
-| `routingProvider`            | Override global routing provider (`tailscale` or `traefik`) for this application             |
-| `network/public`             | Expose this application to the public internet (see [Public services](./public-services.md)) |
-| `version`                    | Lock Helm chart version to a specific release (uses latest if not specified)                 |
-| `storageOnly`                | Disable application but retain storage (useful for temporarily disabling while keeping data) |
-| `storageSize`                | Expand default storage size if needed (e.g., for large models)                               |
-| `fromVolume`                 | Attach existing Longhorn volume instead of creating new one                                  |
-| `storageClass`               | Force specific storage class used by the application                                         |
-| `preferredNodeLabel`         | Deploy to node with specified label if exists (soft constraint)                              |
-| `requiredNodeLabel`          | Deploy only to node with specified label (hard constraint)                                   |
-| `excludeNodeLabel`           | Do not deploy to nodes with specified label (hard constraint)                                |
-| `tolerations`                | Allow deployment to tainted nodes (`key=value:Effect`, comma-separated)                      |
-| `requiredVolumeLabel`        | Pin volume to node(s) it may attach to. Immutable - requires app redeploy to change          |
-| `storage/snapshotEnabled`    | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                    |
-| `storage/snapshotCron`       | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                      |
-| `storage/snapshotRetain`     | Snapshot retention (defaults to `longhorn:snapshotRetain`)                                   |
-| `storage/backupEnabled`      | Enable/disable backup participation (unset inherits `longhorn:backupAllVolumes`)             |
-| `storage/backupCron`         | Backup schedule (defaults to `longhorn:backupCron`)                                          |
-| `storage/backupRetain`       | Backup retention (defaults to `longhorn:backupRetain`)                                       |
-| `storage/backupFullInterval` | Full-backup interval (defaults to `longhorn:backupFullInterval`)                             |
-| `auth`                       | Enable OIDC authentication with the selected provider                                        |
-| `auth/clientId`              | OIDC client ID                                                                               |
-| `auth/clientSecret`          | OIDC client secret (not required by apps using a public/PKCE client)                         |
-| `auth/providerUrl`           | Override the OIDC discovery URL                                                              |
-| `auth/providerName`          | Name of the OIDC provider, used in the login button label                                    |
-| `auth/groupMap`              | App role -> Pocket ID groups, for apps with native role mapping (object)                     |
-| `auth/adminGroup`            | Pocket ID group granting the app's admin role (defaults to `<app>-admin`)                    |
-| `auth/allowedGroups`         | Comma-separated Pocket ID groups allowed to sign in; unset keeps the client unrestricted     |
+| Setting                      | Description                                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `enabled`                    | Enable or disable the application                                                                                  |
+| `hostname`                   | Hostname for the HTTPS endpoint, used with Tailscale for access                                                    |
+| `routingProvider`            | Override global routing provider (`tailscale` or `traefik`) for this application                                   |
+| `network/public`             | Gate for public exposure; publishes only ports marked `public: true` (see [Public services](./public-services.md)) |
+| `version`                    | Lock Helm chart version to a specific release (uses latest if not specified)                                       |
+| `storageOnly`                | Disable application but retain storage (useful for temporarily disabling while keeping data)                       |
+| `storageSize`                | Expand default storage size if needed (e.g., for large models)                                                     |
+| `fromVolume`                 | Attach existing Longhorn volume instead of creating new one                                                        |
+| `storageClass`               | Force specific storage class used by the application                                                               |
+| `preferredNodeLabel`         | Deploy to node with specified label if exists (soft constraint)                                                    |
+| `requiredNodeLabel`          | Deploy only to node with specified label (hard constraint)                                                         |
+| `excludeNodeLabel`           | Do not deploy to nodes with specified label (hard constraint)                                                      |
+| `tolerations`                | Allow deployment to tainted nodes (`key=value:Effect`, comma-separated)                                            |
+| `requiredVolumeLabel`        | Pin volume to node(s) it may attach to. Immutable - requires app redeploy to change                                |
+| `storage/snapshotEnabled`    | Enable snapshots (defaults to `longhorn:snapshotEnabled`)                                                          |
+| `storage/snapshotCron`       | Snapshot schedule (defaults to `longhorn:snapshotCron`)                                                            |
+| `storage/snapshotRetain`     | Snapshot retention (defaults to `longhorn:snapshotRetain`)                                                         |
+| `storage/backupEnabled`      | Enable/disable backup participation (unset inherits `longhorn:backupAllVolumes`)                                   |
+| `storage/backupCron`         | Backup schedule (defaults to `longhorn:backupCron`)                                                                |
+| `storage/backupRetain`       | Backup retention (defaults to `longhorn:backupRetain`)                                                             |
+| `storage/backupFullInterval` | Full-backup interval (defaults to `longhorn:backupFullInterval`)                                                   |
+| `auth`                       | Enable OIDC authentication with the selected provider                                                              |
+| `auth/clientId`              | OIDC client ID                                                                                                     |
+| `auth/clientSecret`          | OIDC client secret (not required by apps using a public/PKCE client)                                               |
+| `auth/providerUrl`           | Override the OIDC discovery URL                                                                                    |
+| `auth/providerName`          | Name of the OIDC provider, used in the login button label                                                          |
+| `auth/groupMap`              | App role -> Pocket ID groups, for apps with native role mapping (object)                                           |
+| `auth/adminGroup`            | Pocket ID group granting the app's admin role (defaults to `<app>-admin`)                                          |
+| `auth/allowedGroups`         | Comma-separated Pocket ID groups allowed to sign in; unset keeps the client unrestricted                           |
 
 The `storage/*` keys can also be prefixed with a component/volume name, e.g.
 `nextcloud:data/storage/backupEnabled`. Component values override app-level
@@ -155,7 +155,8 @@ When using `tailscale`, ensure `tailscale:tailnet` is set.
 
 ### Public exposure
 
-Applications are private by default. To reach one from the public internet:
+Applications are private by default. To reach one from the public internet,
+enable the gate — only ports the component marks `public: true` are published:
 
 ```sh
 pulumi config set <app>:network/public true
@@ -163,10 +164,10 @@ pulumi up
 ```
 
 Under **Traefik**, this adds a second route under the application's normal
-`<app>.<domain>` name; under **Tailscale**, it enables
+`<app>.<domain>` name for each marked HTTP port; under **Tailscale**, it enables
 [Tailscale Funnel](../components/network/tailscale/tailscale.md#public-exposure-with-funnel)
-on the existing `<app>.<tailnet>.ts.net` name. Turning it off removes the public
-route; the private name is unaffected.
+on the marked HTTP ports. Turning it off removes the public routes; the private
+names are unaffected.
 
 Public exposure is optional. The recommended setups require it only for
 Headscale, Pocket ID and, with Tailscale + Pocket ID, Caddy's WebFinger endpoint.

@@ -1,5 +1,6 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
+import assert from 'node:assert';
 import { config } from './config';
 import { TailscaleNetwork } from './network-tailscale';
 import { TraefikNetwork } from './network-traefik';
@@ -148,6 +149,13 @@ export class Network {
         const ports = spec.ports ?? [];
         if (ports.length === 0) return;
 
+        ports.forEach(port => {
+            assert(
+                !(port.private && port.public),
+                `${this.appName}: port '${port.name}' cannot be both private and public.`,
+            );
+        });
+
         const service = this.createClusterService({
             component: spec.name,
             ports,
@@ -165,6 +173,19 @@ export class Network {
         service: kubernetes.core.v1.Service,
         ports: ServicePort[],
     ) {
+        const routableHttp = ports.filter(
+            p => !p.private && (!p.protocol || p.protocol === 'http'),
+        );
+        if (
+            this.publiclyExposed &&
+            routableHttp.length > 0 &&
+            !routableHttp.some(p => p.public)
+        ) {
+            void pulumi.log.warn(
+                `${this.appName}: network/public is set but no HTTP port is marked public; its HTTP routes stay private.`,
+            );
+        }
+
         const publicPorts = ports.filter(p => !p.private);
         if (publicPorts.length === 0) return;
 

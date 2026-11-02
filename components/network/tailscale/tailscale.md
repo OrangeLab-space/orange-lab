@@ -38,11 +38,11 @@ store it somewhere safe.
 
 Then sign up at <https://login.tailscale.com/start/oidc>:
 
-| Field | Value |
-| ----- | ----- |
+| Field         | Value                                        |
+| ------------- | -------------------------------------------- |
 | Email address | your admin address, e.g. `admin@example.com` |
-| Client ID | printed by the script |
-| Client secret | printed by the script |
+| Client ID     | printed by the script                        |
+| Client secret | printed by the script                        |
 
 Tailscale reads the issuer URL from your WebFinger endpoint - click **Get OIDC
 Issuer** and it should populate with your Pocket ID URL.
@@ -72,8 +72,9 @@ Public exposure is optional; see [Public services](../../../docs/public-services
 for when it is required and the Traefik alternatives.
 
 When Tailscale is the routing provider, `<app>:network/public: true` enables
-[Tailscale Funnel](https://tailscale.com/kb/1223/tailscale-funnel) on that app's
-ingress by adding the `tailscale.com/funnel: "true"` annotation.
+[Tailscale Funnel](https://tailscale.com/kb/1223/tailscale-funnel) on the app's
+marked HTTP ports by adding the `tailscale.com/funnel: "true"` annotation.
+Unmarked ports stay tailnet-only.
 
 Funnel does **not** replace the `ts.net` name. The app is still served at
 `<app>.<tailnet>.ts.net` inside the tailnet; Funnel additionally publishes that

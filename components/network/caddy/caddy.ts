@@ -51,7 +51,7 @@ export class Caddy extends pulumi.ComponentResource {
             // conventional `www` too. `*.example.com` covers both.
             hostname: 'www',
             apexDomain: true,
-            ports: [{ name: 'http', port: 8080 }],
+            ports: [{ name: 'http', port: 8080, public: true }],
             healthCheck: { httpGet: { path: '/' } },
             volumeMounts: [{ name: 'config', mountPath: '/etc/caddy', readOnly: true }],
             resources: {

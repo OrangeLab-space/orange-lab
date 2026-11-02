@@ -27,9 +27,10 @@ export interface ServicePort {
     protocol?: 'http' | 'tcp' | 'tls' | 'udp';
     private?: boolean;
     /**
-     * Publish this TCP/UDP port to the public internet as well. Only takes
-     * effect together with the application's `network/public`, and only with
-     * the Traefik routing provider.
+     * Publish this port to the public internet as well. Only takes effect
+     * together with the application's `network/public`. HTTP ports get a second
+     * route on the public gateway (Traefik) or a Funnel annotation (Tailscale);
+     * TCP/UDP ports are published at `<port> + 10000` and are Traefik-only.
      */
     public?: boolean;
 }

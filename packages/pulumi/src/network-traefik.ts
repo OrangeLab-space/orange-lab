@@ -258,7 +258,7 @@ export class TraefikNetwork implements RoutingProvider {
                 servicePort: portSpec.port,
                 middlewareName: params.middlewareName,
             });
-            if (params.public) {
+            if (params.public && portSpec.public) {
                 this.createHttpBackendRoute({
                     hostnames,
                     componentName: `${portComponentName}-public`,
@@ -478,9 +478,10 @@ export class TraefikNetwork implements RoutingProvider {
                 component: params.component,
                 portName: port.name,
             });
-            const bucket = params.public
-                ? this.publicEndpoints
-                : this.privateEndpoints;
+            const bucket =
+                params.public && port.public
+                    ? this.publicEndpoints
+                    : this.privateEndpoints;
             bucket[key] = pulumi.interpolate`https://${httpEndpointInfo.hostname}`;
         });
     }

@@ -58,7 +58,12 @@ export class Rustfs extends pulumi.ComponentResource {
             volumeOwnerUserId: 10001,
             ports: [
                 { name: 'console', port: 9001, hostname: this.hostname },
-                { name: 'api', port: 9000, hostname: this.hostnameApi },
+                {
+                    name: 'api',
+                    port: 9000,
+                    hostname: this.hostnameApi,
+                    public: true,
+                },
             ],
             env: {
                 ...this.getBaseEnv(),
