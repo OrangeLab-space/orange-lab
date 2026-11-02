@@ -55,10 +55,11 @@ and signing in.
 ## Choosing a setup
 
 Two independent decisions: **`orangelab:routingProvider`** decides how a service
-is addressed, and **`<app>:network/public`** decides whether its ports marked
-`public: true` are reachable from outside the tailnet. Public access is optional:
-the recommended setups require it only for their control-plane and identity
-pieces, and applications stay private unless you opt in. Mesh VPN control planes:
+is addressed, and **`<app>:network/public`** decides whether its ports with
+`exposure: 'public'` are reachable from outside the tailnet. Public access is
+optional: the recommended setups require it only for their control-plane and
+identity pieces, and applications stay private unless you opt in. Mesh VPN
+control planes:
 
 - [Tailscale](./tailscale/tailscale.md) - hosted, no administration
 - [Headscale](./headscale/headscale.md) - self-hosted, paired with Pocket ID for
@@ -187,8 +188,8 @@ pulumi config set <app>:routingProvider tailscale
 
 Public access is optional. Applications are private by default; set
 `<app>:network/public: true` only when one must be reachable from the internet.
-It publishes only the ports the component marks `public: true`; unmarked ports
-stay private.
+It publishes only the ports the component sets `exposure: 'public'`; ports left
+at the default stay private.
 
 The recommended setups need public access only for their control-plane, identity
 and domain-verification pieces; plain Tailscale needs none.
@@ -202,8 +203,8 @@ and domain-verification pieces; plain Tailscale needs none.
 
 Under **Traefik**, public routes use the public gateway, which you expose with a
 router port forward or a VPS proxy. Under **Tailscale**, `network/public` enables
-[Funnel](./tailscale/tailscale.md#public-exposure-with-funnel) on the marked HTTP
-ports instead.
+[Funnel](./tailscale/tailscale.md#public-exposure-with-funnel) on the HTTP ports
+with `exposure: 'public'` instead.
 
 See [Public services](../../docs/public-services.md) for publishing
 applications, both gateway methods, DNS records and the TCP/UDP port offset.

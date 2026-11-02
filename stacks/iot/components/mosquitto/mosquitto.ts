@@ -45,7 +45,9 @@ export class Mosquitto extends pulumi.ComponentResource {
                     ],
                 },
             ],
-            ports: [{ name: 'mqtt', port: this.port, protocol: 'tcp', private: true }],
+            ports: [
+                { name: 'mqtt', port: this.port, protocol: 'tcp', exposure: 'internal' },
+            ],
             resources: {
                 requests: { cpu: '10m', memory: '32Mi' },
                 limits: { cpu: '500m', memory: '128Mi' },

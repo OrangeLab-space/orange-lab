@@ -126,7 +126,7 @@ export class TailscaleNetwork implements RoutingProvider {
                 httpEndpointInfo,
                 serviceName: params.serviceName,
                 servicePort: httpPort,
-                public: params.public && httpPort.public,
+                public: params.public && httpPort.exposure === 'public',
             });
         });
         this.exportHttpEndpoints(params);
@@ -202,7 +202,7 @@ export class TailscaleNetwork implements RoutingProvider {
         if (params.tcpPorts.length === 0) return undefined;
 
         assert(
-            !params.public || !params.tcpPorts.some(p => p.public),
+            !params.public || !params.tcpPorts.some(p => p.exposure === 'public'),
             `${this.appName}: public TCP ports are not supported by the tailscale routing provider.`,
         );
 
@@ -273,7 +273,7 @@ export class TailscaleNetwork implements RoutingProvider {
             // `hostname` is only the subdomain label here — the operator appends
             // the tailnet domain itself. The full name comes from `url`.
             const bucket =
-                params.public && port.public
+                params.public && port.exposure === 'public'
                     ? this.publicEndpoints
                     : this.privateEndpoints;
             bucket[key] = httpEndpointInfo.url;

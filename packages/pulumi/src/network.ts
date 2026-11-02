@@ -1,6 +1,5 @@
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import assert from 'node:assert';
 import { config } from './config';
 import { TailscaleNetwork } from './network-tailscale';
 import { TraefikNetwork } from './network-traefik';
@@ -149,58 +148,51 @@ export class Network {
         const ports = spec.ports ?? [];
         if (ports.length === 0) return;
 
-        ports.forEach(port => {
-            assert(
-                !(port.private && port.public),
-                `${this.appName}: port '${port.name}' cannot be both private and public.`,
-            );
-        });
-
         const service = this.createClusterService({
             component: spec.name,
             ports,
             clusterIP: spec.clusterIP,
         });
         this.exportClusterEndpoints({ service, component: spec.name, ports });
-        this.createPublicEndpoints(spec, service, ports);
+        this.createExposedEndpoints(spec, service, ports);
 
         Object.assign(this.privateEndpoints, this.provider.privateEndpoints);
         Object.assign(this.publicEndpoints, this.provider.publicEndpoints);
     }
 
-    private createPublicEndpoints(
+    private createExposedEndpoints(
         spec: ContainerSpec,
         service: kubernetes.core.v1.Service,
         ports: ServicePort[],
     ) {
-        const routableHttp = ports.filter(
-            p => !p.private && (!p.protocol || p.protocol === 'http'),
+        const exposedPorts = ports.filter(p => p.exposure !== 'internal');
+        if (exposedPorts.length === 0) return;
+
+        const routableHttp = exposedPorts.filter(
+            p => !p.protocol || p.protocol === 'http',
         );
         if (
             this.publiclyExposed &&
             routableHttp.length > 0 &&
-            !routableHttp.some(p => p.public)
+            !routableHttp.some(p => p.exposure === 'public')
         ) {
             void pulumi.log.warn(
                 `${this.appName}: network/public is set but no HTTP port is marked public; its HTTP routes stay private.`,
             );
         }
 
-        const publicPorts = ports.filter(p => !p.private);
-        if (publicPorts.length === 0) return;
-
         const hostname = spec.hostname ?? this.getHostname(spec.name);
-        this.createHttpEndpoints(spec, service, publicPorts, hostname);
-        this.createTcpEndpoints(spec, service, publicPorts, hostname);
+        this.createHttpEndpoints(spec, service, exposedPorts, hostname);
+        this.createTcpEndpoints(spec, service, exposedPorts, hostname);
     }
 
     private createHttpEndpoints(
         spec: ContainerSpec,
         service: kubernetes.core.v1.Service,
-        publicPorts: ServicePort[],
+        exposedPorts: ServicePort[],
         hostname: string,
     ) {
-        const httpPorts = publicPorts.filter(p => !p.protocol || p.protocol === 'http');
+        const httpPorts = exposedPorts.filter(p => !p.protocol || p.protocol === 'http');
         if (httpPorts.length === 0) return;
 
         this.provider.createHttpEndpoints({
@@ -217,10 +209,10 @@ export class Network {
     private createTcpEndpoints(
         spec: ContainerSpec,
         service: kubernetes.core.v1.Service,
-        publicPorts: ServicePort[],
+        exposedPorts: ServicePort[],
         hostname: string,
     ) {
-        const tcpPorts = publicPorts.filter(
+        const tcpPorts = exposedPorts.filter(
             p => p.protocol === 'tcp' || p.protocol === 'tls' || p.protocol === 'udp',
         );
         if (tcpPorts.length === 0 || spec.hostNetwork) return;

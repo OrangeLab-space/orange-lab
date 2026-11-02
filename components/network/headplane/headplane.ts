@@ -75,7 +75,7 @@ export class Headplane extends pulumi.ComponentResource {
         this.app.addDeployment({
             // `private` suppresses the automatic route at `headplane.<domain>`.
             // Headplane is reached through the route below instead.
-            ports: [{ name: 'http', port: 3000, private: true }],
+            ports: [{ name: 'http', port: 3000, exposure: 'internal' }],
             // Headplane serves the health endpoint beneath its own prefix.
             healthCheck: { httpGet: { path: '/admin/healthz' } },
             volumeMounts: [

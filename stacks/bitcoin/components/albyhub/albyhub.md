@@ -48,8 +48,8 @@ By default the node is private: the UI is reachable on the tailnet and Lightning
 port `9735` is not published. Outbound channels and payments work as usual.
 
 To accept inbound channels, and announce the node so others can route to it,
-publish the Lightning port. Only `9735` is marked public — the UI port is not, so
-`network/public` never exposes the wallet:
+publish the Lightning port. Only `9735` has `exposure: 'public'` — the UI port
+stays private, so `network/public` never exposes the wallet:
 
 ```sh
 pulumi config set albyhub:network/public true

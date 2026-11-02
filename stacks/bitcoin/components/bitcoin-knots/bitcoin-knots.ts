@@ -80,9 +80,8 @@ export class BitcoinKnots extends pulumi.ComponentResource {
             ports.push({
                 name: 'p2p',
                 port: 8333,
-                private: networking.conf.privateP2p,
                 protocol: 'tcp',
-                public: true,
+                exposure: networking.conf.privateP2p ? 'internal' : 'public',
             });
         }
 

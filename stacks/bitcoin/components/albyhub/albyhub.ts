@@ -34,7 +34,7 @@ export class AlbyHub extends pulumi.ComponentResource {
                 name: 'lightning',
                 port: 9735,
                 protocol: 'tcp',
-                public: true,
+                exposure: 'public',
             });
         }
 

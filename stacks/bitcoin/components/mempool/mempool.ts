@@ -45,7 +45,7 @@ export class Mempool extends pulumi.ComponentResource {
                         name: 'http',
                         port: 8999,
                         hostname: backendHostname,
-                        private: true,
+                        exposure: 'internal',
                     },
                 ],
                 env: {

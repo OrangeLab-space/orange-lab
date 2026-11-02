@@ -44,7 +44,7 @@ export class Speaches extends pulumi.ComponentResource {
         }
 
         this.app.addDeployment({
-            ports: [{ name: 'http', port, private: true }],
+            ports: [{ name: 'http', port, exposure: 'internal' }],
             volumeMounts: [
                 {
                     name: storageName,

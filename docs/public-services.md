@@ -19,36 +19,39 @@ Under **Traefik**, publish an application with `<app>:network/public: true` and
 expose the public gateway with one of the two methods below. Under **Tailscale**,
 the same setting enables
 [Funnel](../components/network/tailscale/tailscale.md#public-exposure-with-funnel)
-on the marked HTTP ports instead.
+on the HTTP ports with `exposure: 'public'` instead.
 
 ## Publishing an application
 
 `<app>:network/public` is the application-level gate. It only publishes ports
-the component marks `public: true` in its port definition:
+whose component sets `exposure: 'public'`:
 
 ```ts
-ports: [{ name: 'http', port: 8080, public: true }];
+ports: [{ name: 'http', port: 8080, exposure: 'public' }];
 ```
 
-Components decide which ports are eligible. Setting `network/public` on an
-application whose ports are unmarked leaves it private — that is what keeps a
-wallet UI or an admin API from being published by accident.
+Every port names the furthest place it is reachable: `internal` keeps it inside
+the cluster with no route, `private` (the default) serves it on the tailnet or
+private gateway, and `public` adds the public route. Components decide which
+ports may go public. Setting `network/public` on an application whose ports stay
+at the default leaves it private — that is what keeps a wallet UI or an admin
+API from being published by accident.
 
 ```sh
 pulumi config set <app>:network/public true
 pulumi up
 ```
 
-With Traefik this adds a second route on the public gateway for each marked HTTP
+With Traefik this adds a second route on the public gateway for each public HTTP
 port and labels the namespace `orangelab.space/public`; the application keeps its
 normal `<app>.example.com` name. Turning the setting off removes the public
 routes and leaves the private ones untouched.
 
 ### Migration
 
-Before this rule, `network/public` published every non-private HTTP port. If an
-application you expose now stays private, its component has not marked the port:
-add `public: true` to the intended `ServicePort`.
+Before this rule, `network/public` published every HTTP port that was not
+`private`. If an application you expose now stays private, its component leaves
+the port at the default: set `exposure: 'public'` on the intended `ServicePort`.
 
 With Traefik, every public name needs an explicit `A` record at the WAN IP
 (router forward) or the VPS IP (proxy). The private wildcard points at a mesh
@@ -97,11 +100,11 @@ optional exit node.
 ## TCP and UDP ports
 
 The same rule applies to TCP and UDP ports: `network/public` is the
-application-level gate, and the port also needs `public: true`. Only Traefik can
-publish them:
+application-level gate, and the port also needs `exposure: 'public'`. Only
+Traefik can publish them:
 
 ```ts
-ports: [{ name: 'ssh', port: 22, protocol: 'tcp', public: true }];
+ports: [{ name: 'ssh', port: 22, protocol: 'tcp', exposure: 'public' }];
 ```
 
 The private LoadBalancer keeps the port's own number; a second public

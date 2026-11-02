@@ -73,8 +73,8 @@ for when it is required and the Traefik alternatives.
 
 When Tailscale is the routing provider, `<app>:network/public: true` enables
 [Tailscale Funnel](https://tailscale.com/kb/1223/tailscale-funnel) on the app's
-marked HTTP ports by adding the `tailscale.com/funnel: "true"` annotation.
-Unmarked ports stay tailnet-only.
+HTTP ports with `exposure: 'public'` by adding the
+`tailscale.com/funnel: "true"` annotation. Other ports stay tailnet-only.
 
 Funnel does **not** replace the `ts.net` name. The app is still served at
 `<app>.<tailnet>.ts.net` inside the tailnet; Funnel additionally publishes that

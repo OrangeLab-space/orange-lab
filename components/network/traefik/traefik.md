@@ -49,11 +49,11 @@ pulumi up
 
 By default everything Traefik serves is private — reachable only over the
 tailnet, because the wildcard DNS record points at a tailnet IP. An application
-opts into internet-facing traffic when its component marks a port `public: true`
-and the setting is enabled:
+opts into internet-facing traffic when its component sets a port's
+`exposure: 'public'` and the setting is enabled:
 
 ```ts
-ports: [{ name: 'http', port: 8080, public: true }];
+ports: [{ name: 'http', port: 8080, exposure: 'public' }];
 ```
 
 ```sh
@@ -62,9 +62,9 @@ pulumi up
 ```
 
 That labels the application's namespace `orangelab.space/public=true` and adds an
-HTTPRoute on the public gateway for each marked HTTP port, keeping the private
+HTTPRoute on the public gateway for each public HTTP port, keeping the private
 routes untouched. Removing the setting reverses all three. An application whose
-ports are unmarked stays private even with `network/public` set.
+ports are left at the default stays private even with `network/public` set.
 
 Three layers keep public and private apart:
 

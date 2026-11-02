@@ -96,11 +96,11 @@ export class Frigate extends pulumi.ComponentResource {
             healthCheck: { httpGet: { path: '/' } },
             initContainers: [this.createSeedInitContainer(name, recreateConfig)],
             ports: [
-                { name: 'http', port: 5000, private: true },
+                { name: 'http', port: 5000, exposure: 'internal' },
                 { name: 'auth', port: 8971 },
-                { name: 'rtsp', port: 8554, private: true },
-                { name: 'webrtc-tcp', port: 8555, protocol: 'tcp', private: true },
-                { name: 'webrtc-udp', port: 8555, protocol: 'udp', private: true },
+                { name: 'rtsp', port: 8554, exposure: 'internal' },
+                { name: 'webrtc-tcp', port: 8555, protocol: 'tcp', exposure: 'internal' },
+                { name: 'webrtc-udp', port: 8555, protocol: 'udp', exposure: 'internal' },
             ],
             resources: {
                 requests: { cpu: '800m', memory: '2Gi' },

@@ -25,14 +25,17 @@ export interface ServicePort {
      * - 'udp': UDP endpoint via LoadBalancer
      */
     protocol?: 'http' | 'tcp' | 'tls' | 'udp';
-    private?: boolean;
     /**
-     * Publish this port to the public internet as well. Only takes effect
-     * together with the application's `network/public`. HTTP ports get a second
-     * route on the public gateway (Traefik) or a Funnel annotation (Tailscale);
-     * TCP/UDP ports are published at `<port> + 10000` and are Traefik-only.
+     * The furthest place this port is reachable. Defaults to 'private'.
+     * - 'internal': cluster only — a ClusterIP Service, no route or load balancer
+     * - 'private': the tailnet or private gateway, plus a load balancer for
+     *   tcp/udp ports
+     * - 'public': as 'private', plus the public gateway, or a public load
+     *   balancer at `<port> + 10000` for tcp/udp. Only takes effect together
+     *   with the application's `network/public`, and tcp/udp needs the Traefik
+     *   routing provider.
      */
-    public?: boolean;
+    exposure?: 'internal' | 'private' | 'public';
 }
 
 export interface VolumeMount {

@@ -62,7 +62,7 @@ export class Rustfs extends pulumi.ComponentResource {
                     name: 'api',
                     port: 9000,
                     hostname: this.hostnameApi,
-                    public: true,
+                    exposure: 'public',
                 },
             ],
             env: {

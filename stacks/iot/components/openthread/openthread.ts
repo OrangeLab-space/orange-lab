@@ -25,7 +25,7 @@ export class OpenThreadBorderRouter extends pulumi.ComponentResource {
             },
             hostNetwork: true,
             image,
-            ports: [{ name: 'rest', port: 8081, private: true }],
+            ports: [{ name: 'rest', port: 8081, exposure: 'internal' }],
             volumeMounts: [
                 { mountPath: '/data' },
                 { mountPath: device, name: 'rcp' },

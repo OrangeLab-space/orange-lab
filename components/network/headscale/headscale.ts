@@ -101,19 +101,20 @@ export class Headscale extends pulumi.ComponentResource {
         this.app.addDeployment({
             ports: this.derp.enabled
                 ? [
-                      { name: 'http', port: 8080, public: true },
+                      { name: 'http', port: 8080, exposure: 'public' },
                       // STUN is raw UDP and no reverse proxy carries it, so it
-                      // goes straight out through a LoadBalancer port. `public`
-                      // publishes it at `<stunPort> + 10000` for the router
-                      // forward; see headscale.md.
+                      // goes straight out through a LoadBalancer port.
+                      // `exposure: 'public'` publishes it at
+                      // `<stunPort> + 10000` for the router forward; see
+                      // headscale.md.
                       {
                           name: 'stun',
                           port: this.derp.stunPort,
                           protocol: 'udp',
-                          public: true,
+                          exposure: 'public',
                       },
                   ]
-                : [{ name: 'http', port: 8080, public: true }],
+                : [{ name: 'http', port: 8080, exposure: 'public' }],
             // The STUN hostPort is opened by the cluster's own load balancer,
             // which only runs on nodes carrying this label. Staying on such a
             // node keeps the relay reachable; without it the pod would come up
