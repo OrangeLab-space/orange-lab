@@ -329,7 +329,7 @@ config:
 
     pocket:enabled: false
     pocket:hostname: pocket
-    pocket:image: pocketid/pocket-id:v2.19.1
+    pocket:image: pocketid/pocket-id:v2.19.2
     pocket:storageSize: 1Gi
     # pocket:encryptionKey:
     #   secure: ENCRYPTION_KEY
