@@ -1,4 +1,4 @@
-import { Application, config } from '@orangelab/pulumi';
+import { Application, config, ServicePort } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
 
@@ -18,20 +18,38 @@ export class AlbyHub extends pulumi.ComponentResource {
         super('orangelab:bitcoin:AlbyHub', name, args, opts);
 
         this.assertTraefikWhenProtected();
-        this.app = new Application(this, name, { oidc: { protectRoutes: true } }).addStorage();
+        this.app = new Application(this, name, {
+            oidc: { protectRoutes: true },
+        }).addStorage();
         if (this.app.storageOnly) return;
         this.createDeployment();
     }
 
     private createDeployment() {
+        const ports: ServicePort[] = [{ name: 'http', port: 8080 }];
+        if (this.app.network.publiclyExposed) {
+            // Only the Lightning P2P port is published; the UI port stays
+            // unmarked so `network/public` never exposes the wallet.
+            ports.push({
+                name: 'lightning',
+                port: 9735,
+                protocol: 'tcp',
+                public: true,
+            });
+        }
+
         this.app.addDeployment({
-            ports: [{ name: 'http', port: 8080 }],
+            ports,
             volumeMounts: [{ mountPath: '/data' }],
             env: {
                 WORK_DIR: '/data/albyhub',
                 PORT: '8080',
                 LOG_LEVEL: this.app.debug ? '5' : '4',
                 LDK_ELECTRUM_SERVER: pulumi.interpolate`tcp://${this.args.electrsUrl}`,
+                LDK_ANNOUNCEMENT_ADDRESSES: config.get(
+                    this.name,
+                    'LDK_ANNOUNCEMENT_ADDRESSES',
+                ),
             },
             resources: {
                 requests: { cpu: '100m', memory: '256Mi' },

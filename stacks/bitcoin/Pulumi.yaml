@@ -27,6 +27,8 @@ config:
     albyhub:storageSize: 5Gi
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     albyhub:auth/allowedGroups: admin,albyhub-users
+    # Public address peers use to reach the node; set with network/public=true.
+    # albyhub:LDK_ANNOUNCEMENT_ADDRESSES: <public-ip>:9735
 
     bitcoin-core:enabled: false
     bitcoin-core:hostname: bitcoin

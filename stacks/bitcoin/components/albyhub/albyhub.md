@@ -44,9 +44,23 @@ Open `https://albyhub/` and set the unlock password on first run. It protects th
 seed and is required after every restart, so keep it somewhere safe — losing it
 means losing access to the wallet.
 
-The node is private-only: the UI is reachable on the tailnet, and Lightning port
-`9735` is not published. Outbound channels and payments work as usual; inbound
-channels need a publicly reachable `9735`, which this component does not expose.
+By default the node is private: the UI is reachable on the tailnet and Lightning
+port `9735` is not published. Outbound channels and payments work as usual.
+
+To accept inbound channels, and announce the node so others can route to it,
+publish the Lightning port. Only `9735` is marked public — the UI port is not, so
+`network/public` never exposes the wallet:
+
+```sh
+pulumi config set albyhub:network/public true
+pulumi config set albyhub:LDK_ANNOUNCEMENT_ADDRESSES <public-ip>:9735
+pulumi up
+```
+
+Forward WAN `9735` to the node's `19735` (`port + 10000`, see
+[Public services](../../../../docs/public-services.md#tcp-and-udp-ports)). This
+requires the Traefik routing provider; Tailscale Funnel is HTTPS-only and does
+not publish raw TCP.
 
 ## Single sign-on (Pocket ID)
 
