@@ -32,9 +32,9 @@ export function loadComfyUIModelFile(path: string): ComfyUIModelFile {
     try {
         raw = JSON.parse(readFileSync(file, 'utf8'));
     } catch (error) {
-        // eslint-disable-next-line preserve-caught-error -- tsconfig targets es2016, which has no Error cause
         throw new Error(
             `Cannot read ComfyUI model file '${file}': ${errorMessage(error)}`,
+            { cause: error },
         );
     }
     return parseModelFile(raw, file);
