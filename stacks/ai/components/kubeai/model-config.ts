@@ -13,6 +13,11 @@ export interface ModelDefinition {
     args?: string[];
     engine: ModelEngine;
     image?: string;
+    /**
+     * Replicas kept running when idle. Set 0 to scale to zero and release the
+     * GPU; the first request then waits for the model to load again.
+     */
+    minReplicas?: number;
     name: string;
     node: string;
     source?: string;
@@ -26,7 +31,10 @@ export interface ModelNodeSpec {
     storageSize: string;
 }
 
-type ModelDefinitionFields = Pick<ModelDefinition, 'args' | 'image' | 'source' | 'url'>;
+type ModelDefinitionFields = Pick<
+    ModelDefinition,
+    'args' | 'image' | 'minReplicas' | 'source' | 'url'
+>;
 
 const engines: readonly ModelEngine[] = ['OLlama', 'LlamaCpp', 'VLLM'];
 const engineKeys: readonly ModelEngineKey[] = ['ollama', 'llamacpp', 'vllm'];
@@ -163,7 +171,7 @@ function parseDefinitionFields(
     value: Record<string, unknown>,
     path: string,
 ): ModelDefinitionFields {
-    const { image, source, url } = value;
+    const { image, minReplicas, source, url } = value;
     if (source !== undefined && typeof source !== 'string') {
         fail(`${path}.source`, 'must be a string.');
     }
@@ -173,11 +181,15 @@ function parseDefinitionFields(
     if (image !== undefined && typeof image !== 'string') {
         fail(`${path}.image`, 'must be a string.');
     }
+    if (minReplicas !== undefined && minReplicas !== 0 && minReplicas !== 1) {
+        fail(`${path}.minReplicas`, 'must be 0 or 1.');
+    }
     const args = parseArgs(value.args, path);
     return {
         ...(typeof source === 'string' ? { source } : {}),
         ...(typeof url === 'string' ? { url } : {}),
         ...(typeof image === 'string' ? { image } : {}),
+        ...(typeof minReplicas === 'number' ? { minReplicas } : {}),
         ...(args ? { args } : {}),
     };
 }

@@ -46,6 +46,13 @@ pulumi config set --path 'kubeai:modelDefinitions.<model>.source' '<ollama-model
 
 `engine` defaults to `OLlama`; use `LlamaCpp` or `VLLM` with `url`. A `modelDefinitions` entry requires a matching `kubeai:modelNodes` entry.
 
+`minReplicas` defaults to 1. Set it to 0 to scale the model to zero when idle,
+releasing its GPU; the next request waits for the model to load again.
+
+```sh
+pulumi config set --path 'kubeai:modelDefinitions.<model>.minReplicas' 0
+```
+
 ## Scheduling
 
 Model pods are pinned to their model node by hostname. On a tainted node, set

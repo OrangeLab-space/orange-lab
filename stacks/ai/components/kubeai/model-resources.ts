@@ -253,7 +253,7 @@ function modelSpec(
         features: ['TextGeneration'],
         ...(definition.image ? { image: definition.image } : {}),
         maxReplicas: 1,
-        minReplicas: 1,
+        minReplicas: definition.minReplicas ?? 1,
         resourceProfile: `${nodeResourceProfile(node)}:1`,
         url,
     };
