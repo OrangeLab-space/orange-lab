@@ -1,5 +1,6 @@
 import { Application, config, OidcAuthConfig, requireOutput } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
+import { ComfyUIModelFile } from '../comfyui/model-file';
 
 export interface SpeechConnection {
     url: pulumi.Input<string>;
@@ -8,10 +9,17 @@ export interface SpeechConnection {
     ttsVoice: string;
 }
 
+export interface ImageGenerationConnection {
+    engine: 'automatic1111' | 'comfyui';
+    /** Model bundle with the ComfyUI workflow, model name and node mapping. */
+    model?: ComfyUIModelFile;
+    url: pulumi.Input<string>;
+}
+
 export interface OpenWebUIArgs {
     agentgatewayUrl?: pulumi.Input<string>;
     agentgatewayApiKey?: pulumi.Input<string>;
-    automatic1111Url?: pulumi.Input<string>;
+    imageGeneration?: ImageGenerationConnection;
     ollamaUrl?: pulumi.Input<string>;
     speech?: SpeechConnection;
 }
@@ -42,7 +50,6 @@ export class OpenWebUI extends pulumi.ComponentResource {
             isTailscale,
             auth,
             agentgateway?.url,
-            this.args.speech,
         );
 
         this.app.addDeployment({
@@ -84,8 +91,8 @@ export class OpenWebUI extends pulumi.ComponentResource {
         isTailscale: boolean,
         auth: OidcAuthConfig | undefined,
         agentgatewayUrl: pulumi.Input<string> | undefined,
-        speech: SpeechConnection | undefined,
     ): Record<string, pulumi.Input<string> | undefined> {
+        const speech = this.args.speech;
         const env: Record<string, pulumi.Input<string> | undefined> = {
             ...(speech
                 ? {
@@ -100,13 +107,12 @@ export class OpenWebUI extends pulumi.ComponentResource {
                       AUDIO_TTS_VOICE: speech.ttsVoice,
                   }
                 : {}),
-            AUTOMATIC1111_BASE_URL: this.args.automatic1111Url,
+            ...this.getImageGenerationEnvironment(),
             BYPASS_MODEL_ACCESS_CONTROL: 'True',
             DEFAULT_MODELS: config.get(this.name, 'DEFAULT_MODELS') ?? '',
             DEFAULT_USER_ROLE: config.require(this.name, 'DEFAULT_USER_ROLE'),
             ENABLE_ADMIN_CHAT_ACCESS: 'False',
             ENABLE_EVALUATION_ARENA_MODELS: 'False',
-            ENABLE_IMAGE_GENERATION: this.args.automatic1111Url ? 'True' : 'False',
             ENABLE_LOGIN_FORM: isTailscale || auth ? 'False' : 'True',
             ENABLE_PASSWORD_AUTH: auth ? 'False' : 'True',
             ENABLE_PERSISTENT_CONFIG: config.requireBoolean(
@@ -119,7 +125,6 @@ export class OpenWebUI extends pulumi.ComponentResource {
             ENABLE_SIGNUP: auth ? 'False' : 'True',
             ENABLE_VERSION_UPDATE_CHECK: 'False',
             ENABLE_WEB_SEARCH: 'True',
-            IMAGE_GENERATION_ENGINE: 'automatic1111',
             LOG_LEVEL: this.app.debug ? 'debug' : undefined,
             OLLAMA_BASE_URLS: this.args.ollamaUrl,
             OPENAI_API_BASE_URLS: agentgatewayUrl,
@@ -139,6 +144,42 @@ export class OpenWebUI extends pulumi.ComponentResource {
         if (auth) this.addOidcEnvironment(env, auth, endpointUrl);
 
         return env;
+    }
+
+    /**
+     * ComfyUI and Automatic1111 use different environment contracts. SD.Next
+     * reuses the Automatic1111 one, so it is reported as that engine.
+     */
+    private getImageGenerationEnvironment(): Record<
+        string,
+        pulumi.Input<string> | undefined
+    > {
+        const imageGeneration = this.args.imageGeneration;
+        if (!imageGeneration) return { ENABLE_IMAGE_GENERATION: 'False' };
+        if (imageGeneration.engine === 'comfyui') {
+            const model = imageGeneration.model;
+            if (!model) {
+                // Workflow and model are configured in Open WebUI's admin UI.
+                return {
+                    COMFYUI_BASE_URL: imageGeneration.url,
+                    ENABLE_IMAGE_GENERATION: 'True',
+                    IMAGE_GENERATION_ENGINE: 'comfyui',
+                };
+            }
+            return {
+                COMFYUI_BASE_URL: imageGeneration.url,
+                COMFYUI_WORKFLOW: JSON.stringify(model.workflow),
+                COMFYUI_WORKFLOW_NODES: JSON.stringify(model.nodes),
+                ENABLE_IMAGE_GENERATION: 'True',
+                IMAGE_GENERATION_ENGINE: 'comfyui',
+                IMAGE_GENERATION_MODEL: model.model,
+            };
+        }
+        return {
+            AUTOMATIC1111_BASE_URL: imageGeneration.url,
+            ENABLE_IMAGE_GENERATION: 'True',
+            IMAGE_GENERATION_ENGINE: 'automatic1111',
+        };
     }
 
     private addTailscaleEnvironment(

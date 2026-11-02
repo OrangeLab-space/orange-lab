@@ -34,6 +34,32 @@ pulumi up
 
 Model backends are connected by the stack when the matching component is enabled. [Agentgateway](../agentgateway/agentgateway.md) and [Ollama](../ollama/ollama.md) are wired automatically; additional providers can be added in the Open WebUI admin UI.
 
+### Image generation
+
+[ComfyUI](../comfyui/comfyui.md), [SD.Next](../sdnext/sdnext.md) and
+[Automatic1111](../automatic1111/automatic1111.md) are connected automatically,
+one at a time: ComfyUI first, then SD.Next, then Automatic1111. SD.Next exposes
+the Automatic1111 API, so only one of the two is used.
+
+```sh
+pulumi config set comfyui:enabled true
+pulumi up
+```
+
+ComfyUI runs the model file selected with `comfyui:modelFile`
+(`components/comfyui/models/flux2-klein-4b.json` by default). The model comes
+from that file, which ComfyUI downloads on first start, so chat image generation
+works without further setup and the model field needs no selection.
+
+Other models, such as Flux, Qwen-Image or an SD 1.5/SDXL checkpoint, need their
+own workflow and node mapping in **Admin Settings → Images**; see
+[ComfyUI](../comfyui/comfyui.md#models-and-workflows). Persistent config must be
+enabled for a custom workflow to survive a restart.
+
+Image editing is a separate engine and is not configured by the stack. It needs
+a ComfyUI edit workflow (image input, or an instruction model such as
+Qwen-Image-Edit) set in the same admin section.
+
 ### Agentgateway
 
 When `agentgateway:enabled` is true, Open WebUI receives the gateway's in-cluster `/v1` endpoint and an `open-webui` virtual key. No model list is set in code; Open WebUI discovers the gateway's models, including virtual models such as `assistant`, `coding`, and `private-assistant`, from `/v1/models`.

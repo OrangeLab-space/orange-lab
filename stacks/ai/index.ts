@@ -6,7 +6,7 @@ import { InvokeAi } from './components/invokeai/invokeai';
 import { KubeAi } from './components/kubeai/kubeai';
 import { N8n } from './components/n8n/n8n';
 import { Ollama } from './components/ollama/ollama';
-import { OpenWebUI } from './components/open-webui/open-webui';
+import { ImageGenerationConnection, OpenWebUI } from './components/open-webui/open-webui';
 import { SDNext } from './components/sdnext/sdnext';
 import { Speaches } from './components/speaches/speaches';
 
@@ -25,6 +25,34 @@ const automatic1111 = config.isEnabled('automatic1111')
 const sdnext = config.isEnabled('sdnext') ? new SDNext('sdnext') : undefined;
 
 const comfyui = config.isEnabled('comfyui') ? new ComfyUI('comfyui') : undefined;
+
+/**
+ * ComfyUI and Automatic1111 use different APIs; SD.Next exposes the
+ * Automatic1111 one. Connect a single backend, in that order of preference.
+ */
+function getImageGeneration(): ImageGenerationConnection | undefined {
+    if (comfyui) {
+        return {
+            engine: 'comfyui',
+            model: comfyui.model,
+            url: comfyui.app.network.clusterEndpoints.comfyui,
+        };
+    }
+    if (sdnext) {
+        return {
+            engine: 'automatic1111',
+            url: sdnext.app.network.clusterEndpoints.sdnext,
+        };
+    }
+    if (automatic1111) {
+        return {
+            engine: 'automatic1111',
+            url: automatic1111.app.network.clusterEndpoints.automatic1111,
+        };
+    }
+    return undefined;
+}
+
 const kubeAI = config.isEnabled('kubeai') ? new KubeAi('kubeai') : undefined;
 
 const openWebUI = config.isEnabled('open-webui')
@@ -33,6 +61,8 @@ const openWebUI = config.isEnabled('open-webui')
           {
               agentgatewayApiKey: agentgateway?.apiKeys['open-webui'],
               agentgatewayUrl: agentgateway?.apiUrl,
+              imageGeneration: getImageGeneration(),
+              ollamaUrl: ollama?.serviceUrl,
               speech: speaches
                   ? {
                         sttModel: speaches.sttModel,
@@ -41,15 +71,16 @@ const openWebUI = config.isEnabled('open-webui')
                         url: speaches.apiUrl,
                     }
                   : undefined,
-              automatic1111Url:
-                  sdnext?.app.network.clusterEndpoints.sdnext ??
-                  automatic1111?.app.network.clusterEndpoints.automatic1111,
-              ollamaUrl: ollama?.serviceUrl,
           },
           {
-              dependsOn: [agentgateway, ollama, speaches, automatic1111, sdnext].filter(
-                  x => x !== undefined,
-              ),
+              dependsOn: [
+                  agentgateway,
+                  ollama,
+                  speaches,
+                  automatic1111,
+                  sdnext,
+                  comfyui,
+              ].filter(x => x !== undefined),
           },
       )
     : undefined;
