@@ -10,11 +10,10 @@ export interface AlertmanagerEmailArgs {
 }
 
 /**
- * Routes every alert except the Watchdog and info-level alerts to an email
- * receiver. Info alerts (and InfoInhibitor, which exists only to inhibit other
- * info alerts) are dropped: they are dashboard material, not email material.
- * The operator picks the AlertmanagerConfig up from the empty config selectors
- * and reloads Alertmanager, so no chart values are involved.
+ * Routes only critical alerts to an email receiver. Warnings and info alerts
+ * stay visible in Alertmanager and Grafana but are never emailed. The operator
+ * picks the AlertmanagerConfig up from the empty config selectors and reloads
+ * Alertmanager, so no chart values are involved.
  */
 export function createAlertmanagerEmail({
     name,
@@ -49,26 +48,14 @@ export function createAlertmanagerEmail({
                     groupBy: ['alertname', 'namespace'],
                     groupInterval: '5m',
                     groupWait: '30s',
-                    matchers: [{ matchType: '!=', name: 'alertname', value: 'Watchdog' }],
-                    receiver: 'email',
+                    receiver: 'null',
                     repeatInterval: '12h',
                     routes: [
                         {
-                            // severity=none, so the severity matcher below misses it.
                             matchers: [
-                                {
-                                    matchType: '=',
-                                    name: 'alertname',
-                                    value: 'InfoInhibitor',
-                                },
+                                { matchType: '=', name: 'severity', value: 'critical' },
                             ],
-                            receiver: 'null',
-                        },
-                        {
-                            matchers: [
-                                { matchType: '=', name: 'severity', value: 'info' },
-                            ],
-                            receiver: 'null',
+                            receiver: 'email',
                         },
                     ],
                 },
