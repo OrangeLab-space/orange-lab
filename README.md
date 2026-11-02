@@ -153,6 +153,7 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 
 [Bitcoin](./stacks/bitcoin/README.md):
 
+- [`albyhub`](./stacks/bitcoin/components/albyhub/albyhub.md) - Self-custodial Lightning wallet
 - [`bitcoin-core`](./stacks/bitcoin/components/bitcoin-core/bitcoin-core.md) - Bitcoin Core node
 - [`bitcoin-knots`](./stacks/bitcoin/components/bitcoin-knots/bitcoin-knots.md) - Bitcoin Knots node
 - [`electrs`](./stacks/bitcoin/components/electrs/electrs.md) - Electrs (Electrum) server implementation

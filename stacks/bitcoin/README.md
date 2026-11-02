@@ -6,6 +6,7 @@ Components related to Bitcoin network nodes and related services.
 
 ## Components
 
+- [Alby Hub](./components/albyhub/albyhub.md) - Self-custodial Lightning wallet with an embedded LDK node.
 - [Bitcoin Knots](./components/bitcoin-knots/bitcoin-knots.md) - A conservative fork of Bitcoin Core focused on stability and improvements.
 - [Bitcoin Core](./components/bitcoin-core/bitcoin-core.md) - The reference implementation of the Bitcoin protocol.
 - [Electrs](./components/electrs/electrs.md) - Efficient Electrum Server implementation for wallet synchronization.

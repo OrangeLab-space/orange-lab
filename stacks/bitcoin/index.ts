@@ -1,6 +1,7 @@
 import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'assert';
+import { AlbyHub } from './components/albyhub/albyhub';
 import { BitcoinCore } from './components/bitcoin-core/bitcoin-core';
 import { BitcoinKnots } from './components/bitcoin-knots/bitcoin-knots';
 import { Electrs } from './components/electrs/electrs';
@@ -58,6 +59,17 @@ if (config.isEnabled('mempool')) {
     assert(bitcoinRpcUrl, 'Bitcoin RPC must be enabled for Mempool');
 }
 
+if (config.isEnabled('albyhub')) {
+    assert(electrs, 'Electrs must be enabled for Alby Hub');
+}
+
+const albyhub =
+    config.isEnabled('albyhub') && electrs
+        ? new AlbyHub('albyhub', {
+              electrsUrl: electrs.app.network.clusterEndpoints['electrs-rpc'],
+          })
+        : undefined;
+
 const bitcoinUserPasswords = Object.fromEntries(
     Object.entries(bitcoinUsers).map(([user, password]) => [
         user,
@@ -66,6 +78,7 @@ const bitcoinUserPasswords = Object.fromEntries(
 );
 
 export const endpoints = mergeEndpointExports(
+    albyhub,
     bitcoinCore,
     bitcoinKnots,
     electrs,

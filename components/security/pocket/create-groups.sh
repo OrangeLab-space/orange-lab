@@ -110,6 +110,8 @@ app_users() {
             --friendly-name "Users - Media/Seerr" \
         --group mempool-users \
             --friendly-name "Users - Bitcoin/Mempool" \
+        --group albyhub-users \
+            --friendly-name "Users - Bitcoin/Alby Hub" \
         --group forgejo-users \
             --friendly-name "Users - Dev/Forgejo" \
         --group nextcloud-users \

@@ -1,0 +1,71 @@
+# Alby Hub
+
+|              |                                                   |
+| ------------ | ------------------------------------------------- |
+| Homepage     | https://albyhub.com                               |
+| Source code  | https://github.com/getAlby/hub                    |
+| Docker image | https://github.com/getAlby/hub/pkgs/container/hub |
+
+Alby Hub is a self-custodial Lightning wallet with an embedded LDK node. Apps
+connect to it over [NWC](https://nwc.dev/) and it keeps the wallet, channel
+state and node data in SQLite on the `albyhub` volume (`WORK_DIR=/data/albyhub`).
+
+## Prerequisites
+
+Requires a Bitcoin node ([`bitcoin-core`](../bitcoin-core/bitcoin-core.md) or
+[`bitcoin-knots`](../bitcoin-knots/bitcoin-knots.md)) and
+[`electrs`](../electrs/electrs.md). LDK uses Electrs as its chain source and
+indexes against it, so enable Electrs first and let it finish indexing.
+
+Alby Hub keeps its data on the `albyhub` Longhorn volume, mounted at `/data`. The
+volume is created dynamically by default. For a production wallet, create a
+static volume named `albyhub` and attach it, so the data survives
+disable/enable cycles:
+
+```sh
+pulumi config set albyhub:fromVolume albyhub
+```
+
+## Basic configuration
+
+```sh
+pulumi config set albyhub:enabled true
+
+# Lock version
+pulumi config set albyhub:image ghcr.io/getalby/hub:v1.24.4
+
+# Optional
+pulumi config set albyhub:storageSize 5Gi
+
+pulumi up
+```
+
+Open `https://albyhub/` and set the unlock password on first run. It protects the
+seed and is required after every restart, so keep it somewhere safe — losing it
+means losing access to the wallet.
+
+The node is private-only: the UI is reachable on the tailnet, and Lightning port
+`9735` is not published. Outbound channels and payments work as usual; inbound
+channels need a publicly reachable `9735`, which this component does not expose.
+
+## Single sign-on (Pocket ID)
+
+Alby Hub has no native OIDC. Setting `albyhub:auth pocket` protects the route
+with the shared Traefik OIDC middleware, so only allowed Pocket ID users reach
+the UI. The app still asks for its own unlock password. This requires the
+**Traefik** routing provider; with Tailscale the deploy fails instead of leaving
+the wallet unprotected.
+
+Deploy once so the endpoint exists, then from `stacks/bitcoin`:
+
+```sh
+pulumi config set albyhub:auth/allowedGroups admin,albyhub-users
+./components/albyhub/pocket-albyhub.sh
+# apply the clientId/clientSecret commands printed by the script, then:
+pulumi config set albyhub:auth pocket
+pulumi up
+```
+
+The groups must already exist in Pocket ID. Without `albyhub:auth` the script
+only registers a launcher tile in Pocket ID's App Dashboard and the UI stays
+reachable by anyone who can open its URL.

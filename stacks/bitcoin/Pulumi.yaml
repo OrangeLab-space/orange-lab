@@ -21,6 +21,13 @@ config:
     bitcoin:rpcUsers: admin,electrs,mempool
     bitcoin:whitelist: 10.42.0.0/16
 
+    albyhub:enabled: false
+    albyhub:hostname: albyhub
+    albyhub:image: ghcr.io/getalby/hub:v1.24.4
+    albyhub:storageSize: 5Gi
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    albyhub:auth/allowedGroups: admin,albyhub-users
+
     bitcoin-core:enabled: false
     bitcoin-core:hostname: bitcoin
     bitcoin-core:storageSize: 1000Gi

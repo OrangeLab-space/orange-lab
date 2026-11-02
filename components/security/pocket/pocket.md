@@ -144,6 +144,7 @@ sign-in for everyone else and hides the launcher tile from them - they cannot
 reach the tool even by opening its URL directly.
 
 - [Longhorn](../../storage/longhorn/longhorn.md) (no user management)
+- [Alby Hub](../../../stacks/bitcoin/components/albyhub/albyhub.md) (no native OIDC; own unlock password remains)
 
 Run the application's script and apply the printed `<app>:auth` commands.
 
@@ -236,7 +237,7 @@ plus its admin role, for the apps that map groups to roles.
 | Group         | Purpose                                                                                                                                                                                                                                                                                         |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `admin`       | Access to every app; carries the `rustfs_policies=consoleAdmin` and `headplane_role=admin` claims                                                                                                                                                                                               |
-| `<app>-users` | Access to a single app: `immich-users`, `jellyfin-users`, `droppedneedle-users`, `seerr-users`, `open-webui-users`, `n8n-users`, `mempool-users`, `forgejo-users`, `nextcloud-users`, `vaultwarden-users`, `rustfs-users`                                                                       |
+| `<app>-users` | Access to a single app: `immich-users`, `jellyfin-users`, `droppedneedle-users`, `seerr-users`, `open-webui-users`, `n8n-users`, `mempool-users`, `albyhub-users`, `forgejo-users`, `nextcloud-users`, `vaultwarden-users`, `rustfs-users`                                                      |
 | `<app>-admin` | Access to one app, plus its admin role where the app maps groups to roles: `technitium-admin`, `prometheus-admin`, `forgejo-admin`, `home-assistant-admin`, `frigate-admin`, `jellyfin-admin`, `rustfs-admin`, `traefik-admin`, `zot-admin`, `beszel-admin`, `longhorn-admin`, `invokeai-admin` |
 | `vpn-users`   | Access to the VPN mesh (Headscale); also a new-user default group                                                                                                                                                                                                                               |
 
