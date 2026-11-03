@@ -126,25 +126,43 @@ export class Containers {
         sidecar: SidecarSpec,
     ): kubernetes.types.input.core.v1.Container {
         return {
-            name: sidecar.name,
-            image: sidecar.image,
-            command: sidecar.command,
+            ...this.createSidecarProbes(sidecar.healthCheck),
             args: sidecar.commandArgs
-                ? pulumi
-                      .output(sidecar.commandArgs)
-                      .apply(args => args.filter(Boolean))
+                ? pulumi.output(sidecar.commandArgs).apply(args => args.filter(Boolean))
                 : undefined,
+            command: sidecar.command,
             env: this.createSidecarEnv(sidecar.env),
             envFrom: this.createEnvSecret({
                 containerName: sidecar.name,
                 secretData: sidecar.envSecret,
             }),
+            image: sidecar.image,
+            name: sidecar.name,
             resources: sidecar.resources,
             securityContext: this.createSidecarSecurityContext(
                 sidecar.runAsUser,
                 sidecar.runAsGroup,
             ),
             volumeMounts: this.createVolumeMounts(sidecar.volumeMounts),
+        };
+    }
+
+    /**
+     * Sidecars get startup and liveness probes only. A readiness probe would take
+     * the whole pod out of its Service when a helper misbehaves, so readiness
+     * stays with the main container.
+     */
+    private createSidecarProbes(healthCheck?: HealthCheck) {
+        return {
+            livenessProbe: this.createProbe(healthCheck, {
+                failureThreshold: 3,
+                periodSeconds: 30,
+                timeoutSeconds: 5,
+            }),
+            startupProbe: this.createProbe(healthCheck, {
+                failureThreshold: 30,
+                periodSeconds: 2,
+            }),
         };
     }
 
@@ -238,6 +256,7 @@ export class Containers {
     ): kubernetes.types.input.core.v1.Probe | undefined {
         if (!probe) return undefined;
         const result: Record<string, unknown> = {
+            exec: probe.exec,
             failureThreshold: probe.failureThreshold,
             httpGet: probe.httpGet ? { ...probe.httpGet, port: 'http' } : undefined,
         };

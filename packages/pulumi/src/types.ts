@@ -78,6 +78,10 @@ export interface HealthCheck {
     httpGet?: {
         path?: string;
     };
+    /** Command that exits 0 while the container is healthy. */
+    exec?: {
+        command: string[];
+    };
     failureThreshold?: number;
 }
 
@@ -158,6 +162,12 @@ export interface SidecarSpec {
     resources?: ContainerResources;
     runAsUser?: number;
     runAsGroup?: number;
+    /**
+     * Startup and liveness probes for the sidecar. No readiness probe is added:
+     * pod readiness stays with the main container, so a helper that is briefly
+     * unavailable does not remove the pod from its Service.
+     */
+    healthCheck?: HealthCheck;
 }
 
 /**
