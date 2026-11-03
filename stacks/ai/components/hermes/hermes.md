@@ -131,3 +131,26 @@ pulumi up
 # A recreated group gets a new id; update the key if that happens
 # Enabling the connector on an existing profile needs hermes:recreateConfig true
 ```
+
+The connector is two artefacts from one [upstream release][mdk]: the `wn-agent`
+binary (the transport, run as a sidecar) and `hermes-marmot-plugin` (the gateway
+platform adapter). `init/install-wn-agent.sh` installs and checksum-verifies
+both on every start, so a fresh volume needs no manual step. Installing only the
+binary leaves `platforms.marmot` configured but unregistered, and messages never
+arrive.
+
+## Plugins
+
+```sh
+# Allow-list an extra user plugin (comma-separated); unlisted ones never mount
+pulumi config set hermes:plugins/enabled reports
+```
+
+The dashboard only imports a user plugin's backend when the plugin name is in
+`plugins.enabled` — this is a deliberate code-execution gate, not a bug. An
+installed plugin that is missing from the list is still discovered in the UI but
+every one of its routes answers `404 Plugin not found`. `marmot` is added
+automatically when `hermes:marmot/enabled` is true; anything else (a report page,
+a custom adapter) has to be named here.
+
+[mdk]: https://github.com/marmot-protocol/mdk/releases

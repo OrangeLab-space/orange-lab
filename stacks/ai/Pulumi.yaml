@@ -177,6 +177,10 @@ config:
     hermes:marmot/allowAllUsers: false
     # Model served by agentgateway; requires 'hermes' in agentgateway:clients.
     # hermes:model: assistant
+    # Extra user plugins to allow-list in the dashboard (comma-separated); an
+    # installed plugin that is not listed is never mounted. 'marmot' is added
+    # automatically when marmot/enabled is true.
+    # hermes:plugins/enabled: reports
     # Proxies allowed to set X-Forwarded-* for the dashboard (Pocket ID login).
     # These are the k3s defaults; override for a cluster with custom CIDRs.
     hermes:trustedProxies: '10.42.0.0/16,10.43.0.0/16'

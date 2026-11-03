@@ -223,9 +223,20 @@ export class Hermes extends pulumi.ComponentResource {
                     extra: { home: marmot.home, socket_path: marmot.socket },
                 },
             };
-            // The CLI (hermes send, cron delivery) only registers enabled plugins.
-            settings.plugins = { enabled: ['marmot'] };
         }
+        // The dashboard refuses to mount a user plugin's backend unless it is
+        // allow-listed, so an installed-but-unlisted plugin answers every route
+        // with "Plugin not found". `marmot` is implied by its own switch; extra
+        // plugins (for example a report page) are opted into explicitly.
+        const plugins = new Set(
+            config
+                .get(this.name, 'plugins/enabled')
+                ?.split(',')
+                .map(plugin => plugin.trim())
+                .filter(Boolean),
+        );
+        if (marmot) plugins.add('marmot');
+        if (plugins.size) settings.plugins = { enabled: [...plugins] };
         const model = config.get(this.name, 'model');
         if (!model) return stringify(settings);
 
