@@ -80,7 +80,7 @@ Pulumi generates one key per client in `agentgateway:clients`. The keys are not 
 Retrieve a key in your terminal:
 
 ```sh
-pulumi stack output --show-secrets --cwd stacks/ai apps.agentgateway.apiKeys
+pulumi stack output --show-secrets --json | jq -r '.apps.agentgateway.apiKeys'
 ```
 
 Point an OpenAI-compatible client at `https://ai.<domain>/v1` with the key:
