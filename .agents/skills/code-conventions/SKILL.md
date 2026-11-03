@@ -10,6 +10,7 @@ description: Use when creating or editing TypeScript code or shell scripts in th
 - TypeScript with strict type checking. `npm test` runs tsc + eslint; eslint enforces no-`any`, `??` over `||`, optional chaining, and `_` prefix for unused variables — don't restate these in code comments or reviews
 - Prefer self-documenting code over comments; descriptive variable names and clear function signatures
 - Keep code concise — omit default values unless useful to communicate intent
+- Don't hoist a value into a module-level constant or a getter just to name it. Inline single-use values at the point of use and keep a constant near the code that reads it; indirection that sends the reader to another file is worse than a repeated literal
 - Pass dependencies through args (providers, config, metadata) rather than accessing globals (except `config.ts`)
 - camelCase for variables, functions, methods; PascalCase for classes, interfaces, type aliases
 - Group imports external packages first, then internal modules; sort alphabetically within each group
