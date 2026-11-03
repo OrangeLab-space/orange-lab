@@ -53,6 +53,8 @@ export interface InitContainerSpec {
      */
     image?: string;
     command?: pulumi.Input<string[]>;
+    /** Plain environment variables; secrets belong in the main container's `envSecret`. */
+    env?: Record<string, pulumi.Input<string>>;
     /**
      * Optional volume mounts for the init container.
      * If not provided, it will use the main container's volume mounts.

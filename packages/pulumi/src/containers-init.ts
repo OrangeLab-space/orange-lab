@@ -32,6 +32,12 @@ export class InitContainers {
             name: initContainer.name,
             image: initContainer.image ?? 'busybox:latest',
             command: initContainer.command,
+            env: initContainer.env
+                ? Object.entries(initContainer.env).map(([name, value]) => ({
+                      name,
+                      value,
+                  }))
+                : undefined,
             imagePullPolicy: 'IfNotPresent',
             resources: INIT_CONTAINER_RESOURCES,
             securityContext: this.createSecurityContext(),
@@ -75,14 +81,13 @@ export class InitContainers {
             .filter(
                 mount =>
                     !mount.readOnly &&
-                        volumeNames.includes(resolveVolumeName(this.appName, mount.name)),
+                    volumeNames.includes(resolveVolumeName(this.appName, mount.name)),
             )
             .map(mount => mount.mountPath);
     }
 
     private createSecurityContext():
-        | kubernetes.types.input.core.v1.SecurityContext
-        | undefined {
+        kubernetes.types.input.core.v1.SecurityContext | undefined {
         return this.args.storage?.hasLocal() ? { privileged: true } : undefined;
     }
 
