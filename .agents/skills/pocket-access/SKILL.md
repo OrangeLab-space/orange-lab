@@ -25,15 +25,19 @@ for the component itself.
 
 ## The model in one screen
 
-| Group | Grants |
-|---|---|
-| `admin` | Every app; carries `rustfs_policies=consoleAdmin` and `headplane_role=admin` |
-| `<app>-users` | Access to one app |
-| `<app>-admin` | Access and the app's admin role |
-| `vpn-users` | The Headscale/Tailscale mesh |
+| Group         | Grants                                                                       |
+| ------------- | ---------------------------------------------------------------------------- |
+| `admin`       | Every app; carries `rustfs_policies=consoleAdmin` and `headplane_role=admin` |
+| `<app>-users` | Access to one app                                                            |
+| `<app>-admin` | Access and the app's admin role                                              |
+| `vpn-users`   | The Headscale/Tailscale mesh                                                 |
 
 `admin` opens everything but does **not** imply an app's own admin role — that
 comes from `<app>-admin` (or `<app>:auth/adminGroup` / `<app>:auth/groupMap`).
+
+The default `<app>:auth/allowedGroups` names `<app>-admin`. If that group does
+not exist, the app's `pocket-<app>.sh` fails with `Pocket ID group not found` —
+create the group first, or point the setting at groups that exist.
 
 A client's **allowed groups control sign-in and the launcher tile at once**: they
 are the same field. You cannot let a group sign in while hiding the tile — hiding

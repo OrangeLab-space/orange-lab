@@ -86,6 +86,8 @@ Match the code-block heading convention used by sibling docs in the same module 
 
 Use short comments in code blocks to explain non-obvious command groups. Keep the pattern readable: comment, command(s), blank line, next comment. Do not repeat stack-directory `cd` commands in later blocks.
 
+Required and recommended settings go here, not in a later table or section: a reader who stops at the first page should not miss one they need.
+
 Comment prefixes:
 
 - No prefix for required settings
@@ -134,3 +136,7 @@ Before declaring done:
 - **Keep the structure.** Retain useful sections such as Post-Installation, Backup and Restore, and Admin access when they apply.
 - **Keep it tight.** Prefer a table, one-line description, short example, and focused sections. Show `pulumi config set ...`, not internal class names. Endpoint goes in the table, not the code block — retrieval is central in `docs/configuration.md`.
 - **Document outcomes, not implementation.** Explain what users need to configure and how to reach a working component; omit internal Kubernetes, Helm, Secret, and resource-wiring details unless they affect user action or troubleshooting.
+- **Put settings where they will be read.** Required and recommended settings belong in the installation block as `pulumi config set` lines, not in a later "what you need to set" table — most readers stop after the first page and would miss them.
+- **Code blocks are for commands.** A block holds real commands with their one-line `#` comments. A block that is only comments is prose — write it as text. An explanatory comment with no command under it goes outside the block as a sentence.
+- **Bold UI paths, bullet permissions.** UI navigation such as **Profiles → Create** is bold; permission lists are flat bullets.
+- **No implementation rationale.** Say what to set and what the result is, not why an internal mechanism works — users assume the component is configured correctly.

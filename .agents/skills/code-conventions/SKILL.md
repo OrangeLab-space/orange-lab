@@ -11,6 +11,7 @@ description: Use when creating or editing TypeScript code or shell scripts in th
 - Prefer self-documenting code over comments; descriptive variable names and clear function signatures
 - Keep code concise — omit default values unless useful to communicate intent
 - Don't hoist a value into a module-level constant or a getter just to name it. Inline single-use values at the point of use and keep a constant near the code that reads it; indirection that sends the reader to another file is worse than a repeated literal
+- Read config in the main component and pass a helper the values it needs — not through a shared constants module. Once a helper needs more than one or two settings, they form a group: pass `appName` and let the helper read them itself (`Marmot` reads `marmot/*`, `resolveTechnitiumTor` reads `network/tor`); one argument beats five
 - Pass dependencies through args (providers, config, metadata) rather than accessing globals (except `config.ts`)
 - camelCase for variables, functions, methods; PascalCase for classes, interfaces, type aliases
 - Group imports external packages first, then internal modules; sort alphabetically within each group
@@ -31,6 +32,7 @@ description: Use when creating or editing TypeScript code or shell scripts in th
 - **Name the component after the upstream app**, not the capability: `speaches`, `ollama`, not `speech`. The name is deployed — it becomes the namespace, Service, endpoint key and stack export — so renaming it later recreates resources. Decide before the first deploy.
 - **App-managed node-local data** uses `addLocalStorage` with a hostPath under `/srv/<app>-<purpose>` (e.g. `/srv/kubeai-models`). Set `requiredNodeLabel` so the data follows the pod, and document that moving the component loses or re-downloads the data.
 - **Raw pods and Helm values need explicit scheduling/security settings.** `Application` applies `<app>:tolerations` to the containers it creates and `seLinuxOptions: { type: 'spc_t' }` to local-storage pods. Helm charts, custom resources and raw Jobs/Pods do not inherit them; pass tolerations and `spc_t` explicitly. See `spec/k3s.md`.
+- **Component-internal installers** live in `components/<app>/init/*.sh`, not `scripts/` (user-facing). Read them with `readFileSync(join(__dirname, 'init', '<name>.sh'))` and pass values through `env` on `InitContainerSpec` — never build the script by interpolating values into a TS string array. Keep the trailing `chown`: `fix-volume-permissions` chowns only the mount point unless `<app>:fixVolumePermissions` sets `-R`.
 - Match how sibling components handle the same cross-cutting concern. A component that adds a requirement where every sibling treats the concern as optional is a flag. Headscale was the only one that failed the deploy when OIDC was unset, while Zot, Caddy, Traefik and Technitium all did `if (app.oidc)`; that outlier is the only reason the bug was findable
 - Use constructor parameter properties with access modifiers (e.g., `constructor(private readonly args: Args)`)
 - Prefer composition over inheritance for component relationships
@@ -121,6 +123,7 @@ Rules:
 ## Secrets
 
 - Use `envSecret` field in `ContainerSpec` for sensitive data instead of command args — the Application class automatically creates Kubernetes Secrets and configures envFrom
+- Never put a secret in plain `env`: it is visible to every process in the container and via `/proc/<pid>/environ`. Use `envSecret` or a mounted secret file
 - Environment variable names should be UPPERCASE
 - Never expose passwords or sensitive data in command line arguments
 
