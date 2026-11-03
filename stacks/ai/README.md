@@ -14,6 +14,7 @@ AI-related components for running large language models, image generation, and w
 - [ComfyUI](./components/comfyui/comfyui.md) - Image and video generation, and Open WebUI's image backend.
 - [n8n](./components/n8n/n8n.md) - Workflow automation with AI node integration.
 - [KubeAI](./components/kubeai/kubeai.md) - Private AI SDK providing OpenAI-compatible API.
+- [Hermes Agent](./components/hermes/hermes.md) - Self-improving agent with a dashboard, chat and cron; the deployed profile inspects the cluster with read-only access.
 
 ## Migrate from Root Stack
 

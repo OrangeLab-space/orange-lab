@@ -1,6 +1,7 @@
 import { config, mergeEndpointExports } from '@orangelab/pulumi';
 import { Agentgateway } from './components/agentgateway/agentgateway';
 import { ComfyUI } from './components/comfyui/comfyui';
+import { Hermes } from './components/hermes/hermes';
 import { InvokeAi } from './components/invokeai/invokeai';
 import { KubeAi } from './components/kubeai/kubeai';
 import { N8n } from './components/n8n/n8n';
@@ -59,9 +60,17 @@ const n8n = config.isEnabled('n8n')
     ? new N8n('n8n', { ollamaUrl: ollama?.serviceUrl })
     : undefined;
 
+const hermes = config.isEnabled('hermes')
+    ? new Hermes('hermes', {
+          agentgatewayApiKey: agentgateway?.apiKeys.hermes,
+          agentgatewayUrl: agentgateway?.apiUrl,
+      })
+    : undefined;
+
 export const endpoints = mergeEndpointExports(
     agentgateway,
     comfyui,
+    hermes,
     invokeAi,
     kubeAI,
     ollama,
@@ -86,6 +95,11 @@ export const apps = {
         ? {
               encryptionKey: n8n.encryptionKey,
               db: n8n.postgresConfig,
+          }
+        : undefined,
+    hermes: hermes
+        ? {
+              dashboardPassword: hermes.dashboardPassword,
           }
         : undefined,
     speaches: speaches

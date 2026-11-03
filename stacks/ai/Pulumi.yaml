@@ -154,3 +154,39 @@ config:
     #     value: {requests: {memory: 1Gi}, limits: {memory: 2Gi}}
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     n8n:auth/allowedGroups: admin,n8n-users
+
+    hermes:enabled: false
+    hermes:hostname: hermes
+    hermes:image: nousresearch/hermes-agent:v0.22.6
+    hermes:storageSize: 5Gi
+    hermes:kubectlVersion: v1.36.6
+    hermes:ghVersion: 2.103.3
+    # Fine-grained PAT for gh and git; read-only Contents is enough to start.
+    # hermes:GITHUB_TOKEN: <token>
+    # SOUL.md seeded into a new profile; relative paths resolve from stacks/ai.
+    hermes:soulFile: components/hermes/SOUL.md
+    # White Noise (Marmot/Nostr) connector as a sidecar; the platform config is
+    # seeded into /opt/data/config.yaml when enabled.
+    hermes:marmot/enabled: false
+    hermes:marmot/version: 0.14.0
+    # Contact allowlists: npub or 64-char hex, comma-separated; empty denies all.
+    # hermes:marmot/welcomerAllowlist: <npub>
+    # hermes:marmot/allowedUsers: <npub>
+    # Default group for cron and `hermes send`; the chat id of the group you invited it to.
+    # hermes:marmot/homeChannel: <group-id-hex>
+    hermes:marmot/allowAllUsers: false
+    # Model served by agentgateway; requires 'hermes' in agentgateway:clients.
+    # hermes:model: assistant
+    # Proxies allowed to set X-Forwarded-* for the dashboard (Pocket ID login).
+    # These are the k3s defaults; override for a cluster with custom CIDRs.
+    hermes:trustedProxies: '10.42.0.0/16,10.43.0.0/16'
+    # Re-copy the seeded config.yaml on the next deploy, discarding dashboard edits.
+    hermes:recreateConfig: false
+    # Pocket ID groups allowed to sign in (unset = unrestricted)
+    hermes:auth/allowedGroups: admin,hermes-admin
+    # Dashboard password when Pocket ID is not used (generated when unset).
+    # hermes:dashboard/password: <value>
+    #
+    # Pocket ID: run components/hermes/pocket-hermes.sh, then set these.
+    # hermes:auth: pocket
+    # hermes:auth/clientId: CLIENT_ID
