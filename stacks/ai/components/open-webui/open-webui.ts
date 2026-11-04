@@ -107,8 +107,9 @@ export class OpenWebUI extends pulumi.ComponentResource {
                   }
                 : {}),
             ...this.getImageGenerationEnvironment(),
-            BYPASS_MODEL_ACCESS_CONTROL: String(
-                config.requireBoolean(this.name, 'BYPASS_MODEL_ACCESS_CONTROL'),
+            BYPASS_MODEL_ACCESS_CONTROL: config.require(
+                this.name,
+                'BYPASS_MODEL_ACCESS_CONTROL',
             ),
             DEFAULT_MODELS: config.get(this.name, 'DEFAULT_MODELS') ?? '',
             DEFAULT_USER_ROLE: config.require(this.name, 'DEFAULT_USER_ROLE'),

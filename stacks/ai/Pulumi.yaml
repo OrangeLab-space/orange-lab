@@ -105,7 +105,7 @@ config:
     # true exposes every model to every signed-in user; false enforces per-model
     # access grants (Workspace -> Models), and a model without a grant row is
     # admin-only.
-    open-webui:BYPASS_MODEL_ACCESS_CONTROL: true
+    open-webui:BYPASS_MODEL_ACCESS_CONTROL: 'true'
     # true stores admin-UI config changes in the volume; false keeps Pulumi settings authoritative
     open-webui:ENABLE_PERSISTENT_CONFIG: false
     open-webui:image: ghcr.io/open-webui/open-webui:v0.12.5-slim
