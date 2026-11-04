@@ -53,7 +53,7 @@ config:
     #   secure: <UPSTREAM_TOKEN>
     forgejo:mirrorSync/branches: main
     forgejo:mirrorSync/schedule: '*/30 * * * *'
-    forgejo:mirrorSync/image: docker.io/alpine/git:2.51.0
+    forgejo:mirrorSync/image: docker.io/alpine/git:2.54.0
     # forgejo:auth: pocket
     # forgejo:auth/clientId: <client-id>
     # forgejo:auth/clientSecret:
