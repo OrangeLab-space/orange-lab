@@ -46,6 +46,8 @@ config:
     agentgateway:version: v1.7.0
     # Map of provider name to {baseUrl, models}; auth uses <provider>/apiKey secrets
     # agentgateway:providers: see components/agentgateway/agentgateway.md
+    # A provider hosted by another component (hermes) needs only baseUrl/models: the
+    # gateway mints its credential, exported in apps.hermes.apiServerKey.
     # Cost rates per model for analytics; see components/agentgateway/agentgateway.md
     # agentgateway:modelCosts: map of providers/models/rates
     # Virtual models: map name to {strategy, targets: [{model, priority|weight}]}

@@ -17,6 +17,12 @@ export class ProviderModels {
         private readonly namespace: pulumi.Input<string>,
         private readonly gatewayName: string,
         private readonly parent: pulumi.Resource,
+        /**
+         * Credentials the gateway mints for providers hosted by another component,
+         * keyed by provider name. A name no provider declares is ignored: the
+         * hosting component may be enabled without being routed through the gateway.
+         */
+        private readonly generatedKeys: Record<string, pulumi.Input<string>> = {},
     ) {
         this.specs = this.parseProviders();
         this.secrets = this.createSecrets();
@@ -136,7 +142,9 @@ export class ProviderModels {
     private createSecrets(): Map<string, kubernetes.core.v1.Secret> {
         const secrets = new Map<string, kubernetes.core.v1.Secret>();
         for (const provider of this.specs) {
-            const apiKey = config.getSecret(this.appName, `${provider.name}/apiKey`);
+            const apiKey =
+                this.generatedKeys[provider.name] ??
+                config.getSecret(this.appName, `${provider.name}/apiKey`);
             if (!apiKey) continue;
             secrets.set(
                 provider.name,

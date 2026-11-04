@@ -38,6 +38,16 @@ interface AgentgatewayLinks {
     logs: pulumi.Output<string>;
 }
 
+export interface AgentgatewayArgs {
+    /**
+     * Providers whose credential the gateway mints itself, for providers hosted by
+     * another component in this stack. Names use the same key as
+     * `agentgateway:providers`; a name that no provider declares is ignored, so a
+     * stack can run that component without routing it through the gateway.
+     */
+    generatedProviderKeys?: string[];
+}
+
 export class Agentgateway extends pulumi.ComponentResource {
     public readonly apiKeys: Record<string, pulumi.Output<string>>;
 
@@ -47,8 +57,12 @@ export class Agentgateway extends pulumi.ComponentResource {
 
     public readonly links: AgentgatewayLinks;
 
+    /** Credentials minted for `generatedProviderKeys`, for the hosting component. */
+    public readonly providerApiKeys: Record<string, pulumi.Input<string>>;
+
     constructor(
         private readonly name: string,
+        args: AgentgatewayArgs = {},
         opts?: pulumi.ResourceOptions,
     ) {
         super('orangelab:ai:Agentgateway', name, {}, opts);
@@ -58,13 +72,20 @@ export class Agentgateway extends pulumi.ComponentResource {
 
         const clients = config.requireCommaSeparated(name, 'clients');
         this.apiKeys = this.createApiKeys(clients);
+        this.providerApiKeys = this.createProviderKeys(args.generatedProviderKeys ?? []);
         const requestHeaders = this.parseRequestHeaders();
 
         const crds = this.installCrds();
         const controller = this.installController(crds);
         const uiConfig = this.createUiConfig();
         const namespace = this.app.metadata.namespace;
-        const providers = new ProviderModels(name, namespace, gatewayName, this);
+        const providers = new ProviderModels(
+            name,
+            namespace,
+            gatewayName,
+            this,
+            this.providerApiKeys,
+        );
         const virtualModels = new VirtualModels(
             name,
             namespace,
@@ -99,6 +120,19 @@ export class Agentgateway extends pulumi.ComponentResource {
             clients.map(client => [
                 client,
                 createPassword(this, `${this.name}-${client}-key`, { length: 40 }),
+            ]),
+        );
+    }
+
+    private createProviderKeys(
+        providers: string[],
+    ): Record<string, pulumi.Input<string>> {
+        return Object.fromEntries(
+            providers.map(provider => [
+                provider,
+                createPassword(this, `${this.name}-${provider}-provider-key`, {
+                    length: 48,
+                }),
             ]),
         );
     }
