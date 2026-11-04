@@ -79,6 +79,17 @@ pulumi config set --secret hermes:GITHUB_TOKEN <token>
     - **Issues**: Read and write — only if it should triage or comment
     - **Pull requests**: Read and write — only if it should open or review PRs
 
+## Forgejo access
+
+```sh
+# Token for the forge the agent pushes to
+pulumi config set --secret hermes:FORGEJO_TOKEN <token>
+```
+
+Mint it under **Settings → Applications → Generate new token** with the
+`write:repository` scope. Use an account made for the agent rather than your own,
+so the token can be revoked without locking you out of your repositories.
+
 ## Models
 
 ```sh
