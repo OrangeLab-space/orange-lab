@@ -125,18 +125,30 @@ Nothing exists until the feature is switched on: `mirrorSync/enabled` defaults t
 `false`, and while it is false the deployment creates no CronJob, no ConfigMap
 and no Secret. There is no job to trigger, pause or clean up.
 
-### Pulling the upstream's branches
+### The repository
+
+Both directions work on the same local copy, so it is named once:
 
 ```sh
 pulumi config set forgejo:mirrorSync/enabled true
-pulumi config set forgejo:mirrorSync/pullUrl https://github.com/example/project.git
 pulumi config set forgejo:mirrorSync/repository example/project
+```
+
+- `repository` - the repository on this Forgejo instance, as `owner/name`.
+
+Everything else belongs to one direction. `schedule` (`*/30 * * * *`) and `image`
+have working defaults in the stack's `Pulumi.yaml` and only need setting to
+change them.
+
+### Pulling the upstream's branches
+
+```sh
+pulumi config set forgejo:mirrorSync/pullUrl https://github.com/example/project.git
 pulumi config set forgejo:mirrorSync/pullToken <token> --secret
 ```
 
 - `pullUrl` - the remote to copy from. Fetched anonymously, so a public upstream
   needs no credential.
-- `repository` - the local repository to update, as `owner/name`.
 - `pullToken` - a Forgejo token with `write:repository` on `repository`, used to
   push the fetched branches into the local copy. Mint it in **Settings →
   Applications** for an account that can already write to the repository.
@@ -144,9 +156,6 @@ pulumi config set forgejo:mirrorSync/pullToken <token> --secret
 - `pullBranches` (default `main`) - the branches the upstream owns,
   comma-separated. Branches you develop in Forgejo travel the other way; listing
   them here would fight that direction.
-
-`schedule` (`*/30 * * * *`) and `image` have working defaults in the stack's
-`Pulumi.yaml` and only need setting to change them.
 
 The job is fast-forward only. If a branch has moved on both sides it prints
 `DIVERGED`, leaves the local branch untouched and exits non-zero, so the failed

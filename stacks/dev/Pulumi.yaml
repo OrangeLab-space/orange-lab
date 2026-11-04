@@ -47,9 +47,10 @@ config:
     # Fast-forward only; a diverged branch fails the job instead of overwriting.
     # `enabled: false` creates no job at all - no CronJob, no ConfigMap, no Secret.
     forgejo:mirrorSync/enabled: false
-    # The pull direction: the remote to copy from, and the local repository.
-    # forgejo:mirrorSync/pullUrl: https://github.com/example/project.git
+    # The repository both directions work on, as owner/name - the local copy.
     # forgejo:mirrorSync/repository: example/project
+    # The pull direction: the remote to copy from.
+    # forgejo:mirrorSync/pullUrl: https://github.com/example/project.git
     # Write access on this Forgejo instance, for the branches being pulled in.
     # forgejo:mirrorSync/pullToken:
     #   secure: <FORGEJO_TOKEN>
