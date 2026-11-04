@@ -82,23 +82,11 @@ export interface HealthCheck {
         /** Container port name to probe. Defaults to `http`. */
         port?: string;
     };
-    /**
-     * Path for the readiness probe when the service distinguishes "alive" from
-     * "able to serve". Liveness and startup keep using `httpGet.path`, so a
-     * service that is up but temporarily cannot do its job leaves the Service
-     * endpoints instead of being restarted.
-     *
-     * Ignored unless `httpGet` is set: an exec-only check has no path to
-     * substitute, so readiness falls back to the same command.
-     */
+    /** Readiness path when "up" and "able to serve" differ; liveness and startup keep
+     * `httpGet.path`. Ignored without `httpGet`: an exec check has no path to swap. */
     readinessPath?: string;
-    /**
-     * Failures the startup probe tolerates before the container is killed, at
-     * the kubelet's default 10 s period. Defaults to 10 (100 s). Raise it for a
-     * container that can legitimately spend minutes before it answers — a cold
-     * start over slow storage — where the default would crash-loop a healthy
-     * process. Startup only: liveness and readiness keep `failureThreshold`.
-     */
+    /** Startup failures tolerated before a restart. Defaults to 10 (100 s); raise it for
+     * a container that legitimately takes minutes to answer, e.g. a cold disk. */
     startupFailureThreshold?: number;
     /** Command that exits 0 while the container is healthy. */
     exec?: {

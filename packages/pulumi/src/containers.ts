@@ -260,11 +260,7 @@ export class Containers {
             exec: probe.exec,
             failureThreshold: probe.failureThreshold,
             httpGet: probe.httpGet
-                ? {
-                      ...probe.httpGet,
-                      path: probe.httpGet.path,
-                      port: probe.httpGet.port ?? 'http',
-                  }
+                ? { ...probe.httpGet, port: probe.httpGet.port ?? 'http' }
                 : undefined,
         };
         if (override) {
@@ -278,7 +274,9 @@ export class Containers {
      * service that is up but cannot serve must leave the Service endpoints
      * without being restarted, which is what liveness and startup would do.
      */
-    private createReadinessProbe(probe?: HealthCheck) {
+    private createReadinessProbe(
+        probe?: HealthCheck,
+    ): kubernetes.types.input.core.v1.Probe | undefined {
         if (!probe?.readinessPath || !probe.httpGet) return this.createProbe(probe);
         return this.createProbe({
             ...probe,
