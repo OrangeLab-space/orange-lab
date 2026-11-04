@@ -38,6 +38,7 @@ export class Hermes extends pulumi.ComponentResource {
         if (this.app.storageOnly) return;
 
         const githubToken = config.getSecret(name, 'GITHUB_TOKEN');
+        const forgejoToken = config.getSecret(name, 'FORGEJO_TOKEN');
         const marmot = this.getMarmot();
         const init = this.getInit();
         const clusterAccess = new ClusterAccess(
@@ -54,11 +55,18 @@ export class Hermes extends pulumi.ComponentResource {
                 'config.yaml': this.getConfigYaml(marmot),
                 kubeconfig: clusterAccess.kubeconfig,
             },
-            secretFiles: githubToken
-                ? {
-                      'github.env': pulumi.interpolate`GITHUB_TOKEN=${githubToken}\n`,
-                  }
-                : undefined,
+            secretFiles: {
+                ...(githubToken
+                    ? {
+                          'github.env': pulumi.interpolate`GITHUB_TOKEN=${githubToken}\n`,
+                      }
+                    : {}),
+                ...(forgejoToken
+                    ? {
+                          'forgejo.env': pulumi.interpolate`FORGEJO_TOKEN=${forgejoToken}\n`,
+                      }
+                    : {}),
+            },
         });
         if (marmot) this.app.addEmptyVolume({ name: 'marmot-media' });
 
