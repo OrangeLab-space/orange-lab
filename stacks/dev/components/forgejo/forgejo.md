@@ -137,15 +137,36 @@ pulumi config set forgejo:mirrorSync/token <token> --secret
 
 Three more keys have working defaults in the stack's `Pulumi.yaml`, so they only
 need setting to change them: `branches` (`main`) - the branches the upstream
-owns, comma-separated; branches you develop in Forgejo are pushed out, not pulled
-in, so listing them here would fight the push mirror - `schedule`
-(`*/30 * * * *`) and `image`.
+owns, comma-separated; branches you develop in Forgejo travel the other way, so
+listing them here would fight the sink - `schedule` (`*/30 * * * *`) and `image`.
 
 The job is fast-forward only. If a branch has moved on both sides it prints
 `DIVERGED`, leaves the local branch untouched and exits non-zero, so the failed
 job is the signal that a human has to reconcile — it will never discard commits
 that exist only in Forgejo or only upstream. Runs do not overlap
 (`concurrencyPolicy: Forbid`), so a slow run cannot race the next one.
+
+### Pushing the other way
+
+Forgejo's own branches can be pushed back out to the upstream, which is what
+keeps a public repository current while development happens here:
+
+```sh
+pulumi config set forgejo:mirrorSync/sinkUrl https://github.com/example/project.git
+pulumi config set forgejo:mirrorSync/sinkToken <token> --secret
+```
+
+- `sinkUrl` - the remote to push to. Unset, and only the fetch above runs.
+- `sinkToken` - a token on that remote that may write to the repository.
+- `sinkBranches` (default `0.9.0`) - the branches Forgejo owns.
+
+The sink is a second container in the same job: same schedule, its own log. It
+names an explicit refspec and never forces, so a branch it was not asked about
+is untouched and a branch that is ahead on the remote is reported as `DIVERGED`
+instead of being rewound. A forge-side push mirror copies every ref instead
+(`git push --mirror`) and so deletes whatever its branch filter excludes, which
+on a repository whose default branch is filtered out is a delete request on
+every run.
 
 If you would rather drive the same copy from outside the cluster, the script the
 job runs is `components/forgejo/mirror-sync.sh`: it takes `UPSTREAM_URL`,

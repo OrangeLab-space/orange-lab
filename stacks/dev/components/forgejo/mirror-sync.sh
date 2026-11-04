@@ -1,11 +1,12 @@
 #!/bin/sh
 #
-# Fast-forward branches of the local Forgejo repository from an upstream remote.
+# Fast-forward branches of a repository from an upstream remote, and push the
+# result on to a sink when both ends are given.
 #
 # The job never forces. A branch is pushed only when the upstream tip is a
-# descendant of the copy Forgejo already has, so commits made directly in
-# Forgejo are never thrown away: a branch that has moved on both sides is
-# reported as DIVERGED and left alone for a human to reconcile.
+# descendant of the copy the target already has, so commits made directly in the
+# target are never thrown away: a branch that has moved on both sides is reported
+# as DIVERGED and left alone for a human to reconcile.
 #
 set -eu
 
