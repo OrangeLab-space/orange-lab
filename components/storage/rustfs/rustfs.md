@@ -54,20 +54,6 @@ pulumi config set rustfs:fixVolumePermissions "-R"
 pulumi config set rustfs:fixVolumePermissions "-Rv"
 ```
 
-## Health
-
-Both probes answer on the S3 port (`api`, 9000):
-
-| probe             | path            | what it answers                                                       |
-| ----------------- | --------------- | --------------------------------------------------------------------- |
-| liveness, startup | `/health/live`  | process is up — a static reply                                        |
-| readiness         | `/health/ready` | storage read/write quorum, IAM and lock state, plus `degradedReasons` |
-
-The split is deliberate. On a slow disk RustFS stays alive while it cannot
-serve; readiness takes it out of the Service so clients fail fast instead of
-hanging until Longhorn's `backup-execution-timeout` cancels the backup, and
-liveness does not restart the container in the middle of an upload.
-
 ## Background scanner
 
 RustFS's background scanner is unset by default, leaving RustFS's own default (enabled). Disable it on write-once stores with slow disks, where the continuous metadata walk competes with backups:
