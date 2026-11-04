@@ -251,9 +251,12 @@ export class Hermes extends pulumi.ComponentResource {
                     },
                 },
             };
-            // The CLI (hermes send, cron delivery) only registers enabled plugins.
-            settings.plugins = { enabled: ['marmot'] };
         }
+        // Hermes loads a plugin only when it is named here; an installed but
+        // unlisted adapter answers every route with "Plugin not found".
+        settings.plugins = {
+            enabled: config.requireCommaSeparated(this.name, 'plugins'),
+        };
 
         const fragments = this.getConfigFragments();
         if (fragments.length === 0) return stringify(settings);
