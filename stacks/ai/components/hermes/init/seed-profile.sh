@@ -33,5 +33,6 @@ seed_env() {
 
 seed_env "$SEED_PATH/github.env"
 seed_env "$SEED_PATH/forgejo.env"
+seed_env "$SEED_PATH/api-server.env"
 
 chown -R "$USER_ID:$USER_ID" "$DATA_PATH/workspace" "$DATA_PATH/config.yaml" "$DATA_PATH/SOUL.md"

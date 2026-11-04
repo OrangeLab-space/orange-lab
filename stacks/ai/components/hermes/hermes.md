@@ -100,6 +100,37 @@ pulumi config set hermes:model assistant
 Without `hermes:model`, pick a provider and model on the dashboard's **Models**
 page.
 
+## OpenAI-compatible API
+
+Other in-cluster apps can talk to the agent over an OpenAI-compatible API. It is
+enabled by [agentgateway](./agentgateway.md), which is its only client, on a port
+that stays cluster-only — it never appears on the dashboard's hostname. The key is
+generated, so there is nothing to set: the gateway mints it, sends it upstream, and
+the agent requires it.
+
+```sh
+# The agent becomes a provider of its own in the gateway's model catalog
+pulumi config set --path 'agentgateway:providers.hermes.baseUrl' 'http://hermes.hermes:8642/v1'
+pulumi config set --path 'agentgateway:providers.hermes.models[0]' 'hermes-agent'
+pulumi up
+```
+
+The agent then answers to `hermes/hermes-agent` on `https://ai.<domain>/v1` with
+any virtual key, so every gateway client — Open WebUI, `n8n`, a script — reaches it
+without its own credential.
+
+The model id is the profile name, and `hermes-agent` for the default profile — so
+list exactly that under `agentgateway:providers.hermes.models`; a mismatched bare
+model is ignored upstream and silently runs the gateway's default model instead.
+
+```sh
+pulumi stack output --show-secrets --json | jq -r '.apps.hermes.apiUrl,.apps.hermes.apiServerKey'
+```
+
+That endpoint runs a full agent turn per request, and that agent's tools act on the
+cluster and its volume. Treat a virtual key that can reach `hermes/default` as access
+to the agent, not as a chat model.
+
 ## Speech
 
 Voice works through [speaches](./speaches.md) when it is enabled; the models are

@@ -14,7 +14,11 @@ const ollama = config.isEnabled('ollama') ? new Ollama('ollama') : undefined;
 const speaches = config.isEnabled('speaches') ? new Speaches('speaches') : undefined;
 
 const agentgateway = config.isEnabled('agentgateway')
-    ? new Agentgateway('agentgateway')
+    ? new Agentgateway('agentgateway', {
+          // agentgateway is the only client of the agent's API server, so it mints
+          // the credential both sides use and hands a copy to `hermes` below.
+          generatedProviderKeys: config.isEnabled('hermes') ? ['hermes'] : [],
+      })
     : undefined;
 
 const comfyui = config.isEnabled('comfyui') ? new ComfyUI('comfyui') : undefined;
@@ -66,6 +70,7 @@ const hermes = config.isEnabled('hermes')
           {
               agentgatewayApiKey: agentgateway?.apiKeys.hermes,
               agentgatewayUrl: agentgateway?.apiUrl,
+              apiServerKey: agentgateway?.providerApiKeys.hermes,
               speech: speaches
                   ? {
                         sttModel: speaches.sttModel,
@@ -111,6 +116,8 @@ export const apps = {
         : undefined,
     hermes: hermes
         ? {
+              apiServerKey: hermes.apiServerKey,
+              apiUrl: hermes.apiUrl,
               dashboardPassword: hermes.dashboardPassword,
           }
         : undefined,

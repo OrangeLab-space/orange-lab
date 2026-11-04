@@ -10,6 +10,8 @@ import { Marmot } from './marmot';
 const dataPath = '/opt/data';
 const seedPath = '/opt/hermes-seed';
 const runtimeUserId = 10000;
+/** OpenAI-compatible API for in-cluster clients; kept off the app's public hostname. */
+const apiServerPort = 8642;
 
 export interface SpeechSettings {
     /** OpenAI-compatible speech endpoint, including the `/v1` suffix. */
@@ -24,12 +26,23 @@ export interface HermesArgs {
     agentgatewayApiKey?: pulumi.Input<string>;
     /** In-cluster OpenAI-compatible endpoint of agentgateway. */
     agentgatewayUrl?: pulumi.Input<string>;
+    /**
+     * Key the OpenAI-compatible API server requires, minted by agentgateway. The
+     * server and its port exist only when this is set: every caller is one the
+     * gateway authenticated, and a keyless listener is the one shape the agent's
+     * own startup audit warns about.
+     */
+    apiServerKey?: pulumi.Input<string>;
     /** Speech-to-text and text-to-speech models, from the `speaches` component. */
     speech?: SpeechSettings;
 }
 
 export class Hermes extends pulumi.ComponentResource {
     public readonly app: Application;
+    /** In-cluster endpoint of the API server, empty while that server is disabled. */
+    public readonly apiUrl: pulumi.Output<string>;
+    /** Key the API server requires, absent while that server is disabled. */
+    public readonly apiServerKey?: pulumi.Input<string>;
     /** Dashboard password, set when the bundled username/password provider is used. */
     public readonly dashboardPassword?: pulumi.Output<string>;
     /** Session-signing secret; generated once so the env secret cannot drift. */
@@ -45,7 +58,11 @@ export class Hermes extends pulumi.ComponentResource {
         this.app = new Application(this, name, {
             oidc: { publicClient: true },
         }).addStorage();
-        if (this.app.storageOnly) return;
+        this.apiServerKey = args.apiServerKey;
+        if (this.app.storageOnly) {
+            this.apiUrl = pulumi.output('');
+            return;
+        }
 
         const githubToken = config.getSecret(name, 'GITHUB_TOKEN');
         const forgejoToken = config.getSecret(name, 'FORGEJO_TOKEN');
@@ -66,6 +83,15 @@ export class Hermes extends pulumi.ComponentResource {
                 kubeconfig: clusterAccess.kubeconfig,
             },
             secretFiles: {
+                ...(this.apiServerKey
+                    ? {
+                          // Hermes enables its OpenAI-compatible listener from a
+                          // usable API_SERVER_KEY, and a key in `.env` beats the pod
+                          // env, so the seeded value also replaces any stale one a
+                          // hand edit left on the volume.
+                          'api-server.env': pulumi.interpolate`API_SERVER_KEY=${this.apiServerKey}\n`,
+                      }
+                    : {}),
                 ...(githubToken
                     ? {
                           'github.env': pulumi.interpolate`GITHUB_TOKEN=${githubToken}\n`,
@@ -81,6 +107,19 @@ export class Hermes extends pulumi.ComponentResource {
         if (marmot) this.app.addEmptyVolume({ name: 'marmot-media' });
 
         this.createDeployment({ clusterAccess, githubToken, init, marmot });
+
+        // The API port is exported for in-cluster clients only (agentgateway's
+        // `hermes` provider); it never joins the dashboard's public hostname.
+        this.apiUrl = this.apiServerEnabled
+            ? pulumi.interpolate`http://${this.name}.${this.app.metadata.namespace}:${String(apiServerPort)}/v1`
+            : pulumi.output('');
+        if (this.apiServerEnabled) {
+            this.app.network.addClusterEndpoint(`${this.name}-api`, this.apiUrl);
+        }
+    }
+
+    private get apiServerEnabled(): boolean {
+        return this.apiServerKey !== undefined;
     }
 
     private getMarmot(): Marmot | undefined {
@@ -127,7 +166,13 @@ export class Hermes extends pulumi.ComponentResource {
                 args.init.gh(),
                 ...(args.marmot ? [args.marmot.initContainer()] : []),
             ],
-            ports: [{ name: 'http', port: 9119 }],
+            ports: [
+                { name: 'http', port: 9119 },
+                // Cluster-only: the Service carries it, no route or load balancer.
+                ...(this.apiServerEnabled
+                    ? [{ exposure: 'internal' as const, name: 'api', port: apiServerPort }]
+                    : []),
+            ],
             resources: {
                 requests: { cpu: '100m', memory: '1Gi' },
                 // Model loads (faster-whisper, Chromium) spike well past the
@@ -155,6 +200,18 @@ export class Hermes extends pulumi.ComponentResource {
         marmot?: Marmot;
     }): Record<string, pulumi.Input<string> | undefined> {
         return {
+            ...(this.apiServerEnabled
+                ? {
+                      // The listener switches on from a usable API_SERVER_KEY in
+                      // `.env`; API_SERVER_ENABLED is documentation-only upstream.
+                      API_SERVER_HOST: '0.0.0.0',
+                      // No API_SERVER_MODEL_NAME: the advertised id is derived per
+                      // route — the profile name, `hermes-agent` for the default
+                      // profile — so list that under `agentgateway:providers.hermes`.
+                      // models, and each /p/<profile>/ prefix advertises its own.
+                      API_SERVER_PORT: String(apiServerPort),
+                  }
+                : {}),
             ...(args.gitCredentialHelper
                 ? {
                       GIT_CONFIG_COUNT: '1',

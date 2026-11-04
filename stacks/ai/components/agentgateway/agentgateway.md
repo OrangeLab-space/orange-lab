@@ -56,6 +56,15 @@ Providers without a key, like Ollama, skip the auth header.
 
 The declared models are the allow-list. `/v1/models` lists exactly them, and requests for anything else fail.
 
+A provider hosted by another component in this stack — the agent's OpenAI-compatible API — is declared the same way, but its credential is minted by the gateway instead of set by you, because the gateway is the only client: enabling both components is enough, no `<provider>/apiKey` secret to create.
+
+```sh
+pulumi config set --path 'agentgateway:providers.hermes.baseUrl' 'http://hermes.hermes:8642/v1'
+pulumi config set --path 'agentgateway:providers.hermes.models[0]' 'hermes-agent'
+```
+
+The generated credential is exported for the hosting component (`apps.hermes.apiServerKey`).
+
 OpenCode serves the same model IDs from two paths, and the path selects the bill: `/inference/go/openai/v1` draws on an OpenCode Go subscription, `/inference/openai/v1` charges the Console pay-as-you-go balance. Both accept the same Console API key. Models outside the Go catalog are only on the balance path, so put them under a second provider if you need them. Go also requires an `x-opencode-session` header; `agentgateway:requestHeaders` supplies it because clients that are not coding agents do not send one. A client-sent value always wins over the configured fallback.
 
 ## Virtual models
