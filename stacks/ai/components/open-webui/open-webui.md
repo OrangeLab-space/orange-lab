@@ -87,6 +87,16 @@ pulumi config set open-webui:ENABLE_PERSISTENT_CONFIG true
 
 With persistent config disabled, Open WebUI reloads its configuration from the environment on startup and connections added in the UI are lost.
 
+### Model visibility
+
+`open-webui:BYPASS_MODEL_ACCESS_CONTROL` (default `true`) exposes every discovered
+model to every signed-in user. With it `false`, a model is visible and callable only
+for its owner and for users holding a read grant on it, so grant each model you want
+`user`-role accounts to see in **Workspace → Models** — a model with no grant row is
+admin-only, and a fresh install shows an empty model list until that is done. Model
+grants live in the volume's database, so they survive restarts even with persistent
+config disabled.
+
 ## Voice
 
 Voice uses the [Speaches](../speaches/speaches.md) component instead of models bundled in the Open WebUI image. Enable it and redeploy:
