@@ -15,6 +15,8 @@ export interface MirrorSyncArgs {
 /** One direction: branches of `targetUrl` are fast-forwarded from `upstreamUrl`. */
 interface MirrorDirection {
     name: string;
+    /** Config key holding the credential that may push to `targetUrl`. */
+    tokenKey: string;
     upstreamUrl: pulumi.Input<string>;
     targetUrl: pulumi.Input<string>;
     branches: string[];
@@ -23,7 +25,7 @@ interface MirrorDirection {
 interface MirrorSyncSettings {
     upstream: MirrorDirection;
     /** Optional reverse direction: Forgejo's own branches pushed to a remote. */
-    sink?: MirrorDirection;
+    push?: MirrorDirection;
     schedule: string;
     image: string;
 }
@@ -39,11 +41,11 @@ interface MirrorSyncResources {
  * This exists for the repository layout where the upstream (say, a GitHub repo
  * that still accepts public pull requests) owns one branch and Forgejo owns the
  * rest: the upstream branch has to keep moving forward locally without anyone
- * hand-copying commits into the forge. The reverse direction, the sink, pushes
- * Forgejo's own branches back out to the upstream.
+ * hand-copying commits into the forge. The reverse direction pushes Forgejo's
+ * own branches back out to the upstream, after the forward one has finished.
  *
  * Every direction is a fast-forward only, so a branch that has moved on both
- * sides is reported and never overwritten. The sink names an explicit refspec
+ * sides is reported and never overwritten. The push names an explicit refspec
  * and never forces, so it cannot delete or rewind a branch it was not asked to
  * touch - which a forge-side mirror, being a `git push --mirror`, does.
  */
@@ -84,28 +86,35 @@ export function createMirrorSync(
     );
 }
 
+/** The stages of a run, in the order they execute. */
+function stages(settings: MirrorSyncSettings): MirrorDirection[] {
+    return settings.push ? [settings.upstream, settings.push] : [settings.upstream];
+}
+
 function readSettings(args: MirrorSyncArgs): MirrorSyncSettings {
     const repository = config.require(args.appName, 'mirrorSync/repository');
     const localUrl = pulumi
         .output(args.endpointUrl)
         .apply(url => `${url.replace(/\/+$/, '')}/${repository}.git`);
-    const sinkUrl = config.get(args.appName, 'mirrorSync/sinkUrl');
+    const pushUrl = config.get(args.appName, 'mirrorSync/pushUrl');
 
     return {
         upstream: {
             name: 'mirror-sync',
+            tokenKey: 'mirrorSync/token',
             upstreamUrl: config.require(args.appName, 'mirrorSync/upstreamUrl'),
             targetUrl: localUrl,
             branches: config.requireCommaSeparated(args.appName, 'mirrorSync/branches'),
         },
-        sink: sinkUrl
+        push: pushUrl
             ? {
-                  name: 'mirror-sink',
+                  name: 'mirror-push',
+                  tokenKey: 'mirrorSync/pushToken',
                   upstreamUrl: localUrl,
-                  targetUrl: sinkUrl,
+                  targetUrl: pushUrl,
                   branches: config.requireCommaSeparated(
                       args.appName,
-                      'mirrorSync/sinkBranches',
+                      'mirrorSync/pushBranches',
                   ),
               }
             : undefined,
@@ -114,7 +123,11 @@ function readSettings(args: MirrorSyncArgs): MirrorSyncSettings {
     };
 }
 
-/** One credential per direction, holding the push token and any pulls it needs. */
+/**
+ * The push credential of every stage, and the script with one settings file per
+ * stage beside it - both are mounted, so nothing about a direction is buried in
+ * the pod spec.
+ */
 function createResources(
     args: MirrorSyncArgs,
     settings: MirrorSyncSettings,
@@ -122,37 +135,35 @@ function createResources(
 ): MirrorSyncResources {
     const upstreamToken = config.getSecret(args.appName, 'mirrorSync/upstreamToken');
 
-    return {
-        credentials: {
-            [settings.upstream.name]: createCredential(
+    const credentials = Object.fromEntries(
+        stages(settings).map(direction => [
+            direction.name,
+            createCredential(
                 args,
                 metadata,
-                settings.upstream.name,
-                config.requireSecret(args.appName, 'mirrorSync/token'),
-                upstreamToken,
+                direction.name,
+                config.requireSecret(args.appName, direction.tokenKey),
+                direction === settings.upstream ? upstreamToken : undefined,
             ),
-            ...(settings.sink
-                ? {
-                      [settings.sink.name]: createCredential(
-                          args,
-                          metadata,
-                          settings.sink.name,
-                          config.requireSecret(args.appName, 'mirrorSync/sinkToken'),
-                      ),
-                  }
-                : {}),
-        },
+        ]),
+    );
+
+    const data: Record<string, pulumi.Input<string>> = {
+        'mirror-sync.sh': readFileSync(join(__dirname, 'mirror-sync.sh'), 'utf8'),
+    };
+    for (const direction of stages(settings)) {
+        data[`${direction.name}.env`] =
+            pulumi.interpolate`UPSTREAM_URL=${direction.upstreamUrl}
+TARGET_URL=${direction.targetUrl}
+BRANCHES=${direction.branches.join(',')}
+`;
+    }
+
+    return {
+        credentials,
         script: new kubernetes.core.v1.ConfigMap(
             `${args.appName}-mirror-sync`,
-            {
-                metadata,
-                data: {
-                    'mirror-sync.sh': readFileSync(
-                        join(__dirname, 'mirror-sync.sh'),
-                        'utf8',
-                    ),
-                },
-            },
+            { metadata, data },
             { parent: args.parent },
         ),
     };
@@ -182,9 +193,9 @@ function createPodSpec(
     settings: MirrorSyncSettings,
     resources: MirrorSyncResources,
 ): kubernetes.types.input.core.v1.PodSpec {
-    const directions = settings.sink
-        ? [settings.upstream, settings.sink]
-        : [settings.upstream];
+    const containers = stages(settings).map(direction =>
+        createContainer(direction, resources.credentials[direction.name], settings.image),
+    );
 
     return {
         restartPolicy: 'Never',
@@ -194,13 +205,10 @@ function createPodSpec(
             runAsGroup: 65534,
             seccompProfile: { type: 'RuntimeDefault' },
         },
-        containers: directions.map(direction =>
-            createContainer(
-                direction,
-                resources.credentials[direction.name],
-                settings.image,
-            ),
-        ),
+        // Stages run in order: pushing from a copy that failed to update would
+        // send the remote the branches it already had, and hide the failure.
+        initContainers: containers.slice(0, -1),
+        containers: containers.slice(-1),
         volumes: [
             { name: 'script', configMap: { name: resources.script.metadata.name } },
             { name: 'tmp', emptyDir: {} },
@@ -216,13 +224,8 @@ function createContainer(
     return {
         name: direction.name,
         image,
-        command: ['/bin/sh', '/config/mirror-sync.sh'],
-        env: [
-            { name: 'HOME', value: '/tmp' },
-            { name: 'UPSTREAM_URL', value: direction.upstreamUrl },
-            { name: 'TARGET_URL', value: direction.targetUrl },
-            { name: 'BRANCHES', value: direction.branches.join(',') },
-        ],
+        command: ['/bin/sh', '/config/mirror-sync.sh', `/config/${direction.name}.env`],
+        env: [{ name: 'HOME', value: '/tmp' }],
         envFrom: [{ secretRef: { name: credential.metadata.name } }],
         volumeMounts: [
             { name: 'script', mountPath: '/config', readOnly: true },

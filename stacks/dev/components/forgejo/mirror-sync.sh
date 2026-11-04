@@ -10,6 +10,16 @@
 #
 set -eu
 
+# Settings come from a mounted file, one per direction, so a direction is
+# described in one place instead of scattered through the pod spec.
+settings=${1:-/config/mirror-sync.env}
+[ -r "$settings" ] || {
+    printf 'no settings file at %s\n' "$settings" >&2
+    exit 2
+}
+# shellcheck source=/dev/null
+. "$settings"
+
 : "${UPSTREAM_URL:?UPSTREAM_URL is required}"
 : "${TARGET_URL:?TARGET_URL is required}"
 : "${TARGET_TOKEN:?TARGET_TOKEN is required}"

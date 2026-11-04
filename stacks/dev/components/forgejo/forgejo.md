@@ -152,25 +152,31 @@ Forgejo's own branches can be pushed back out to the upstream, which is what
 keeps a public repository current while development happens here:
 
 ```sh
-pulumi config set forgejo:mirrorSync/sinkUrl https://github.com/example/project.git
-pulumi config set forgejo:mirrorSync/sinkToken <token> --secret
+pulumi config set forgejo:mirrorSync/pushUrl https://github.com/example/project.git
+pulumi config set forgejo:mirrorSync/pushToken <token> --secret
 ```
 
-- `sinkUrl` - the remote to push to. Unset, and only the fetch above runs.
-- `sinkToken` - a token on that remote that may write to the repository.
-- `sinkBranches` (default `0.9.0`) - the branches Forgejo owns.
+- `pushUrl` - the remote to push to. Unset, and only the fetch above runs.
+- `pushToken` - a token on that remote that may write to the repository.
+- `pushBranches` (default `0.9.0`) - the branches Forgejo owns.
 
-The sink is a second container in the same job: same schedule, its own log. It
-names an explicit refspec and never forces, so a branch it was not asked about
-is untouched and a branch that is ahead on the remote is reported as `DIVERGED`
-instead of being rewound. A forge-side push mirror copies every ref instead
+The push runs as a second stage of the same job, after the fetch has finished,
+so a failed fetch never leaves the remote holding stale branches. It names an
+explicit refspec and never forces: a branch it was not asked about is untouched,
+and a branch that is ahead on the remote is reported as `DIVERGED` instead of
+being rewound. A forge-side push mirror copies every ref instead
 (`git push --mirror`) and so deletes whatever its branch filter excludes, which
 on a repository whose default branch is filtered out is a delete request on
 every run.
 
+Each direction's settings are mounted from the job's ConfigMap as
+`<stage>.env`, so a direction is read in one file rather than pieced together
+from the pod spec.
+
 If you would rather drive the same copy from outside the cluster, the script the
-job runs is `components/forgejo/mirror-sync.sh`: it takes `UPSTREAM_URL`,
-`TARGET_URL`, `BRANCHES` and `TARGET_TOKEN` and prints one line per branch.
+job runs is `components/forgejo/mirror-sync.sh`: give it a settings file with
+`UPSTREAM_URL`, `TARGET_URL` and `BRANCHES`, and `TARGET_TOKEN` in the
+environment, and it prints one line per branch.
 
 ## Admin access
 
