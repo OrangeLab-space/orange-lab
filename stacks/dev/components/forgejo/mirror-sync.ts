@@ -4,15 +4,25 @@ import * as pulumi from '@pulumi/pulumi';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DEFAULT_SCHEDULE = '*/30 * * * *';
-const DEFAULT_IMAGE = 'docker.io/alpine/git:2.51.0';
-
 export interface MirrorSyncArgs {
     appName: string;
     /** Public URL of this Forgejo instance, used to address the repository. */
     endpointUrl: pulumi.Input<string>;
     metadata: Metadata;
     parent: pulumi.ComponentResource;
+}
+
+interface MirrorSyncSettings {
+    upstreamUrl: string;
+    targetUrl: pulumi.Output<string>;
+    branches: string[];
+    schedule: string;
+    image: string;
+}
+
+interface MirrorSyncResources {
+    credentials: kubernetes.core.v1.Secret;
+    script: kubernetes.core.v1.ConfigMap;
 }
 
 /**
@@ -27,50 +37,18 @@ export interface MirrorSyncArgs {
 export function createMirrorSync(
     args: MirrorSyncArgs,
 ): kubernetes.batch.v1.CronJob | undefined {
-    const enabled = config.getBoolean(args.appName, 'mirrorSync/enabled') ?? false;
-    if (!enabled) return undefined;
-
-    const upstreamUrl = config.require(args.appName, 'mirrorSync/upstreamUrl');
-    const repository = config.require(args.appName, 'mirrorSync/repository');
-    const branches = config.requireCommaSeparated(args.appName, 'mirrorSync/branches');
-    // Only a private upstream needs a credential; a public one is fetched anonymously.
-    const upstreamToken = config.getSecret(args.appName, 'mirrorSync/upstreamToken');
-    const schedule = config.get(args.appName, 'mirrorSync/schedule') ?? DEFAULT_SCHEDULE;
-    const image = config.get(args.appName, 'mirrorSync/image') ?? DEFAULT_IMAGE;
-    const targetUrl = pulumi
-        .output(args.endpointUrl)
-        .apply(url => `${url.replace(/\/+$/, '')}/${repository}.git`);
-
-    const secret = new kubernetes.core.v1.Secret(
-        `${args.appName}-mirror-sync`,
-        {
-            metadata: args.metadata.get({ component: 'mirror-sync' }),
-            stringData: {
-                TARGET_TOKEN: config.requireSecret(args.appName, 'mirrorSync/token'),
-                ...(upstreamToken ? { UPSTREAM_TOKEN: upstreamToken } : {}),
-            },
-        },
-        { parent: args.parent },
-    );
-
-    const script = new kubernetes.core.v1.ConfigMap(
-        `${args.appName}-mirror-sync`,
-        {
-            metadata: args.metadata.get({ component: 'mirror-sync' }),
-            data: {
-                'mirror-sync.sh': readFileSync(join(__dirname, 'mirror-sync.sh'), 'utf8'),
-            },
-        },
-        { parent: args.parent },
-    );
+    if (!config.getBoolean(args.appName, 'mirrorSync/enabled')) return undefined;
 
     const metadata = args.metadata.get({ component: 'mirror-sync' });
+    const settings = readSettings(args);
+    const resources = createResources(args, metadata);
+
     return new kubernetes.batch.v1.CronJob(
         `${args.appName}-mirror-sync`,
         {
             metadata,
             spec: {
-                schedule,
+                schedule: settings.schedule,
                 // One run at a time: two concurrent fetch/push pairs would race
                 // on the same branches and turn a slow run into a failed one.
                 concurrencyPolicy: 'Forbid',
@@ -83,58 +61,7 @@ export function createMirrorSync(
                         activeDeadlineSeconds: 900,
                         template: {
                             metadata: { labels: metadata.labels },
-                            spec: {
-                                restartPolicy: 'Never',
-                                securityContext: {
-                                    runAsNonRoot: true,
-                                    runAsUser: 65534,
-                                    runAsGroup: 65534,
-                                    seccompProfile: { type: 'RuntimeDefault' },
-                                },
-                                containers: [
-                                    {
-                                        name: 'mirror-sync',
-                                        image,
-                                        command: ['/bin/sh', '/config/mirror-sync.sh'],
-                                        env: [
-                                            { name: 'HOME', value: '/tmp' },
-                                            { name: 'UPSTREAM_URL', value: upstreamUrl },
-                                            { name: 'TARGET_URL', value: targetUrl },
-                                            {
-                                                name: 'BRANCHES',
-                                                value: branches.join(','),
-                                            },
-                                        ],
-                                        envFrom: [
-                                            { secretRef: { name: secret.metadata.name } },
-                                        ],
-                                        volumeMounts: [
-                                            {
-                                                name: 'script',
-                                                mountPath: '/config',
-                                                readOnly: true,
-                                            },
-                                            { name: 'tmp', mountPath: '/tmp' },
-                                        ],
-                                        resources: {
-                                            requests: { cpu: '50m', memory: '64Mi' },
-                                            limits: { cpu: '500m', memory: '256Mi' },
-                                        },
-                                        securityContext: {
-                                            allowPrivilegeEscalation: false,
-                                            capabilities: { drop: ['ALL'] },
-                                            readOnlyRootFilesystem: true,
-                                        },
-                                    },
-                                ],
-                                volumes: [
-                                    {
-                                        name: 'script',
-                                        configMap: { name: script.metadata.name },
-                                    },
-                                    { name: 'tmp', emptyDir: {} },
-                                ],
-                            },
+                            spec: createPodSpec(settings, resources),
                         },
                     },
                 },
@@ -142,4 +69,104 @@ export function createMirrorSync(
         },
         { parent: args.parent },
     );
+}
+
+function readSettings(args: MirrorSyncArgs): MirrorSyncSettings {
+    const repository = config.require(args.appName, 'mirrorSync/repository');
+
+    return {
+        upstreamUrl: config.require(args.appName, 'mirrorSync/upstreamUrl'),
+        targetUrl: pulumi
+            .output(args.endpointUrl)
+            .apply(url => `${url.replace(/\/+$/, '')}/${repository}.git`),
+        branches: config.requireCommaSeparated(args.appName, 'mirrorSync/branches'),
+        schedule: config.require(args.appName, 'mirrorSync/schedule'),
+        image: config.require(args.appName, 'mirrorSync/image'),
+    };
+}
+
+/** The push credential, and the upstream one when the remote is not public. */
+function createResources(
+    args: MirrorSyncArgs,
+    metadata: ReturnType<Metadata['get']>,
+): MirrorSyncResources {
+    const upstreamToken = config.getSecret(args.appName, 'mirrorSync/upstreamToken');
+
+    return {
+        credentials: new kubernetes.core.v1.Secret(
+            `${args.appName}-mirror-sync`,
+            {
+                metadata,
+                stringData: {
+                    TARGET_TOKEN: config.requireSecret(args.appName, 'mirrorSync/token'),
+                    ...(upstreamToken ? { UPSTREAM_TOKEN: upstreamToken } : {}),
+                },
+            },
+            { parent: args.parent },
+        ),
+        script: new kubernetes.core.v1.ConfigMap(
+            `${args.appName}-mirror-sync`,
+            {
+                metadata,
+                data: {
+                    'mirror-sync.sh': readFileSync(
+                        join(__dirname, 'mirror-sync.sh'),
+                        'utf8',
+                    ),
+                },
+            },
+            { parent: args.parent },
+        ),
+    };
+}
+
+function createPodSpec(
+    settings: MirrorSyncSettings,
+    resources: MirrorSyncResources,
+): kubernetes.types.input.core.v1.PodSpec {
+    return {
+        restartPolicy: 'Never',
+        securityContext: {
+            runAsNonRoot: true,
+            runAsUser: 65534,
+            runAsGroup: 65534,
+            seccompProfile: { type: 'RuntimeDefault' },
+        },
+        containers: [createContainer(settings, resources)],
+        volumes: [
+            { name: 'script', configMap: { name: resources.script.metadata.name } },
+            { name: 'tmp', emptyDir: {} },
+        ],
+    };
+}
+
+function createContainer(
+    settings: MirrorSyncSettings,
+    resources: MirrorSyncResources,
+): kubernetes.types.input.core.v1.Container {
+    return {
+        name: 'mirror-sync',
+        image: settings.image,
+        command: ['/bin/sh', '/config/mirror-sync.sh'],
+        env: [
+            { name: 'HOME', value: '/tmp' },
+            { name: 'UPSTREAM_URL', value: settings.upstreamUrl },
+            { name: 'TARGET_URL', value: settings.targetUrl },
+            { name: 'BRANCHES', value: settings.branches.join(',') },
+        ],
+        envFrom: [{ secretRef: { name: resources.credentials.metadata.name } }],
+        volumeMounts: [
+            { name: 'script', mountPath: '/config', readOnly: true },
+            { name: 'tmp', mountPath: '/tmp' },
+        ],
+        resources: {
+            requests: { cpu: '50m', memory: '64Mi' },
+            limits: { cpu: '500m', memory: '256Mi' },
+        },
+        securityContext: {
+            allowPrivilegeEscalation: false,
+            capabilities: { drop: ['ALL'] },
+            readOnlyRootFilesystem: true,
+        },
+    };
 }

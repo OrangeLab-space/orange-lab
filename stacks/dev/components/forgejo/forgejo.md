@@ -124,21 +124,22 @@ pull requests on one branch while development happens in Forgejo on another:
 pulumi config set forgejo:mirrorSync/enabled true
 pulumi config set forgejo:mirrorSync/upstreamUrl https://github.com/example/project.git
 pulumi config set forgejo:mirrorSync/repository example/project
-pulumi config set forgejo:mirrorSync/branches main
 pulumi config set forgejo:mirrorSync/token <token> --secret
 ```
 
 - `upstreamUrl` - the remote to copy from. Fetched anonymously, so a public
   upstream needs no credential.
 - `repository` - the local repository to update, as `owner/name`.
-- `branches` - comma-separated branches to keep in sync. Only list the ones the
-  upstream owns; branches you develop in Forgejo are pushed out, not pulled in.
 - `token` - a Forgejo token with `write:repository` on `repository`, used to push.
   Mint it in **Settings → Applications** for an account that can already write to
   the repository.
 - `upstreamToken` - (optional) only for a _private_ upstream.
-- `schedule` - (optional, default `*/30 * * * *`) how often to run.
-- `image` - (optional) the git image the job runs.
+
+Three more keys have working defaults in the stack's `Pulumi.yaml`, so they only
+need setting to change them: `branches` (`main`) - the branches the upstream
+owns, comma-separated; branches you develop in Forgejo are pushed out, not pulled
+in, so listing them here would fight the push mirror - `schedule`
+(`*/30 * * * *`) and `image`.
 
 The job is fast-forward only. If a branch has moved on both sides it prints
 `DIVERGED`, leaves the local branch untouched and exits non-zero, so the failed
