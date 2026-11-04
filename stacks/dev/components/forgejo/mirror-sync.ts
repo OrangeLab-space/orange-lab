@@ -93,7 +93,10 @@ export function createMirrorSync(
                 },
             },
         },
-        { parent: args.parent },
+        // The stages reference the Secrets by name, a plain string the provider
+        // cannot infer a dependency from: without this the CronJob can be
+        // updated before the Secret it mounts exists.
+        { parent: args.parent, dependsOn: Object.values(resources.credentials) },
     );
 }
 
@@ -181,20 +184,25 @@ BRANCHES=${direction.branches.join(',')}
 /**
  * One Secret per direction, holding only what that direction needs to write to
  * its target - so neither stage is handed the other's credential.
+ *
+ * The component's `metadata` carries one object name for every resource in it,
+ * which is fine for a single object per kind but not for two Secrets: they need
+ * their own names, and the name the CronJob refers to them by.
  */
 function createCredential(
     args: MirrorSyncArgs,
     metadata: ReturnType<Metadata['get']>,
     direction: MirrorDirection,
 ): kubernetes.core.v1.Secret {
+    const name = `${args.appName}-mirror-${direction.name}`;
     const sourceToken = direction.sourceTokenKey
         ? config.getSecret(args.appName, direction.sourceTokenKey)
         : undefined;
 
     return new kubernetes.core.v1.Secret(
-        `${args.appName}-mirror-${direction.name}`,
+        name,
         {
-            metadata,
+            metadata: { ...metadata, name },
             stringData: {
                 ...(sourceToken ? { SOURCE_TOKEN: sourceToken } : {}),
                 TARGET_TOKEN: config.requireSecret(args.appName, direction.tokenKey),
