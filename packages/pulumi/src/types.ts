@@ -79,7 +79,15 @@ export interface ContainerResources {
 export interface HealthCheck {
     httpGet?: {
         path?: string;
+        /** Container port name to probe. Defaults to `http`. */
+        port?: string;
     };
+    /** Readiness path when "up" and "able to serve" differ; liveness and startup keep
+     * `httpGet.path`. Ignored without `httpGet`: an exec check has no path to swap. */
+    readinessPath?: string;
+    /** Startup failures tolerated before a restart. Defaults to 10 (100 s); raise it for
+     * a container that legitimately takes minutes to answer on a cold start. */
+    startupFailureThreshold?: number;
     /** Command that exits 0 while the container is healthy. */
     exec?: {
         command: string[];
@@ -167,9 +175,10 @@ export interface SidecarSpec {
     /**
      * Startup and liveness probes for the sidecar. No readiness probe is added:
      * pod readiness stays with the main container, so a helper that is briefly
-     * unavailable does not remove the pod from its Service.
+     * unavailable does not remove the pod from its Service. For the same reason
+     * `readinessPath` is not accepted here — it would be silently ignored.
      */
-    healthCheck?: HealthCheck;
+    healthCheck?: Omit<HealthCheck, 'readinessPath'>;
 }
 
 /**
