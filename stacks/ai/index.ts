@@ -61,10 +61,22 @@ const n8n = config.isEnabled('n8n')
     : undefined;
 
 const hermes = config.isEnabled('hermes')
-    ? new Hermes('hermes', {
-          agentgatewayApiKey: agentgateway?.apiKeys.hermes,
-          agentgatewayUrl: agentgateway?.apiUrl,
-      })
+    ? new Hermes(
+          'hermes',
+          {
+              agentgatewayApiKey: agentgateway?.apiKeys.hermes,
+              agentgatewayUrl: agentgateway?.apiUrl,
+              speech: speaches
+                  ? {
+                        sttModel: speaches.sttModel,
+                        ttsModel: speaches.ttsModel,
+                        ttsVoice: speaches.ttsVoice,
+                        url: speaches.apiUrl,
+                    }
+                  : undefined,
+          },
+          { dependsOn: [agentgateway, speaches].filter(x => x !== undefined) },
+      )
     : undefined;
 
 export const endpoints = mergeEndpointExports(

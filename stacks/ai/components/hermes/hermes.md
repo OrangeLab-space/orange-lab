@@ -89,6 +89,20 @@ pulumi config set hermes:model assistant
 Without `hermes:model`, pick a provider and model on the dashboard's **Models**
 page.
 
+## Speech
+
+Voice works through [speaches](./speaches.md) when it is enabled; the models are
+read from `speaches:*`, so there is nothing to configure here.
+
+```sh
+pulumi config set speaches:enabled true
+```
+
+Speech-to-text turns inbound voice notes into text, and text-to-speech lets the
+agent reply with audio. Without it, a voice note arrives as an untranscribed
+attachment and replies are text-only; the seeded `config.yaml` has no `stt` or
+`tts` block to fall back on.
+
 ## Pocket ID
 
 ```sh
