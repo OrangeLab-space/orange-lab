@@ -79,6 +79,17 @@ pulumi config set --secret hermes:GITHUB_TOKEN <token>
     - **Issues**: Read and write — only if it should triage or comment
     - **Pull requests**: Read and write — only if it should open or review PRs
 
+## Forgejo access
+
+```sh
+# Token for the forge the agent pushes to
+pulumi config set --secret hermes:FORGEJO_TOKEN <token>
+```
+
+Mint it under **Settings → Applications → Generate new token** with the
+`write:repository` scope. Use an account made for the agent rather than your own,
+so the token can be revoked without locking you out of your repositories.
+
 ## Models
 
 ```sh
@@ -88,6 +99,20 @@ pulumi config set hermes:model assistant
 
 Without `hermes:model`, pick a provider and model on the dashboard's **Models**
 page.
+
+## Speech
+
+Voice works through [speaches](./speaches.md) when it is enabled; the models are
+read from `speaches:*`, so there is nothing to configure here.
+
+```sh
+pulumi config set speaches:enabled true
+```
+
+Speech-to-text turns inbound voice notes into text, and text-to-speech lets the
+agent reply with audio. Without it, a voice note arrives as an untranscribed
+attachment and replies are text-only; the seeded `config.yaml` has no `stt` or
+`tts` block to fall back on.
 
 ## Pocket ID
 

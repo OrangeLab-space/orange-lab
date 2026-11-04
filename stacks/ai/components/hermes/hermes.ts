@@ -11,11 +11,21 @@ const dataPath = '/opt/data';
 const seedPath = '/opt/hermes-seed';
 const runtimeUserId = 10000;
 
+export interface SpeechSettings {
+    /** OpenAI-compatible speech endpoint, including the `/v1` suffix. */
+    url: pulumi.Input<string>;
+    sttModel: string;
+    ttsModel: string;
+    ttsVoice: string;
+}
+
 export interface HermesArgs {
     /** Virtual key for the `hermes` agentgateway client. */
     agentgatewayApiKey?: pulumi.Input<string>;
     /** In-cluster OpenAI-compatible endpoint of agentgateway. */
     agentgatewayUrl?: pulumi.Input<string>;
+    /** Speech-to-text and text-to-speech models, from the `speaches` component. */
+    speech?: SpeechSettings;
 }
 
 export class Hermes extends pulumi.ComponentResource {
@@ -38,6 +48,7 @@ export class Hermes extends pulumi.ComponentResource {
         if (this.app.storageOnly) return;
 
         const githubToken = config.getSecret(name, 'GITHUB_TOKEN');
+        const forgejoToken = config.getSecret(name, 'FORGEJO_TOKEN');
         const marmot = this.getMarmot();
         const init = this.getInit();
         const clusterAccess = new ClusterAccess(
@@ -54,11 +65,18 @@ export class Hermes extends pulumi.ComponentResource {
                 'config.yaml': this.getConfigYaml(marmot),
                 kubeconfig: clusterAccess.kubeconfig,
             },
-            secretFiles: githubToken
-                ? {
-                      'github.env': pulumi.interpolate`GITHUB_TOKEN=${githubToken}\n`,
-                  }
-                : undefined,
+            secretFiles: {
+                ...(githubToken
+                    ? {
+                          'github.env': pulumi.interpolate`GITHUB_TOKEN=${githubToken}\n`,
+                      }
+                    : {}),
+                ...(forgejoToken
+                    ? {
+                          'forgejo.env': pulumi.interpolate`FORGEJO_TOKEN=${forgejoToken}\n`,
+                      }
+                    : {}),
+            },
         });
         if (marmot) this.app.addEmptyVolume({ name: 'marmot-media' });
 
@@ -220,7 +238,17 @@ export class Hermes extends pulumi.ComponentResource {
             settings.platforms = {
                 marmot: {
                     enabled: true,
-                    extra: { home: marmot.home, socket_path: marmot.socket },
+                    extra: {
+                        home: marmot.home,
+                        // Outbound files (TTS audio, documents) are refused unless
+                        // their directory is listed here.
+                        media_local_roots: [
+                            `${dataPath}/audio_cache`,
+                            `${dataPath}/cache/documents`,
+                            `${marmot.home}/dev/inbound-media`,
+                        ],
+                        socket_path: marmot.socket,
+                    },
                 },
             };
         }
@@ -237,21 +265,53 @@ export class Hermes extends pulumi.ComponentResource {
         );
         if (marmot) plugins.add('marmot');
         if (plugins.size) settings.plugins = { enabled: [...plugins] };
-        const model = config.get(this.name, 'model');
-        if (!model) return stringify(settings);
 
-        return pulumi.output(this.getAgentgatewayUrl()).apply(baseUrl =>
-            stringify({
-                ...settings,
-                model: {
-                    api_mode: 'chat_completions',
-                    base_url: baseUrl,
-                    default: model,
-                    key_env: 'OPENAI_API_KEY',
-                    provider: 'custom',
-                },
-            }),
-        );
+        const fragments = this.getConfigFragments();
+        if (fragments.length === 0) return stringify(settings);
+        return pulumi
+            .all(fragments)
+            .apply(parts => stringify(Object.assign({}, settings, ...parts)));
+    }
+
+    /** Settings that depend on another component's endpoint, merged into config.yaml. */
+    private getConfigFragments(): pulumi.Input<Record<string, unknown>>[] {
+        const fragments: pulumi.Input<Record<string, unknown>>[] = [];
+        const model = config.get(this.name, 'model');
+        if (model) {
+            fragments.push(
+                pulumi.output(this.getAgentgatewayUrl()).apply(baseUrl => ({
+                    model: {
+                        api_mode: 'chat_completions',
+                        base_url: baseUrl,
+                        default: model,
+                        key_env: 'OPENAI_API_KEY',
+                        provider: 'custom',
+                    },
+                })),
+            );
+        }
+        const speech = this.args.speech;
+        if (speech) {
+            // Without these blocks inbound voice notes arrive untranscribed and
+            // replies are text-only; the gateway never learns the models exist.
+            fragments.push(
+                pulumi.output(speech.url).apply(baseUrl => ({
+                    stt: {
+                        openai: { base_url: baseUrl, model: speech.sttModel },
+                        provider: 'openai',
+                    },
+                    tts: {
+                        openai: {
+                            base_url: baseUrl,
+                            model: speech.ttsModel,
+                            voice: speech.ttsVoice,
+                        },
+                        provider: 'openai',
+                    },
+                })),
+            );
+        }
+        return fragments;
     }
 }
 

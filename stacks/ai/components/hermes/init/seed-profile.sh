@@ -17,14 +17,21 @@ fi
 
 [ -s "$DATA_PATH/SOUL.md" ] || cp "$SEED_PATH/SOUL.md" "$DATA_PATH/SOUL.md"
 
-# Hermes strips GitHub credentials from tool subprocesses, so the token also
-# lives in .env, where the bundled GitHub skill reads it.
-if [ -f "$SEED_PATH/github.env" ]; then
+# Hermes strips credentials from tool subprocesses, so each token also lives in
+# .env, where the bundled skill for that host reads it. A key that comes from a
+# Secret replaces whatever the agent wrote there.
+seed_env() {
+    env_file=$1
+    [ -f "$env_file" ] || return 0
+    keys=$(cut -d= -f1 "$env_file" | paste -sd'|' -)
     touch "$DATA_PATH/.env"
-    grep -v -e '^GH_TOKEN=' -e '^GITHUB_TOKEN=' "$DATA_PATH/.env" > "$DATA_PATH/.env.tmp" || true
-    cat "$SEED_PATH/github.env" >> "$DATA_PATH/.env.tmp"
+    grep -v -E "^(${keys})=" "$DATA_PATH/.env" > "$DATA_PATH/.env.tmp" || true
+    cat "$env_file" >> "$DATA_PATH/.env.tmp"
     mv "$DATA_PATH/.env.tmp" "$DATA_PATH/.env"
     chown "$USER_ID:$USER_ID" "$DATA_PATH/.env"
-fi
+}
+
+seed_env "$SEED_PATH/github.env"
+seed_env "$SEED_PATH/forgejo.env"
 
 chown -R "$USER_ID:$USER_ID" "$DATA_PATH/workspace" "$DATA_PATH/config.yaml" "$DATA_PATH/SOUL.md"

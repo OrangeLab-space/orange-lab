@@ -50,6 +50,9 @@ config:
     # agentgateway:modelCosts: map of providers/models/rates
     # Virtual models: map name to {strategy, targets: [{model, priority|weight}]}
     # agentgateway:virtualModels: see components/agentgateway/agentgateway.md
+    # Upstream request headers, used only when the client sends none; a client
+    # value wins. OpenCode Go models need x-opencode-session from non-agent clients.
+    # agentgateway:requestHeaders: map of header name to value
     # Virtual keys generated per client, exposed in apps.agentgateway.apiKeys
     agentgateway:clients: default
     # agentgateway:auth: pocket
@@ -163,6 +166,10 @@ config:
     hermes:ghVersion: 2.103.3
     # Fine-grained PAT for gh and git; read-only Contents is enough to start.
     # hermes:GITHUB_TOKEN: <token>
+    # Token for the self-hosted forge, so the agent can push a branch and open a
+    # PR there instead of asking a human to carry a patch. write:repository on
+    # the repositories it works in is enough; it needs no admin rights.
+    # hermes:FORGEJO_TOKEN: <token>
     # SOUL.md seeded into a new profile; relative paths resolve from stacks/ai.
     hermes:soulFile: components/hermes/SOUL.md
     # White Noise (Marmot/Nostr) connector as a sidecar; the platform config is

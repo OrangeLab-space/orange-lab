@@ -91,7 +91,9 @@ app_admins() {
         --group longhorn-admin \
             --friendly-name "Admins - Storage/Longhorn" \
         --group invokeai-admin \
-            --friendly-name "Admins - AI/InvokeAI"
+            --friendly-name "Admins - AI/InvokeAI" \
+        --group hermes-admin \
+            --friendly-name "Admins - AI/Hermes"
 }
 
 app_users() {
