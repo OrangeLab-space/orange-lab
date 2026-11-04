@@ -33,6 +33,16 @@ settings=${1:-/config/pull.env}
 TARGET_USERNAME=${TARGET_USERNAME:-oauth2}
 SOURCE_USERNAME=${SOURCE_USERNAME:-oauth2}
 
+# The askpass scripts below are separate processes, so anything they read has to
+# be in the environment, not merely a shell variable. Unexported, the username
+# comes back empty, git hands the remote ":" as the credential and never uses
+# the token at all - a read-only remote still serves the fetch anonymously, so
+# the first push is where it surfaces, as "No anonymous write access".
+export TARGET_USERNAME SOURCE_USERNAME TARGET_TOKEN
+if [ -n "${SOURCE_TOKEN:-}" ]; then
+    export SOURCE_TOKEN
+fi
+
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 
