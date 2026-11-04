@@ -74,18 +74,15 @@ export class Containers {
                         livenessProbe: this.createProbe(spec.healthCheck),
                         name: metadata.name,
                         ports: this.createPorts(spec.ports),
-                        readinessProbe: this.createProbe(
-                            spec.healthCheck,
-                            undefined,
-                            spec.healthCheck?.readinessPath,
-                        ),
+                        readinessProbe: this.createReadinessProbe(spec.healthCheck),
                         resources: this.createResourceLimits(spec.resources, gpu),
                         securityContext: this.createContainerSecurityContext(
                             spec.runAsUser,
                             gpu,
                         ),
                         startupProbe: this.createProbe(spec.healthCheck, {
-                            failureThreshold: 10,
+                            failureThreshold:
+                                spec.healthCheck?.startupFailureThreshold ?? 10,
                         }),
                         volumeMounts,
                     },
@@ -257,7 +254,6 @@ export class Containers {
     private createProbe(
         probe?: HealthCheck,
         override?: Partial<kubernetes.types.input.core.v1.Probe>,
-        path?: string,
     ): kubernetes.types.input.core.v1.Probe | undefined {
         if (!probe) return undefined;
         const result: Record<string, unknown> = {
@@ -265,7 +261,8 @@ export class Containers {
             failureThreshold: probe.failureThreshold,
             httpGet: probe.httpGet
                 ? {
-                      path: path ?? probe.httpGet.path,
+                      ...probe.httpGet,
+                      path: probe.httpGet.path,
                       port: probe.httpGet.port ?? 'http',
                   }
                 : undefined,
@@ -274,6 +271,19 @@ export class Containers {
             Object.assign(result, override);
         }
         return result;
+    }
+
+    /**
+     * Readiness is the only probe allowed to report on a different path: a
+     * service that is up but cannot serve must leave the Service endpoints
+     * without being restarted, which is what liveness and startup would do.
+     */
+    private createReadinessProbe(probe?: HealthCheck) {
+        if (!probe?.readinessPath || !probe.httpGet) return this.createProbe(probe);
+        return this.createProbe({
+            ...probe,
+            httpGet: { ...probe.httpGet, path: probe.readinessPath },
+        });
     }
 
     private createEnv(

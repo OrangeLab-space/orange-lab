@@ -74,13 +74,22 @@ export class Rustfs extends pulumi.ComponentResource {
                 ...this.getOidcSecret(this.app.oidc),
             },
             commandArgs: ['/data'],
-            // Both probes answer on the S3 port. /health/live is a static "process
-            // up"; /health/ready also reports storage, IAM and lock state, so a
-            // store that stops serving drops out of the Service instead of being
-            // restarted.
+            // Both probes answer on the S3 port. /health/live is a static
+            // "process up"; /health/ready additionally reports IAM and lock
+            // state, so a store that cannot serve drops out of the Service
+            // instead of being restarted mid-upload. Its storage check is
+            // scoped to read quorum (`readinessScope: read_quorum`), so on a
+            // multi-node pool it would not notice write-path loss on its own.
+            // Unready also removes the console port (same Service), accepted:
+            // a store that cannot serve has no console worth reaching.
             healthCheck: {
                 httpGet: { path: '/health/live', port: 'api' },
                 readinessPath: '/health/ready',
+                // /data is external USB storage and a cold start re-reads it, so
+                // the platform's 100 s startup budget is too tight: exhausting it
+                // crash-loops a store that was merely slow to open its port. 5 min
+                // of startup slack, liveness and readiness unchanged.
+                startupFailureThreshold: 30,
             },
             volumeMounts: [{ name: 'data', mountPath: '/data' }],
             resources: {

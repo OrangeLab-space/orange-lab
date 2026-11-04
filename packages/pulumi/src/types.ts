@@ -87,8 +87,19 @@ export interface HealthCheck {
      * "able to serve". Liveness and startup keep using `httpGet.path`, so a
      * service that is up but temporarily cannot do its job leaves the Service
      * endpoints instead of being restarted.
+     *
+     * Ignored unless `httpGet` is set: an exec-only check has no path to
+     * substitute, so readiness falls back to the same command.
      */
     readinessPath?: string;
+    /**
+     * Failures the startup probe tolerates before the container is killed, at
+     * the kubelet's default 10 s period. Defaults to 10 (100 s). Raise it for a
+     * container that can legitimately spend minutes before it answers — a cold
+     * start over slow storage — where the default would crash-loop a healthy
+     * process. Startup only: liveness and readiness keep `failureThreshold`.
+     */
+    startupFailureThreshold?: number;
     /** Command that exits 0 while the container is healthy. */
     exec?: {
         command: string[];
@@ -176,9 +187,10 @@ export interface SidecarSpec {
     /**
      * Startup and liveness probes for the sidecar. No readiness probe is added:
      * pod readiness stays with the main container, so a helper that is briefly
-     * unavailable does not remove the pod from its Service.
+     * unavailable does not remove the pod from its Service. For the same reason
+     * `readinessPath` is not accepted here — it would be silently ignored.
      */
-    healthCheck?: HealthCheck;
+    healthCheck?: Omit<HealthCheck, 'readinessPath'>;
 }
 
 /**
