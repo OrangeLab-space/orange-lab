@@ -24,8 +24,10 @@ cd stacks/ai
 pulumi config set agentgateway:enabled true
 pulumi config set --path 'agentgateway:providers.ollama.baseUrl' 'http://ollama.ollama:11434/v1'
 pulumi config set --path 'agentgateway:providers.ollama.models[0]' 'gemma4'
-pulumi config set --path 'agentgateway:providers.opencode.baseUrl' 'https://opencode.ai/inference/openai/v1'
+pulumi config set --path 'agentgateway:providers.opencode.baseUrl' 'https://opencode.ai/inference/go/openai/v1'
 pulumi config set --path 'agentgateway:providers.opencode.models[0]' 'deepseek-v4.1-flash'
+# OpenCode Go needs a session id; clients that send one keep it
+pulumi config set --path 'agentgateway:requestHeaders.x-opencode-session' 'orangelab-gateway'
 pulumi config set agentgateway:clients open-webui,opencode
 pulumi config set --secret agentgateway:opencode/apiKey <provider-key>
 pulumi up
@@ -37,10 +39,10 @@ Ollama needs no key; the `opencode/apiKey` secret is only required for providers
 
 `agentgateway:providers` maps a provider name to its OpenAI-compatible endpoint and models:
 
-| Provider   | `baseUrl`                                 | Client model                   |
-| ---------- | ----------------------------------------- | ------------------------------ |
-| `ollama`   | `http://ollama.ollama:11434/v1`           | `ollama/gemma4`                |
-| `opencode` | `https://opencode.ai/inference/openai/v1` | `opencode/deepseek-v4.1-flash` |
+| Provider   | `baseUrl`                                    | Client model                   |
+| ---------- | -------------------------------------------- | ------------------------------ |
+| `ollama`   | `http://ollama.ollama:11434/v1`              | `ollama/gemma4`                |
+| `opencode` | `https://opencode.ai/inference/go/openai/v1` | `opencode/deepseek-v4.1-flash` |
 
 The name is arbitrary. `baseUrl` can point at an in-cluster service or an external API; it must be an OpenAI-compatible `/v1` endpoint. Clients request `<provider>/<model>`; the prefix is stripped before the request reaches the upstream.
 
@@ -53,6 +55,8 @@ pulumi config set --secret agentgateway:opencode/apiKey <provider-key>
 Providers without a key, like Ollama, skip the auth header.
 
 The declared models are the allow-list. `/v1/models` lists exactly them, and requests for anything else fail.
+
+OpenCode serves the same model IDs from two paths, and the path selects the bill: `/inference/go/openai/v1` draws on an OpenCode Go subscription, `/inference/openai/v1` charges the Console pay-as-you-go balance. Both accept the same Console API key. Models outside the Go catalog are only on the balance path, so put them under a second provider if you need them. Go also requires an `x-opencode-session` header; `agentgateway:requestHeaders` supplies it because clients that are not coding agents do not send one. A client-sent value always wins over the configured fallback.
 
 ## Virtual models
 

@@ -58,6 +58,7 @@ export class Agentgateway extends pulumi.ComponentResource {
 
         const clients = config.requireCommaSeparated(name, 'clients');
         this.apiKeys = this.createApiKeys(clients);
+        const requestHeaders = this.parseRequestHeaders();
 
         const crds = this.installCrds();
         const controller = this.installController(crds);
@@ -76,7 +77,7 @@ export class Agentgateway extends pulumi.ComponentResource {
         const modelResources = providers.createModels(gateway);
         virtualModels.createResources(gateway, modelResources);
         this.createApiKeyConfigMap(gateway, clients);
-        this.createPolicy(gateway);
+        this.createPolicy(gateway, requestHeaders);
         const ui = this.createDashboard(gateway);
 
         this.apiUrl = pulumi.interpolate`http://${gatewayName}.${this.app.metadata.namespace}.svc.cluster.local/v1`;
@@ -99,6 +100,36 @@ export class Agentgateway extends pulumi.ComponentResource {
                 client,
                 createPassword(this, `${this.name}-${client}-key`, { length: 40 }),
             ]),
+        );
+    }
+
+    /**
+     * Upstream request headers applied when the client does not send one. Some
+     * providers require a header for routing; OpenCode Go needs
+     * `x-opencode-session`, which agents send but plain chat clients do not.
+     */
+    private parseRequestHeaders(): Record<string, string> {
+        const raw = config.getObject(this.name, 'requestHeaders');
+        if (raw === undefined) return {};
+        if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+            throw new Error(
+                `${this.name}:requestHeaders must map header names to values.`,
+            );
+        }
+        return Object.fromEntries(
+            Object.entries(raw as Record<string, unknown>).map(([header, value]) => {
+                if (!/^[a-z0-9-]+$/i.test(header)) {
+                    throw new Error(
+                        `${this.name}:requestHeaders has invalid header name '${header}'.`,
+                    );
+                }
+                if (typeof value !== 'string' || !value) {
+                    throw new Error(
+                        `${this.name}:requestHeaders.${header} must be a non-empty string.`,
+                    );
+                }
+                return [header, value];
+            }),
         );
     }
 
@@ -320,7 +351,14 @@ export class Agentgateway extends pulumi.ComponentResource {
         );
     }
 
-    private createPolicy(gateway: pulumi.Resource): void {
+    private createPolicy(
+        gateway: pulumi.Resource,
+        requestHeaders: Record<string, string>,
+    ): void {
+        const headers = Object.entries(requestHeaders).map(([name, value]) => ({
+            name,
+            value: `default(request.headers["${name}"], ${celString(value)})`,
+        }));
         new kubernetes.apiextensions.CustomResource(
             `${this.name}-policy`,
             {
@@ -345,6 +383,9 @@ export class Agentgateway extends pulumi.ComponentResource {
                             },
                             mode: 'Strict',
                         },
+                        ...(headers.length > 0
+                            ? { transformation: { request: { set: headers } } }
+                            : {}),
                     },
                 },
             },
@@ -400,4 +441,9 @@ export class Agentgateway extends pulumi.ComponentResource {
             logs: pulumi.interpolate`${uiEndpoint.url}/ui/llm/logs`,
         };
     }
+}
+
+/** Quotes a value for use as a CEL string literal. */
+function celString(value: string): string {
+    return `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
 }
