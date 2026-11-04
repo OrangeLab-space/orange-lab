@@ -41,23 +41,31 @@ config:
     #   secure: <SMTP_PASSWORD>
     forgejo:smtp/port: 587
     forgejo:smtp/secure: starttls
-    # Keep branches of a repository up to date with an upstream remote
-    # (fast-forward only; a diverged branch fails the job instead of overwriting).
+    # Keep two copies of a repository in step with each other: a pull direction
+    # that fast-forwards the upstream's branches into the local copy, and an
+    # optional push direction that sends Forgejo's own branches back out.
+    # Fast-forward only; a diverged branch fails the job instead of overwriting.
+    # `enabled: false` creates no job at all - no CronJob, no ConfigMap, no Secret.
     forgejo:mirrorSync/enabled: false
-    # forgejo:mirrorSync/upstreamUrl: https://github.com/example/project.git
+    # The pull direction: the remote to copy from, and the local repository.
+    # forgejo:mirrorSync/pullUrl: https://github.com/example/project.git
     # forgejo:mirrorSync/repository: example/project
-    # forgejo:mirrorSync/token:
+    # Write access on this Forgejo instance, for the branches being pulled in.
+    # forgejo:mirrorSync/pullToken:
     #   secure: <FORGEJO_TOKEN>
     # Only for a private upstream; a public one is fetched anonymously.
-    # forgejo:mirrorSync/upstreamToken:
+    # forgejo:mirrorSync/pullUpstreamToken:
     #   secure: <UPSTREAM_TOKEN>
-    # The reverse direction: push Forgejo's branches out to that same remote,
-    # once the fetch above has finished. Unset pushUrl = only the fetch runs.
+    forgejo:mirrorSync/pullBranches: main
+    # The push direction: the remote to push Forgejo's own branches to, once the
+    # pull has finished. No pushUrl, and this direction is ignored completely -
+    # no stage, no credential, no settings file.
     # forgejo:mirrorSync/pushUrl: https://github.com/example/project.git
+    # The branches Forgejo owns - required with pushUrl, and set per repository.
+    # forgejo:mirrorSync/pushBranches: develop
+    # Write access on that remote.
     # forgejo:mirrorSync/pushToken:
     #   secure: <REMOTE_TOKEN>
-    forgejo:mirrorSync/branches: main
-    forgejo:mirrorSync/pushBranches: 0.9.0
     forgejo:mirrorSync/schedule: '*/30 * * * *'
     forgejo:mirrorSync/image: docker.io/alpine/git:2.54.0
     # forgejo:auth: pocket

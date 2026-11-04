@@ -12,19 +12,21 @@ export interface MirrorSyncArgs {
     parent: pulumi.ComponentResource;
 }
 
-/** One direction: branches of `targetUrl` are fast-forwarded from `upstreamUrl`. */
+/** One direction: branches of `targetUrl` are fast-forwarded from `sourceUrl`. */
 interface MirrorDirection {
-    name: string;
+    name: 'pull' | 'push';
     /** Config key holding the credential that may push to `targetUrl`. */
     tokenKey: string;
-    upstreamUrl: pulumi.Input<string>;
+    /** Config key of the source's credential, when the source needs one. */
+    sourceTokenKey?: string;
+    sourceUrl: pulumi.Input<string>;
     targetUrl: pulumi.Input<string>;
     branches: string[];
 }
 
 interface MirrorSyncSettings {
-    upstream: MirrorDirection;
-    /** Optional reverse direction: Forgejo's own branches pushed to a remote. */
+    pull: MirrorDirection;
+    /** The reverse direction, present only when a push target is configured. */
     push?: MirrorDirection;
     schedule: string;
     image: string;
@@ -36,13 +38,19 @@ interface MirrorSyncResources {
 }
 
 /**
- * Keeps copies of a repository in step with each other.
+ * Keeps two copies of a repository in step with each other.
  *
  * This exists for the repository layout where the upstream (say, a GitHub repo
  * that still accepts public pull requests) owns one branch and Forgejo owns the
- * rest: the upstream branch has to keep moving forward locally without anyone
- * hand-copying commits into the forge. The reverse direction pushes Forgejo's
- * own branches back out to the upstream, after the forward one has finished.
+ * rest. The `pull` direction fast-forwards the upstream's branches into the
+ * local copy; the `push` direction sends Forgejo's own branches back out, after
+ * the pull has finished. Each direction is configured by its own keys -
+ * `pullUrl`/`pullBranches`/`pullToken` and `pushUrl`/`pushBranches`/`pushToken`
+ * - so no key has to be read as "the other direction's".
+ *
+ * A direction with no URL is not part of the sync at all, and the feature switch
+ * sits above every resource: `mirrorSync/enabled: false` creates no CronJob, no
+ * ConfigMap and no Secret.
  *
  * Every direction is a fast-forward only, so a branch that has moved on both
  * sides is reported and never overwritten. The push names an explicit refspec
@@ -64,7 +72,7 @@ export function createMirrorSync(
             metadata,
             spec: {
                 schedule: settings.schedule,
-                // One run at a time: two concurrent fetch/push pairs would race
+                // One run at a time: two concurrent pull/push pairs would race
                 // on the same branches and turn a slow run into a failed one.
                 concurrencyPolicy: 'Forbid',
                 startingDeadlineSeconds: 300,
@@ -86,9 +94,9 @@ export function createMirrorSync(
     );
 }
 
-/** The stages of a run, in the order they execute. */
-function stages(settings: MirrorSyncSettings): MirrorDirection[] {
-    return settings.push ? [settings.upstream, settings.push] : [settings.upstream];
+/** The directions of a run, in the order they execute. */
+function directions(settings: MirrorSyncSettings): MirrorDirection[] {
+    return settings.push ? [settings.pull, settings.push] : [settings.pull];
 }
 
 function readSettings(args: MirrorSyncArgs): MirrorSyncSettings {
@@ -99,18 +107,24 @@ function readSettings(args: MirrorSyncArgs): MirrorSyncSettings {
     const pushUrl = config.get(args.appName, 'mirrorSync/pushUrl');
 
     return {
-        upstream: {
-            name: 'mirror-sync',
-            tokenKey: 'mirrorSync/token',
-            upstreamUrl: config.require(args.appName, 'mirrorSync/upstreamUrl'),
+        pull: {
+            name: 'pull',
+            tokenKey: 'mirrorSync/pullToken',
+            sourceTokenKey: 'mirrorSync/pullUpstreamToken',
+            sourceUrl: config.require(args.appName, 'mirrorSync/pullUrl'),
             targetUrl: localUrl,
-            branches: config.requireCommaSeparated(args.appName, 'mirrorSync/branches'),
+            branches: config.requireCommaSeparated(
+                args.appName,
+                'mirrorSync/pullBranches',
+            ),
         },
+        // Unset pushUrl is the switch for the direction, not a value to default:
+        // without it the job has one stage and the push keys are never read.
         push: pushUrl
             ? {
-                  name: 'mirror-push',
+                  name: 'push',
                   tokenKey: 'mirrorSync/pushToken',
-                  upstreamUrl: localUrl,
+                  sourceUrl: localUrl,
                   targetUrl: pushUrl,
                   branches: config.requireCommaSeparated(
                       args.appName,
@@ -124,36 +138,28 @@ function readSettings(args: MirrorSyncArgs): MirrorSyncSettings {
 }
 
 /**
- * The push credential of every stage, and the script with one settings file per
- * stage beside it - both are mounted, so nothing about a direction is buried in
- * the pod spec.
+ * The push credential of every direction, and the script with one settings file
+ * per direction beside it - both are mounted, so nothing about a direction is
+ * buried in the pod spec.
  */
 function createResources(
     args: MirrorSyncArgs,
     settings: MirrorSyncSettings,
     metadata: ReturnType<Metadata['get']>,
 ): MirrorSyncResources {
-    const upstreamToken = config.getSecret(args.appName, 'mirrorSync/upstreamToken');
-
     const credentials = Object.fromEntries(
-        stages(settings).map(direction => [
+        directions(settings).map(direction => [
             direction.name,
-            createCredential(
-                args,
-                metadata,
-                direction.name,
-                config.requireSecret(args.appName, direction.tokenKey),
-                direction === settings.upstream ? upstreamToken : undefined,
-            ),
+            createCredential(args, metadata, direction),
         ]),
     );
 
     const data: Record<string, pulumi.Input<string>> = {
         'mirror-sync.sh': readFileSync(join(__dirname, 'mirror-sync.sh'), 'utf8'),
     };
-    for (const direction of stages(settings)) {
+    for (const direction of directions(settings)) {
         data[`${direction.name}.env`] =
-            pulumi.interpolate`UPSTREAM_URL=${direction.upstreamUrl}
+            pulumi.interpolate`SOURCE_URL=${direction.sourceUrl}
 TARGET_URL=${direction.targetUrl}
 BRANCHES=${direction.branches.join(',')}
 `;
@@ -169,20 +175,26 @@ BRANCHES=${direction.branches.join(',')}
     };
 }
 
+/**
+ * One Secret per direction, holding only what that direction needs to write to
+ * its target - so neither stage is handed the other's credential.
+ */
 function createCredential(
     args: MirrorSyncArgs,
     metadata: ReturnType<Metadata['get']>,
-    name: string,
-    token: pulumi.Input<string>,
-    upstreamToken?: pulumi.Input<string>,
+    direction: MirrorDirection,
 ): kubernetes.core.v1.Secret {
+    const sourceToken = direction.sourceTokenKey
+        ? config.getSecret(args.appName, direction.sourceTokenKey)
+        : undefined;
+
     return new kubernetes.core.v1.Secret(
-        `${args.appName}-${name}`,
+        `${args.appName}-mirror-${direction.name}`,
         {
             metadata,
             stringData: {
-                TARGET_TOKEN: token,
-                ...(upstreamToken ? { UPSTREAM_TOKEN: upstreamToken } : {}),
+                ...(sourceToken ? { SOURCE_TOKEN: sourceToken } : {}),
+                TARGET_TOKEN: config.requireSecret(args.appName, direction.tokenKey),
             },
         },
         { parent: args.parent },
@@ -193,7 +205,7 @@ function createPodSpec(
     settings: MirrorSyncSettings,
     resources: MirrorSyncResources,
 ): kubernetes.types.input.core.v1.PodSpec {
-    const containers = stages(settings).map(direction =>
+    const containers = directions(settings).map(direction =>
         createContainer(direction, resources.credentials[direction.name], settings.image),
     );
 

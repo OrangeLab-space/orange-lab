@@ -113,32 +113,40 @@ ssh -T -p 2222 git@forgejo.<domain>
 
 Add your public keys under **Settings → SSH / GPG keys** to push and pull over SSH. The port must be reachable from where you connect; `2222` avoids clashing with the node's own SSH daemon.
 
-## Mirroring an upstream branch
+## Mirroring between two forges
 
 A repository can stay where it is on another forge and still be worked on here.
-The `mirrorSync` job fast-forwards named branches of a Forgejo repository from an
-upstream remote on a schedule, which is what lets an upstream keep accepting
-pull requests on one branch while development happens in Forgejo on another:
+The `mirrorSync` job keeps the two copies in step on a schedule, pulling the
+upstream's branches and — optionally — pushing Forgejo's own back out, which is
+what lets an upstream keep accepting pull requests on one branch while
+development happens here.
+
+Nothing exists until the feature is switched on: `mirrorSync/enabled` defaults to
+`false`, and while it is false the deployment creates no CronJob, no ConfigMap
+and no Secret. There is no job to trigger, pause or clean up.
+
+### Pulling the upstream's branches
 
 ```sh
 pulumi config set forgejo:mirrorSync/enabled true
-pulumi config set forgejo:mirrorSync/upstreamUrl https://github.com/example/project.git
+pulumi config set forgejo:mirrorSync/pullUrl https://github.com/example/project.git
 pulumi config set forgejo:mirrorSync/repository example/project
-pulumi config set forgejo:mirrorSync/token <token> --secret
+pulumi config set forgejo:mirrorSync/pullToken <token> --secret
 ```
 
-- `upstreamUrl` - the remote to copy from. Fetched anonymously, so a public
-  upstream needs no credential.
+- `pullUrl` - the remote to copy from. Fetched anonymously, so a public upstream
+  needs no credential.
 - `repository` - the local repository to update, as `owner/name`.
-- `token` - a Forgejo token with `write:repository` on `repository`, used to push.
-  Mint it in **Settings → Applications** for an account that can already write to
-  the repository.
-- `upstreamToken` - (optional) only for a _private_ upstream.
+- `pullToken` - a Forgejo token with `write:repository` on `repository`, used to
+  push the fetched branches into the local copy. Mint it in **Settings →
+  Applications** for an account that can already write to the repository.
+- `pullUpstreamToken` - (optional) only for a _private_ upstream.
+- `pullBranches` (default `main`) - the branches the upstream owns,
+  comma-separated. Branches you develop in Forgejo travel the other way; listing
+  them here would fight that direction.
 
-Three more keys have working defaults in the stack's `Pulumi.yaml`, so they only
-need setting to change them: `branches` (`main`) - the branches the upstream
-owns, comma-separated; branches you develop in Forgejo travel the other way, so
-listing them here would fight the sink - `schedule` (`*/30 * * * *`) and `image`.
+`schedule` (`*/30 * * * *`) and `image` have working defaults in the stack's
+`Pulumi.yaml` and only need setting to change them.
 
 The job is fast-forward only. If a branch has moved on both sides it prints
 `DIVERGED`, leaves the local branch untouched and exits non-zero, so the failed
@@ -148,35 +156,36 @@ that exist only in Forgejo or only upstream. Runs do not overlap
 
 ### Pushing the other way
 
-Forgejo's own branches can be pushed back out to the upstream, which is what
-keeps a public repository current while development happens here:
+Forgejo's own branches can be pushed back out to a remote, which is what keeps a
+public repository current while development happens here. The `push*` keys add a
+second stage to the same job, running after the pull has finished:
 
 ```sh
 pulumi config set forgejo:mirrorSync/pushUrl https://github.com/example/project.git
+pulumi config set forgejo:mirrorSync/pushBranches develop
 pulumi config set forgejo:mirrorSync/pushToken <token> --secret
 ```
 
-- `pushUrl` - the remote to push to. Unset, and only the fetch above runs.
+- `pushUrl` - the remote to push to, and the switch for the whole direction:
+  left unset, the push part of the sync is ignored — no stage, no credential, no
+  settings file — and the other two `push` keys are never read.
+- `pushBranches` - the branches Forgejo owns, comma-separated. Required
+  alongside `pushUrl`, with no default: which branches a repository develops in
+  Forgejo is that repository's decision, not the component's.
 - `pushToken` - a token on that remote that may write to the repository.
-- `pushBranches` (default `0.9.0`) - the branches Forgejo owns.
 
-The push runs as a second stage of the same job, after the fetch has finished,
-so a failed fetch never leaves the remote holding stale branches. It names an
-explicit refspec and never forces: a branch it was not asked about is untouched,
-and a branch that is ahead on the remote is reported as `DIVERGED` instead of
-being rewound. A forge-side push mirror copies every ref instead
-(`git push --mirror`) and so deletes whatever its branch filter excludes, which
-on a repository whose default branch is filtered out is a delete request on
-every run.
-
-Each direction's settings are mounted from the job's ConfigMap as
-`<stage>.env`, so a direction is read in one file rather than pieced together
-from the pod spec.
+The push names an explicit refspec and never forces: a branch it was not asked
+about is untouched, and a branch that is ahead on the remote is reported as
+`DIVERGED` instead of being rewound. A forge-side push mirror copies every ref
+instead (`git push --mirror`) and so deletes whatever its branch filter
+excludes, which on a repository whose default branch is filtered out is a delete
+request on every run.
 
 If you would rather drive the same copy from outside the cluster, the script the
 job runs is `components/forgejo/mirror-sync.sh`: give it a settings file with
-`UPSTREAM_URL`, `TARGET_URL` and `BRANCHES`, and `TARGET_TOKEN` in the
-environment, and it prints one line per branch.
+`SOURCE_URL`, `TARGET_URL` and `BRANCHES`, and `TARGET_TOKEN` in the environment
+(plus `SOURCE_TOKEN` when the source needs one), and it prints one line per
+branch.
 
 ## Admin access
 
