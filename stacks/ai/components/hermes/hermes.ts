@@ -111,7 +111,7 @@ export class Hermes extends pulumi.ComponentResource {
         // The API port is exported for in-cluster clients only (agentgateway's
         // `hermes` provider); it never joins the dashboard's public hostname.
         this.apiUrl = this.apiServerEnabled
-            ? pulumi.interpolate`http://${this.name}.${this.app.metadata.namespace}.svc.cluster.local:${String(apiServerPort)}/v1`
+            ? pulumi.interpolate`http://${this.name}.${this.app.metadata.namespace}:${String(apiServerPort)}/v1`
             : pulumi.output('');
         if (this.apiServerEnabled) {
             this.app.network.addClusterEndpoint(`${this.name}-api`, this.apiUrl);
@@ -205,9 +205,10 @@ export class Hermes extends pulumi.ComponentResource {
                       // The listener switches on from a usable API_SERVER_KEY in
                       // `.env`; API_SERVER_ENABLED is documentation-only upstream.
                       API_SERVER_HOST: '0.0.0.0',
-                      // Pinned so the id the server advertises matches the model
-                      // listed under `agentgateway:providers.hermes.models`.
-                      API_SERVER_MODEL_NAME: 'default',
+                      // No API_SERVER_MODEL_NAME: the advertised id is derived per
+                      // route — the profile name, `hermes-agent` for the default
+                      // profile — so list that under `agentgateway:providers.hermes`.
+                      // models, and each /p/<profile>/ prefix advertises its own.
                       API_SERVER_PORT: String(apiServerPort),
                   }
                 : {}),

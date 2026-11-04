@@ -60,7 +60,7 @@ A provider hosted by another component in this stack — the agent's OpenAI-comp
 
 ```sh
 pulumi config set --path 'agentgateway:providers.hermes.baseUrl' 'http://hermes.hermes:8642/v1'
-pulumi config set --path 'agentgateway:providers.hermes.models[0]' 'default'
+pulumi config set --path 'agentgateway:providers.hermes.models[0]' 'hermes-agent'
 ```
 
 The generated credential is exported for the hosting component (`apps.hermes.apiServerKey`).

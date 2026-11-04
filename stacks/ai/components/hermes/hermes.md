@@ -111,13 +111,19 @@ the agent requires it.
 ```sh
 # The agent becomes a provider of its own in the gateway's model catalog
 pulumi config set --path 'agentgateway:providers.hermes.baseUrl' 'http://hermes.hermes:8642/v1'
-pulumi config set --path 'agentgateway:providers.hermes.models[0]' 'default'
+pulumi config set --path 'agentgateway:providers.hermes.models[0]' 'hermes-agent'
 pulumi up
 ```
 
-The agent then answers to `hermes/default` on `https://ai.<domain>/v1` with any
-virtual key, so every gateway client — Open WebUI, `n8n`, a script — reaches it
+The agent then answers to `hermes/hermes-agent` on `https://ai.<domain>/v1` with
+any virtual key, so every gateway client — Open WebUI, `n8n`, a script — reaches it
 without its own credential.
+
+The model id is the profile name, and `hermes-agent` for the default profile — the
+same rule per route: `hermes.hermes:8642/p/<profile>/v1` serves that profile's agent
+and advertises `<profile>` as its model. A profile needs its own `API_SERVER_KEY` in
+`profiles/<name>/.env` to answer there (it fails closed rather than inherit the
+default's key), so give each exposed profile a provider entry of its own.
 
 ```sh
 pulumi stack output --show-secrets --json | jq -r '.apps.hermes.apiUrl,.apps.hermes.apiServerKey'
