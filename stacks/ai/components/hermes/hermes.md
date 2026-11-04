@@ -167,15 +167,13 @@ arrive.
 ## Plugins
 
 ```sh
-# Allow-list an extra user plugin (comma-separated); unlisted ones never mount
-pulumi config set hermes:plugins/enabled reports
+# Every plugin the gateway should load, comma-separated
+pulumi config set hermes:plugins marmot,reports
 ```
 
-The dashboard only imports a user plugin's backend when the plugin name is in
-`plugins.enabled` — this is a deliberate code-execution gate, not a bug. An
-installed plugin that is missing from the list is still discovered in the UI but
-every one of its routes answers `404 Plugin not found`. `marmot` is added
-automatically when `hermes:marmot/enabled` is true; anything else (a report page,
-a custom adapter) has to be named here.
+Hermes loads a plugin only when it is named under `plugins.enabled`, so this list
+is what reaches the gateway — a plugin installed on the volume but missing from it
+is discovered in the UI while every one of its routes answers `404 Plugin not
+found`. `marmot` has to be there for the connector to deliver anything.
 
 [mdk]: https://github.com/marmot-protocol/mdk/releases

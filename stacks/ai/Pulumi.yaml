@@ -184,10 +184,9 @@ config:
     hermes:marmot/allowAllUsers: false
     # Model served by agentgateway; requires 'hermes' in agentgateway:clients.
     # hermes:model: assistant
-    # Load the Marmot adapter in the gateway. Hermes only loads a plugin that is
-    # in its `plugins.enabled` allow-list, so turning this off leaves the sidecar
-    # running but the agent deaf. Plugins added later on the volume are unrelated.
-    hermes:plugins/enabled: true
+    # Plugins the gateway loads, comma-separated. Hermes ignores a plugin that is
+    # not named here, so `marmot` is required for the connector to reach the agent.
+    hermes:plugins: marmot
     # Proxies allowed to set X-Forwarded-* for the dashboard (Pocket ID login).
     # These are the k3s defaults; override for a cluster with custom CIDRs.
     hermes:trustedProxies: '10.42.0.0/16,10.43.0.0/16'

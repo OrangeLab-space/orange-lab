@@ -252,12 +252,11 @@ export class Hermes extends pulumi.ComponentResource {
                 },
             };
         }
-        // A plugin is loaded only when it is listed under `plugins.enabled`, so an
-        // installed-but-unlisted adapter answers every route with "Plugin not
-        // found". This component installs exactly one, and its switch is Marmot's.
-        if (marmot && config.getBoolean(this.name, 'plugins/enabled')) {
-            settings.plugins = { enabled: ['marmot'] };
-        }
+        // Hermes loads a plugin only when it is named here; an installed but
+        // unlisted adapter answers every route with "Plugin not found".
+        settings.plugins = {
+            enabled: config.requireCommaSeparated(this.name, 'plugins'),
+        };
 
         const fragments = this.getConfigFragments();
         if (fragments.length === 0) return stringify(settings);
