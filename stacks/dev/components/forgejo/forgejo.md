@@ -1,15 +1,15 @@
 # Forgejo
 
-|               |                                                                       |
-| ------------- | --------------------------------------------------------------------- |
-| Homepage      | https://forgejo.org/                                                  |
-| Source code   | https://codeberg.org/forgejo/forgejo                                  |
-| Documentation | https://forgejo.org/docs/latest/                                      |
-|               | https://pocket-id.org/docs/client-examples/forgejo                    |
-| Configuration | https://forgejo.org/docs/latest/admin/config-cheat-sheet/             |
-| Helm chart    | https://code.forgejo.org/forgejo-helm/forgejo-helm                    |
+|               |                                                                                |
+| ------------- | ------------------------------------------------------------------------------ |
+| Homepage      | https://forgejo.org/                                                           |
+| Source code   | https://codeberg.org/forgejo/forgejo                                           |
+| Documentation | https://forgejo.org/docs/latest/                                               |
+|               | https://pocket-id.org/docs/client-examples/forgejo                             |
+| Configuration | https://forgejo.org/docs/latest/admin/config-cheat-sheet/                      |
+| Helm chart    | https://code.forgejo.org/forgejo-helm/forgejo-helm                             |
 | Helm values   | https://code.forgejo.org/forgejo-helm/forgejo-helm/raw/branch/main/values.yaml |
-| Endpoints     | `https://forgejo.<domain>/` · `ssh://git@forgejo.<domain>:2222`        |
+| Endpoints     | `https://forgejo.<domain>/` · `ssh://git@forgejo.<domain>:2222`                |
 
 Forgejo is a self-hosted lightweight software forge: Git hosting, pull requests, issues, a package registry and Actions. It is a community-run fork of Gitea, easy to run and low maintenance.
 
@@ -112,6 +112,43 @@ ssh -T -p 2222 git@forgejo.<domain>
 ```
 
 Add your public keys under **Settings → SSH / GPG keys** to push and pull over SSH. The port must be reachable from where you connect; `2222` avoids clashing with the node's own SSH daemon.
+
+## Mirroring an upstream branch
+
+A repository can stay where it is on another forge and still be worked on here.
+The `mirrorSync` job fast-forwards named branches of a Forgejo repository from an
+upstream remote on a schedule, which is what lets an upstream keep accepting
+pull requests on one branch while development happens in Forgejo on another:
+
+```sh
+pulumi config set forgejo:mirrorSync/enabled true
+pulumi config set forgejo:mirrorSync/upstreamUrl https://github.com/example/project.git
+pulumi config set forgejo:mirrorSync/repository example/project
+pulumi config set forgejo:mirrorSync/branches main
+pulumi config set forgejo:mirrorSync/token <token> --secret
+```
+
+- `upstreamUrl` - the remote to copy from. Fetched anonymously, so a public
+  upstream needs no credential.
+- `repository` - the local repository to update, as `owner/name`.
+- `branches` - comma-separated branches to keep in sync. Only list the ones the
+  upstream owns; branches you develop in Forgejo are pushed out, not pulled in.
+- `token` - a Forgejo token with `write:repository` on `repository`, used to push.
+  Mint it in **Settings → Applications** for an account that can already write to
+  the repository.
+- `upstreamToken` - (optional) only for a _private_ upstream.
+- `schedule` - (optional, default `*/30 * * * *`) how often to run.
+- `image` - (optional) the git image the job runs.
+
+The job is fast-forward only. If a branch has moved on both sides it prints
+`DIVERGED`, leaves the local branch untouched and exits non-zero, so the failed
+job is the signal that a human has to reconcile — it will never discard commits
+that exist only in Forgejo or only upstream. Runs do not overlap
+(`concurrencyPolicy: Forbid`), so a slow run cannot race the next one.
+
+If you would rather drive the same copy from outside the cluster, the script the
+job runs is `components/forgejo/mirror-sync.sh`: it takes `UPSTREAM_URL`,
+`TARGET_URL`, `BRANCHES` and `TARGET_TOKEN` and prints one line per branch.
 
 ## Admin access
 

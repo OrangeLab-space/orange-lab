@@ -11,6 +11,7 @@ import {
 import * as kubernetes from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import assert from 'node:assert';
+import { createMirrorSync } from './mirror-sync';
 
 const SSH_PORT = 2222;
 
@@ -47,7 +48,8 @@ export class Forgejo extends pulumi.ComponentResource {
         if (redisEnabled) this.app.addRedis();
         if (this.app.storageOnly) return;
 
-        const dbConfig = dbType === 'postgres' ? this.app.databases?.getConfig() : undefined;
+        const dbConfig =
+            dbType === 'postgres' ? this.app.databases?.getConfig() : undefined;
         const redisConfig = redisEnabled
             ? this.app.databases?.getConfig('redis')
             : undefined;
@@ -67,6 +69,13 @@ export class Forgejo extends pulumi.ComponentResource {
             `${this.appName}-ssh`,
             pulumi.interpolate`ssh://git@${httpEndpointInfo.hostname}:${SSH_PORT}`,
         );
+
+        createMirrorSync({
+            appName: this.appName,
+            endpointUrl: httpEndpointInfo.url,
+            metadata: this.app.metadata,
+            parent: this,
+        });
     }
 
     private createHelmChart(args: {

@@ -41,6 +41,19 @@ config:
     #   secure: <SMTP_PASSWORD>
     forgejo:smtp/port: 587
     forgejo:smtp/secure: starttls
+    # Keep branches of a repository up to date with an upstream remote
+    # (fast-forward only; a diverged branch fails the job instead of overwriting).
+    forgejo:mirrorSync/enabled: false
+    # forgejo:mirrorSync/upstreamUrl: https://github.com/example/project.git
+    # forgejo:mirrorSync/repository: example/project
+    # forgejo:mirrorSync/branches: main
+    # forgejo:mirrorSync/token:
+    #   secure: <FORGEJO_TOKEN>
+    # Only for a private upstream; a public one is fetched anonymously.
+    # forgejo:mirrorSync/upstreamToken:
+    #   secure: <UPSTREAM_TOKEN>
+    # forgejo:mirrorSync/schedule: '*/30 * * * *'
+    # forgejo:mirrorSync/image: docker.io/alpine/git:2.51.0
     # forgejo:auth: pocket
     # forgejo:auth/clientId: <client-id>
     # forgejo:auth/clientSecret:
