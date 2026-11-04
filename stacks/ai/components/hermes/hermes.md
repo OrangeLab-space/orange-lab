@@ -119,11 +119,9 @@ The agent then answers to `hermes/hermes-agent` on `https://ai.<domain>/v1` with
 any virtual key, so every gateway client — Open WebUI, `n8n`, a script — reaches it
 without its own credential.
 
-The model id is the profile name, and `hermes-agent` for the default profile — the
-same rule per route: `hermes.hermes:8642/p/<profile>/v1` serves that profile's agent
-and advertises `<profile>` as its model. A profile needs its own `API_SERVER_KEY` in
-`profiles/<name>/.env` to answer there (it fails closed rather than inherit the
-default's key), so give each exposed profile a provider entry of its own.
+The model id is the profile name, and `hermes-agent` for the default profile — so
+list exactly that under `agentgateway:providers.hermes.models`; a mismatched bare
+model is ignored upstream and silently runs the gateway's default model instead.
 
 ```sh
 pulumi stack output --show-secrets --json | jq -r '.apps.hermes.apiUrl,.apps.hermes.apiServerKey'
