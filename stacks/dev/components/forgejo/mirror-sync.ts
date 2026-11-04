@@ -44,9 +44,12 @@ interface MirrorSyncResources {
  * that still accepts public pull requests) owns one branch and Forgejo owns the
  * rest. The `pull` direction fast-forwards the upstream's branches into the
  * local copy; the `push` direction sends Forgejo's own branches back out, after
- * the pull has finished. Each direction is configured by its own keys -
- * `pullUrl`/`pullBranches`/`pullToken` and `pushUrl`/`pushBranches`/`pushToken`
- * - so no key has to be read as "the other direction's".
+ * the pull has finished.
+ *
+ * The local side is named once - `repository`, and the `token` that may write to
+ * it - because both directions work on it. A remote is named per direction,
+ * `pullUrl`/`pullBranches`/`pullToken` or `pushUrl`/`pushBranches`/`pushToken`,
+ * so no key has to be read as "the other direction's".
  *
  * A direction with no URL is not part of the sync at all, and the feature switch
  * sits above every resource: `mirrorSync/enabled: false` creates no CronJob, no
@@ -109,8 +112,8 @@ function readSettings(args: MirrorSyncArgs): MirrorSyncSettings {
     return {
         pull: {
             name: 'pull',
-            tokenKey: 'mirrorSync/pullToken',
-            sourceTokenKey: 'mirrorSync/pullUpstreamToken',
+            tokenKey: 'mirrorSync/token',
+            sourceTokenKey: 'mirrorSync/pullToken',
             sourceUrl: config.require(args.appName, 'mirrorSync/pullUrl'),
             targetUrl: localUrl,
             branches: config.requireCommaSeparated(

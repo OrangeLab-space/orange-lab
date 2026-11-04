@@ -49,13 +49,13 @@ config:
     forgejo:mirrorSync/enabled: false
     # The repository both directions work on, as owner/name - the local copy.
     # forgejo:mirrorSync/repository: example/project
+    # Write access on this Forgejo instance: how the fetched branches get in.
+    # forgejo:mirrorSync/token:
+    #   secure: <FORGEJO_TOKEN>
     # The pull direction: the remote to copy from.
     # forgejo:mirrorSync/pullUrl: https://github.com/example/project.git
-    # Write access on this Forgejo instance, for the branches being pulled in.
-    # forgejo:mirrorSync/pullToken:
-    #   secure: <FORGEJO_TOKEN>
     # Only for a private upstream; a public one is fetched anonymously.
-    # forgejo:mirrorSync/pullUpstreamToken:
+    # forgejo:mirrorSync/pullToken:
     #   secure: <UPSTREAM_TOKEN>
     forgejo:mirrorSync/pullBranches: main
     # The push direction: the remote to push Forgejo's own branches to, once the
