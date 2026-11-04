@@ -119,7 +119,7 @@ export class Hermes extends pulumi.ComponentResource {
     }
 
     private get apiServerEnabled(): boolean {
-        return this.args.apiServerKey !== undefined;
+        return this.apiServerKey !== undefined;
     }
 
     private getMarmot(): Marmot | undefined {
