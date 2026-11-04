@@ -97,6 +97,14 @@ admin-only, and a fresh install shows an empty model list until that is done. Mo
 grants live in the volume's database, so they survive restarts even with persistent
 config disabled.
 
+### Ollama
+
+The component's own Ollama client is off by default (`open-webui:ENABLE_OLLAMA_API: 'false'`):
+models arrive through agentgateway, while the image's default `OLLAMA_BASE_URLS`
+points at `host.docker.internal:11434` and logs a connection error on every model
+refresh. Set the key to `'true'` (and `OLLAMA_BASE_URLS` to the server) if this
+deployment also talks to Ollama directly.
+
 ## Voice
 
 Voice uses the [Speaches](../speaches/speaches.md) component instead of models bundled in the Open WebUI image. Enable it and redeploy:
