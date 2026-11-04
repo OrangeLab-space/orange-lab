@@ -116,6 +116,7 @@ export class OpenWebUI extends pulumi.ComponentResource {
             ENABLE_ADMIN_CHAT_ACCESS: 'False',
             ENABLE_EVALUATION_ARENA_MODELS: 'False',
             ENABLE_LOGIN_FORM: isTailscale || auth ? 'False' : 'True',
+            ENABLE_OLLAMA_API: config.require(this.name, 'ENABLE_OLLAMA_API'),
             ENABLE_PASSWORD_AUTH: auth ? 'False' : 'True',
             ENABLE_PERSISTENT_CONFIG: config.requireBoolean(
                 this.name,

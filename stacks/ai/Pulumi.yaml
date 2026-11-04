@@ -108,6 +108,9 @@ config:
     open-webui:BYPASS_MODEL_ACCESS_CONTROL: 'true'
     # true stores admin-UI config changes in the volume; false keeps Pulumi settings authoritative
     open-webui:ENABLE_PERSISTENT_CONFIG: false
+    # Open WebUI's own Ollama client: models come from agentgateway, and the image
+    # default (host.docker.internal:11434) logs a connection error on every refresh.
+    open-webui:ENABLE_OLLAMA_API: 'false'
     open-webui:image: ghcr.io/open-webui/open-webui:v0.12.5-slim
     # Model backends are configured in the Admin UI. When agentgateway is enabled,
     # its OpenAI-compatible endpoint is connected automatically.
