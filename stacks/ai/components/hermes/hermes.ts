@@ -252,19 +252,12 @@ export class Hermes extends pulumi.ComponentResource {
                 },
             };
         }
-        // The dashboard refuses to mount a user plugin's backend unless it is
-        // allow-listed, so an installed-but-unlisted plugin answers every route
-        // with "Plugin not found". `marmot` is implied by its own switch; extra
-        // plugins (for example a report page) are opted into explicitly.
-        const plugins = new Set(
-            config
-                .get(this.name, 'plugins/enabled')
-                ?.split(',')
-                .map(plugin => plugin.trim())
-                .filter(Boolean),
-        );
-        if (marmot) plugins.add('marmot');
-        if (plugins.size) settings.plugins = { enabled: [...plugins] };
+        // A plugin is loaded only when it is listed under `plugins.enabled`, so an
+        // installed-but-unlisted adapter answers every route with "Plugin not
+        // found". This component installs exactly one, and its switch is Marmot's.
+        if (marmot && config.getBoolean(this.name, 'plugins/enabled')) {
+            settings.plugins = { enabled: ['marmot'] };
+        }
 
         const fragments = this.getConfigFragments();
         if (fragments.length === 0) return stringify(settings);
