@@ -79,7 +79,16 @@ export interface ContainerResources {
 export interface HealthCheck {
     httpGet?: {
         path?: string;
+        /** Container port name to probe. Defaults to `http`. */
+        port?: string;
     };
+    /**
+     * Path for the readiness probe when the service distinguishes "alive" from
+     * "able to serve". Liveness and startup keep using `httpGet.path`, so a
+     * service that is up but temporarily cannot do its job leaves the Service
+     * endpoints instead of being restarted.
+     */
+    readinessPath?: string;
     /** Command that exits 0 while the container is healthy. */
     exec?: {
         command: string[];

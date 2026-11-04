@@ -74,7 +74,11 @@ export class Containers {
                         livenessProbe: this.createProbe(spec.healthCheck),
                         name: metadata.name,
                         ports: this.createPorts(spec.ports),
-                        readinessProbe: this.createProbe(spec.healthCheck),
+                        readinessProbe: this.createProbe(
+                            spec.healthCheck,
+                            undefined,
+                            spec.healthCheck?.readinessPath,
+                        ),
                         resources: this.createResourceLimits(spec.resources, gpu),
                         securityContext: this.createContainerSecurityContext(
                             spec.runAsUser,
@@ -253,12 +257,18 @@ export class Containers {
     private createProbe(
         probe?: HealthCheck,
         override?: Partial<kubernetes.types.input.core.v1.Probe>,
+        path?: string,
     ): kubernetes.types.input.core.v1.Probe | undefined {
         if (!probe) return undefined;
         const result: Record<string, unknown> = {
             exec: probe.exec,
             failureThreshold: probe.failureThreshold,
-            httpGet: probe.httpGet ? { ...probe.httpGet, port: 'http' } : undefined,
+            httpGet: probe.httpGet
+                ? {
+                      path: path ?? probe.httpGet.path,
+                      port: probe.httpGet.port ?? 'http',
+                  }
+                : undefined,
         };
         if (override) {
             Object.assign(result, override);

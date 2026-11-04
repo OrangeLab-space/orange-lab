@@ -74,6 +74,14 @@ export class Rustfs extends pulumi.ComponentResource {
                 ...this.getOidcSecret(this.app.oidc),
             },
             commandArgs: ['/data'],
+            // Both probes answer on the S3 port. /health/live is a static "process
+            // up"; /health/ready also reports storage, IAM and lock state, so a
+            // store that stops serving drops out of the Service instead of being
+            // restarted.
+            healthCheck: {
+                httpGet: { path: '/health/live', port: 'api' },
+                readinessPath: '/health/ready',
+            },
             volumeMounts: [{ name: 'data', mountPath: '/data' }],
             resources: {
                 requests: { cpu: '1500m', memory: '4Gi' },
