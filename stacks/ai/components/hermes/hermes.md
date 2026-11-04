@@ -82,19 +82,13 @@ pulumi config set --secret hermes:GITHUB_TOKEN <token>
 ## Forgejo access
 
 ```sh
-# Token with write:repository on the repositories the agent works in
+# Token for the forge the agent pushes to
 pulumi config set --secret hermes:FORGEJO_TOKEN <token>
 ```
 
-The token lands in `.env` as `FORGEJO_TOKEN`, beside the GitHub one, for the same
-reason: Hermes strips credentials from tool subprocesses. Read it from there when
-pushing, rather than putting it on a command line:
-
-```sh
-export FORGEJO_TOKEN=$(sed -n 's/^FORGEJO_TOKEN=//p' ~/.env)
-git -c credential.helper='!f() { echo username=oauth2; echo "password=$FORGEJO_TOKEN"; }; f' \
-    push <remote> <branch>
-```
+Mint it under **Settings → Applications → Generate new token** with the
+`write:repository` scope. Use an account made for the agent rather than your own,
+so the token can be revoked without locking you out of your repositories.
 
 ## Models
 
