@@ -403,9 +403,9 @@ export class Hermes extends pulumi.ComponentResource {
                     HERMES_HOME: dataPath,
                     PLUGINS: config.requireCommaSeparated(this.name, 'plugins').join(','),
                     SEED_PATH: seedPath,
-                    // The gateway writes its own config as this user; root-owned
-                    // files would lock it out of the profile it just configured.
-                    USER_NAME: 'hermes',
+                    // The CLI runs as root here; the script hands its files back to
+                    // this uid, the one the gateway writes its own config as.
+                    USER_ID: String(runtimeUserId),
                 },
                 volumeMounts: [
                     { mountPath: dataPath },

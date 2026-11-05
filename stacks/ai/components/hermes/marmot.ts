@@ -228,6 +228,8 @@ export class Marmot {
             `sock=${this.socket}`,
             '# A socket left by a dead process blocks bind; the connector is the only writer.',
             'rm -f "$sock"',
+            '# A missing allowed root stops the connector at startup; a fresh profile has none.',
+            'mkdir -p "$MARMOT_HOME/dev/outbound-media"',
             `${this.bin} --version`,
             `exec ${this.bin} \\`,
             '  --home "$MARMOT_HOME" \\',
