@@ -16,6 +16,7 @@ Each additional stack is independent and can be destroyed and re-deployed withou
 | Dev      | [`stacks/dev/`](./stacks/dev/README.md)           | Development and debugging utilities     |
 | IoT      | [`stacks/iot/`](./stacks/iot/README.md)           | Home automation and IoT platforms       |
 | Media    | [`stacks/media/`](./stacks/media/README.md)       | Photo backup, streaming, *arr stack     |
+| Nostr    | [`stacks/nostr/`](./stacks/nostr/README.md)       | Nostr relays and workspaces             |
 
 ## Prerequisites
 

@@ -185,6 +185,10 @@ More information about stacks in general at [Multi-Stack Deployment](./docs/stac
 - [`sonarr`](./stacks/media/components/sonarr/sonarr.md) - TV show collection manager
 - [`transmission`](./stacks/media/components/transmission/transmission.md) - BitTorrent download client
 
+[Nostr](./stacks/nostr/README.md):
+
+- [`buzz`](./stacks/nostr/components/buzz/buzz.md) - Team workspace where humans and agents share rooms
+
 # Documentation
 
 - [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/OrangeLab-space/orange-lab) ↗ - AI generated documentation and good place to ask questions

@@ -1,0 +1,38 @@
+name: orangelab-nostr
+main: index.ts
+runtime:
+    name: nodejs
+    options:
+        typescript: true
+        packagemanager: npm
+description: OrangeLab Nostr Stack
+config:
+    # Required shared defaults (duplicated from root Pulumi.yaml)
+    # orangelab:routingProvider: tailscale | traefik
+    # orangelab:coreStackRef: <organization/project/stack>
+    cloudnative-pg:enabled: false
+    orangelab:redis/image: docker.io/redis:8-alpine
+
+    buzz:enabled: false
+    buzz:hostname: buzz
+    buzz:image: ghcr.io/block/buzz:0.1.0
+    # Git hydration cache; events and repositories live in Postgres and S3.
+    buzz:storageSize: 10Gi
+    buzz:db/storageSize: 5Gi
+    buzz:s3/endpoint: http://rustfs.rustfs:9000
+    buzz:s3/bucket: buzz
+    # Owner identity of the relay: 64-char lowercase hex Nostr pubkey.
+    # Required when buzz:enabled is set.
+    # buzz:ownerPubkey: <64-char hex>
+    # Relay identity, generated once with `openssl rand -hex 32` and kept: a new
+    # key is a new relay identity, and existing clients will not recognise it.
+    # buzz:relayPrivateKey:
+    #   secure: <64-char hex>
+    # Shared secret for the git hook callbacks, `openssl rand -hex 32`.
+    # buzz:gitHookHmacSecret:
+    #   secure: <random secret>
+    # Credentials of a bucket-scoped S3 user, created once in the rustfs console.
+    # buzz:s3/accessKey:
+    #   secure: <access key>
+    # buzz:s3/secretKey:
+    #   secure: <secret key>

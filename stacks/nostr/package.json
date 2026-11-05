@@ -1,0 +1,14 @@
+{
+    "name": "@orangelab/nostr",
+    "description": "OrangeLab Nostr Stack",
+    "version": "0.0.0",
+    "private": true,
+    "license": "MIT",
+    "engines": {
+        "node": ">= 22.0.0"
+    },
+    "dependencies": {
+        "@orangelab/pulumi": "*",
+        "@pulumi/pulumi": "3.270.0"
+    }
+}
