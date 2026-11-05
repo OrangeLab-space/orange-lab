@@ -4,6 +4,12 @@ import * as pulumi from '@pulumi/pulumi';
 
 export interface ProviderSpec {
     baseUrl: string;
+    /**
+     * Client-facing prefix of the model ids (`<prefix>/<model>`). Defaults to the
+     * provider name; set it to group several providers under one name, e.g. one
+     * provider per Hermes profile all reachable as `hermes/<profile>`.
+     */
+    clientPrefix: string;
     models: string[];
     name: string;
 }
@@ -33,7 +39,7 @@ export class ProviderModels {
         for (const provider of this.specs) {
             const providerSecret = this.secrets.get(provider.name);
             for (const model of provider.models) {
-                const clientName = `${provider.name}/${model}`;
+                const clientName = `${provider.clientPrefix}/${model}`;
                 resources.push(
                     new kubernetes.apiextensions.CustomResource(
                         toResourceName(`${this.appName}-model-${provider.name}-${model}`),
@@ -67,7 +73,7 @@ export class ProviderModels {
                                         : {}),
                                     transformations: [
                                         {
-                                            expression: `llmRequest.model.stripPrefix("${provider.name}/")`,
+                                            expression: `llmRequest.model.stripPrefix("${provider.clientPrefix}/")`,
                                             field: 'model',
                                         },
                                     ],
@@ -108,10 +114,22 @@ export class ProviderModels {
                         `${this.appName}:providers.${name} must be an object.`,
                     );
                 }
-                const { baseUrl, models } = value as Record<string, unknown>;
+                const { baseUrl, clientPrefix, models } = value as Record<
+                    string,
+                    unknown
+                >;
                 if (typeof baseUrl !== 'string' || !baseUrl) {
                     throw new Error(
                         `${this.appName}:providers.${name}.baseUrl must be a non-empty string.`,
+                    );
+                }
+                if (
+                    clientPrefix !== undefined &&
+                    (typeof clientPrefix !== 'string' ||
+                        !/^[a-z0-9][a-z0-9._-]*$/i.test(clientPrefix))
+                ) {
+                    throw new Error(
+                        `${this.appName}:providers.${name}.clientPrefix must be a simple name.`,
                     );
                 }
                 if (
@@ -125,6 +143,7 @@ export class ProviderModels {
                 }
                 return {
                     baseUrl: baseUrl.replace(/\/+$/, ''),
+                    clientPrefix: clientPrefix ?? name,
                     models: models as string[],
                     name,
                 };
@@ -135,6 +154,20 @@ export class ProviderModels {
             throw new Error(
                 `${this.appName}:providers must contain at least one provider.`,
             );
+        }
+
+        const clientIds = new Map<string, string>();
+        for (const provider of providers) {
+            for (const model of provider.models) {
+                const clientId = `${provider.clientPrefix}/${model}`;
+                const owner = clientIds.get(clientId);
+                if (owner) {
+                    throw new Error(
+                        `${this.appName}:providers.${owner} and providers.${provider.name} both publish '${clientId}'.`,
+                    );
+                }
+                clientIds.set(clientId, provider.name);
+            }
         }
         return providers;
     }

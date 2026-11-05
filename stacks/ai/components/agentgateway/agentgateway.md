@@ -46,6 +46,20 @@ Ollama needs no key; the `opencode/apiKey` secret is only required for providers
 
 The name is arbitrary. `baseUrl` can point at an in-cluster service or an external API; it must be an OpenAI-compatible `/v1` endpoint. Clients request `<provider>/<model>`; the prefix is stripped before the request reaches the upstream.
 
+`clientPrefix` overrides that first half, so several providers can publish one
+namespace — one Hermes profile per provider, all reachable as `hermes/<profile>`:
+
+```yaml
+agentgateway:providers:
+    alice:
+        baseUrl: http://hermes.hermes:8642/p/alice/v1
+        clientPrefix: hermes
+        models: [alice]
+```
+
+Each provider keeps its own `baseUrl` and key; only the client-visible label
+changes. Two providers that would publish the same id are rejected at preview.
+
 Every provider's API key is a separate secret, named `<provider>/apiKey`:
 
 ```sh

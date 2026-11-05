@@ -81,7 +81,7 @@ export class VirtualModels {
 
         const availableModels = new Set(
             providers.flatMap(provider =>
-                provider.models.map(model => `${provider.name}/${model}`),
+                provider.models.map(model => `${provider.clientPrefix}/${model}`),
             ),
         );
 

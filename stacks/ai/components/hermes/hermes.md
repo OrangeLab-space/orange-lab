@@ -148,8 +148,11 @@ pulumi config set --path 'agentgateway:providers.bob.models[0]' 'bob'
 pulumi up
 ```
 
-Clients then see `alice/alice` and `bob/bob` beside `hermes/hermes-agent`, reached
-with the same virtual keys. Provider name and model id are both the profile name.
+Clients then see `alice/alice` and `bob/bob`, reached with the same virtual keys;
+provider name and model id are both the profile name. Add `clientPrefix: hermes` to
+each profile's provider to group them as `hermes/alice` and `hermes/bob` instead,
+beside `hermes/default` for the default profile. The prefix only groups the
+catalog: the provider, and so the key, stays per profile.
 
 The key is written to the profile's `.env` when the pod starts, so a profile
 created on the dashboard afterwards answers on the next deploy. A name in
