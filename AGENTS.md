@@ -46,6 +46,15 @@ Stay within the requested scope. When you notice out-of-sync or broken things ou
 - **Before reporting complete:** check `git status --short`; if related docs/specs/skills/scripts are split between staged and untracked, surface it instead of calling the change ready.
 - **Another workstream shares the tree**: stage only your hunks (`git add -p`), and don't stage a file that mixes workstreams.
 
+### Reporting
+
+Finished work is reported in three lines: what changed, what was verified, what is
+left. One line per item, numbers over adjectives, no replay of the steps that got
+there — the diff and the command output are the evidence. Everything found but
+deliberately not changed goes in the last line, named; a gap the report does not
+mention is the one the reviewer finds later. A review comment gets the same shape
+and answers the point it was raised about.
+
 ### Switching Back to Discussion Mode
 
 During implementation, stop and switch back to discussion mode when:
@@ -105,6 +114,7 @@ Even if the change seems straightforward, these signals may indicate the current
 - **Sizing container cpu/memory requests and limits** (or diagnosing OOMs, memory pressure, CPU throttling): follow the `resource-tuning` skill. Size from measured RSS, not working set.
 - **Expanding storage** for a static (`fromVolume`) Longhorn volume: disable the app first, patch the Longhorn volume, then re-enable — follow the `resize-storage` skill. Changing `storageSize` alone does not resize a static volume; it fails on the bound PVC.
 - **Writing docs** (component `<app>.md`, stack `README.md`): follow the `document-app` / `document-module` skills. Keep user-facing component pages short; put detailed failure behaviour and operational runbooks in the owning stack's `stacks/<module>/spec/<app>.md` and link to them. Root `spec/` is for core and shared notes only.
+- **Opening a PR, writing its body, or replying on a review**: follow the `pull-request` skill — a four-section body and a comment that stays three lines.
 - **Formatting Markdown** (docs, specs, skills): run `npx prettier --write <files>` after editing and `npx prettier --check` on the touched set. If a file already fails, ask before including unrelated formatting churn. The repo config uses `printWidth: 90` and normalizes tables, but Prettier does not wrap long table cells — keep cell text short.
 
 ## Specs
