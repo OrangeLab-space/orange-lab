@@ -329,8 +329,10 @@ export class Hermes extends pulumi.ComponentResource {
                     // A webhook session runs the platform's `hermes-webhook`
                     // toolset — web search and vision, no shell — which cannot
                     // reach the internal git host or push a branch. This route
-                    // does the repo workflow, so it runs the api-server surface.
-                    toolsets: ['hermes-api-server'],
+                    // does the repo workflow, so it gets the tools for it and
+                    // nothing that outlives the turn: no cron, skills, memory,
+                    // delegation or browser behind an untrusted payload.
+                    toolsets: ['terminal', 'file', 'web'],
                     prompt: buildWebhookPrompt(),
                     deliver: deliverToChat ? 'marmot' : 'log',
                     ...(deliverToChat ? { deliver_extra: { chat_id: homeChannel } } : {}),
