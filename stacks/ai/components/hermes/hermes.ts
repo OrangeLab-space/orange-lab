@@ -326,6 +326,11 @@ export class Hermes extends pulumi.ComponentResource {
                     // the route wakes itself with every answer it writes.
                     filters: [{ field: 'payload.sender.login', not_equals: 'agent' }],
                     script: 'forgejo-pr.py',
+                    // A webhook session runs the platform's `hermes-webhook`
+                    // toolset — web search and vision, no shell — which cannot
+                    // reach the internal git host or push a branch. This route
+                    // does the repo workflow, so it runs the api-server surface.
+                    toolsets: ['hermes-api-server'],
                     prompt: buildWebhookPrompt(),
                     deliver: deliverToChat ? 'marmot' : 'log',
                     ...(deliverToChat ? { deliver_extra: { chat_id: homeChannel } } : {}),
