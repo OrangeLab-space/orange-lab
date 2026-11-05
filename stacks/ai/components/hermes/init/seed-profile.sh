@@ -27,6 +27,19 @@ if [ -f "$SEED_PATH/forgejo-pr.py" ]; then
     chown "$USER_ID:$USER_ID" "$DATA_PATH/scripts/forgejo-pr.py"
 fi
 
+# `image_generate` backend: re-copied every start, so an image upgrade replaces it.
+if [ -f "$SEED_PATH/image_gen_comfyui.py" ]; then
+    mkdir -p "$DATA_PATH/plugins/image_gen/comfyui"
+    cp -f "$SEED_PATH/image_gen_comfyui.py" "$DATA_PATH/plugins/image_gen/comfyui/__init__.py"
+    cp -f "$SEED_PATH/image_gen_comfyui.yaml" "$DATA_PATH/plugins/image_gen/comfyui/plugin.yaml"
+    if [ -f "$SEED_PATH/image_gen_workflow.json" ]; then
+        cp -f "$SEED_PATH/image_gen_workflow.json" "$DATA_PATH/plugins/image_gen/comfyui/workflow.json"
+    else
+        rm -f "$DATA_PATH/plugins/image_gen/comfyui/workflow.json"
+    fi
+    chown -R "$USER_ID:$USER_ID" "$DATA_PATH/plugins/image_gen"
+fi
+
 [ -s "$DATA_PATH/SOUL.md" ] || cp "$SEED_PATH/SOUL.md" "$DATA_PATH/SOUL.md"
 
 # Hermes strips credentials from tool subprocesses, so each token also lives in

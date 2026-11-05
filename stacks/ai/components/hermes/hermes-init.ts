@@ -1,4 +1,5 @@
 import { InitContainerSpec } from '@orangelab/pulumi';
+import * as pulumi from '@pulumi/pulumi';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -73,6 +74,24 @@ export class HermesInit {
                 { mountPath: dataPath },
                 { name: 'config', mountPath: seedPath, readOnly: true },
             ],
+        };
+    }
+
+    /** Merges the `image_generate` backend into `config.yaml` on every start. */
+    imageGen(args: { url: pulumi.Input<string>; plugins: string }): InitContainerSpec {
+        const { dataPath, image } = this.args;
+        return {
+            name: 'seed-image-gen',
+            image,
+            command: ['sh', '-c', readScript('seed-image-gen.sh')],
+            env: {
+                COMFYUI_URL: args.url,
+                HERMES_BIN: '/opt/hermes/.venv/bin/hermes',
+                HERMES_HOME: dataPath,
+                PLUGINS: args.plugins,
+                USER_NAME: 'hermes',
+            },
+            volumeMounts: [{ mountPath: dataPath }],
         };
     }
 

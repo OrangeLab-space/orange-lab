@@ -183,15 +183,17 @@ file that references them.
 Keep the folder name from each path below `models/`; ComfyUI scans those folders
 on start.
 
-## Open WebUI
+## Open WebUI and Hermes
 
-When Open WebUI is enabled, ComfyUI is its image generation backend. Open WebUI
-runs the model file selected with `comfyui:modelFile`
+When Open WebUI is enabled, ComfyUI is its image generation backend; Hermes runs
+the same model file when both are enabled. Open WebUI runs the model file
+selected with `comfyui:modelFile`
 (`components/comfyui/models/flux2-klein-4b.json` by default), at 1024x1024, 4
 steps and cfg 1.
 
 Other models need their own model file, set with `comfyui:modelFile`. See
-[Open WebUI](../open-webui/open-webui.md#image-generation).
+[Open WebUI](../open-webui/open-webui.md#image-generation) and
+[Hermes](../hermes/hermes.md#image-generation).
 
 ## Authentication
 

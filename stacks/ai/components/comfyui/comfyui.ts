@@ -2,6 +2,21 @@ import { Application, config, InitContainerSpec } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { ComfyUIFile, ComfyUIModelFile, loadComfyUIModelFile } from './model-file';
 
+/** What a client of the server needs: the endpoint and the bundle it runs. */
+export interface ComfyUIConnection {
+    url: pulumi.Input<string>;
+    model?: ComfyUIModelFile;
+}
+
+/** The part of the bundle the image backend reads, as JSON. */
+export function toWorkflowJson(model: ComfyUIModelFile): string {
+    return JSON.stringify({
+        model: model.model,
+        nodes: model.nodes,
+        workflow: model.workflow,
+    });
+}
+
 export class ComfyUI extends pulumi.ComponentResource {
     app: Application;
 

@@ -10,12 +10,14 @@ import * as pulumi from '@pulumi/pulumi';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { stringify } from 'yaml';
+import { ComfyUIConnection, toWorkflowJson } from '../comfyui/comfyui';
 import { ClusterAccess } from './cluster-access';
 import { HermesInit } from './hermes-init';
 import { DEFAULT_PROFILE, Marmot } from './marmot';
 
 const dataPath = '/opt/data';
 const seedPath = '/opt/hermes-seed';
+const imageGenPlugin = 'image_gen/comfyui';
 const runtimeUserId = 10000;
 /** OpenAI-compatible API for in-cluster clients; kept off the app's public hostname. */
 const apiServerPort = 8642;
@@ -58,6 +60,8 @@ export interface HermesArgs {
     profiles?: string[];
     /** Speech-to-text and text-to-speech models, from the `speaches` component. */
     speech?: SpeechSettings;
+    /** ComfyUI endpoint and the bundle both it and Open WebUI run. */
+    imageGeneration?: ComfyUIConnection;
 }
 
 export class Hermes extends pulumi.ComponentResource {
@@ -109,15 +113,31 @@ export class Hermes extends pulumi.ComponentResource {
             files: {
                 'SOUL.md': loadSoul(config.require(name, 'soulFile')),
                 'config.yaml': this.getConfigYaml(marmot),
+                'forgejo-pr.py': readFileSync(
+                    resolve(__dirname, 'init', 'forgejo-pr.py'),
+                    'utf8',
+                ),
+                // Flat keys: a ConfigMap key cannot carry the `image_gen/comfyui/` path.
+                'image_gen_comfyui.py': readFileSync(
+                    resolve(__dirname, 'plugins', 'image_gen', 'comfyui', '__init__.py'),
+                    'utf8',
+                ),
+                'image_gen_comfyui.yaml': readFileSync(
+                    resolve(__dirname, 'plugins', 'image_gen', 'comfyui', 'plugin.yaml'),
+                    'utf8',
+                ),
+                ...(this.args.imageGeneration?.model
+                    ? {
+                          'image_gen_workflow.json': toWorkflowJson(
+                              this.args.imageGeneration.model,
+                          ),
+                      }
+                    : {}),
                 kubeconfig: clusterAccess.kubeconfig,
                 // Seeded so the exported URL answers on the first deploy; the
                 // route carries no secret of its own and falls back to
                 // WEBHOOK_SECRET, which keeps the value out of this ConfigMap.
                 'webhook_subscriptions.json': this.getWebhookSubscriptions(marmot),
-                'forgejo-pr.py': readFileSync(
-                    resolve(__dirname, 'init', 'forgejo-pr.py'),
-                    'utf8',
-                ),
                 // Same reason as the API server key: `.env` beats the pod env,
                 // so a hand-edited senders or welcomer list there would otherwise
                 // override the configured one and read as a broken allowlist.
@@ -244,6 +264,14 @@ export class Hermes extends pulumi.ComponentResource {
                 // After the copy step: it reads the seeded route file it leaves
                 // behind, and merges into the volume copy rather than replacing it.
                 args.init.seedRoutes(),
+                ...(this.args.imageGeneration
+                    ? [
+                          args.init.imageGen({
+                              url: this.args.imageGeneration.url,
+                              plugins: this.getPlugins().join(','),
+                          }),
+                      ]
+                    : []),
                 args.init.kubectl(),
                 args.init.gh(),
                 // One install serves every profile: the binary is shared.
@@ -409,7 +437,7 @@ export class Hermes extends pulumi.ComponentResource {
                     DATA_PATH: dataPath,
                     HERMES_BIN: '/opt/hermes/.venv/bin/hermes',
                     HERMES_HOME: dataPath,
-                    PLUGINS: config.requireCommaSeparated(this.name, 'plugins').join(','),
+                    PLUGINS: this.getPlugins().join(','),
                     SEED_PATH: seedPath,
                     // The CLI runs as root here; the script hands its files back to
                     // this uid, the one the gateway writes its own config as.
@@ -471,6 +499,14 @@ export class Hermes extends pulumi.ComponentResource {
         );
     }
 
+    /** `hermes:plugins` plus the image backend while a ComfyUI endpoint is wired. */
+    private getPlugins(): string[] {
+        const plugins = config.requireCommaSeparated(this.name, 'plugins');
+        if (!this.args.imageGeneration || plugins.includes(imageGenPlugin))
+            return plugins;
+        return [...plugins, imageGenPlugin];
+    }
+
     /**
      * Seeded once, then owned by the dashboard. `recreateConfig` restores the
      * model and trusted-proxy settings, discarding dashboard edits.
@@ -496,7 +532,7 @@ export class Hermes extends pulumi.ComponentResource {
         // Hermes loads a plugin only when it is named here; an installed but
         // unlisted adapter answers every route with "Plugin not found".
         settings.plugins = {
-            enabled: config.requireCommaSeparated(this.name, 'plugins'),
+            enabled: this.getPlugins(),
         };
 
         const fragments = this.getConfigFragments();

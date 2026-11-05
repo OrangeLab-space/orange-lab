@@ -1,0 +1,5 @@
+name: comfyui
+version: 0.1.0
+description: 'ComfyUI image generation backend — submits the workflow `comfyui:modelFile` defines to a ComfyUI server. No API key, no bundled graph.'
+author: OrangeLab
+kind: backend

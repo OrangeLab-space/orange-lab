@@ -1,6 +1,6 @@
 import { Application, config, OidcAuthConfig, requireOutput } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
-import { ComfyUIModelFile } from '../comfyui/model-file';
+import { ComfyUIConnection } from '../comfyui/comfyui';
 
 export interface SpeechConnection {
     url: pulumi.Input<string>;
@@ -9,16 +9,10 @@ export interface SpeechConnection {
     ttsVoice: string;
 }
 
-export interface ImageGenerationConnection {
-    /** Model bundle with the ComfyUI workflow, model name and node mapping. */
-    model?: ComfyUIModelFile;
-    url: pulumi.Input<string>;
-}
-
 export interface OpenWebUIArgs {
     agentgatewayUrl?: pulumi.Input<string>;
     agentgatewayApiKey?: pulumi.Input<string>;
-    imageGeneration?: ImageGenerationConnection;
+    imageGeneration?: ComfyUIConnection;
     ollamaUrl?: pulumi.Input<string>;
     speech?: SpeechConnection;
 }

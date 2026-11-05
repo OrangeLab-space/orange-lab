@@ -1,13 +1,13 @@
 import { config, mergeEndpointExports, requireOutput } from '@orangelab/pulumi';
 import assert from 'node:assert';
 import { Agentgateway } from './components/agentgateway/agentgateway';
-import { ComfyUI } from './components/comfyui/comfyui';
+import { ComfyUI, ComfyUIConnection } from './components/comfyui/comfyui';
 import { Hermes } from './components/hermes/hermes';
 import { InvokeAi } from './components/invokeai/invokeai';
 import { KubeAi } from './components/kubeai/kubeai';
 import { N8n } from './components/n8n/n8n';
 import { Ollama } from './components/ollama/ollama';
-import { ImageGenerationConnection, OpenWebUI } from './components/open-webui/open-webui';
+import { OpenWebUI } from './components/open-webui/open-webui';
 import { Speaches } from './components/speaches/speaches';
 
 const ollama = config.isEnabled('ollama') ? new Ollama('ollama') : undefined;
@@ -33,7 +33,7 @@ const agentgateway = config.isEnabled('agentgateway')
 
 const comfyui = config.isEnabled('comfyui') ? new ComfyUI('comfyui') : undefined;
 
-function getImageGeneration(): ImageGenerationConnection | undefined {
+function getImageGeneration(): ComfyUIConnection | undefined {
     if (!comfyui) return undefined;
     return {
         model: comfyui.model,
@@ -91,6 +91,8 @@ const hermes = config.isEnabled('hermes')
                   ]),
               ),
               profiles: hermesProfiles,
+              imageGeneration:
+                  comfyui && !comfyui.app.storageOnly ? getImageGeneration() : undefined,
               speech: speaches
                   ? {
                         sttModel: speaches.sttModel,
@@ -100,7 +102,9 @@ const hermes = config.isEnabled('hermes')
                     }
                   : undefined,
           },
-          { dependsOn: [agentgateway, speaches].filter(x => x !== undefined) },
+          {
+              dependsOn: [agentgateway, speaches, comfyui].filter(x => x !== undefined),
+          },
       )
     : undefined;
 

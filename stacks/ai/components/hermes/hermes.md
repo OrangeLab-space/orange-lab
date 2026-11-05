@@ -221,6 +221,24 @@ Enabling the connector on a profile that already exists needs
 `hermes:recreateConfig true`. A recreated group gets a new id; update
 `hermes:marmot/homeChannel` if that happens.
 
+## Image generation
+
+`image_generate` runs on the cluster's own [ComfyUI](./comfyui.md): no API key,
+and prompts and images never leave the cluster — every backend Hermes bundles
+is a hosted service that needs an account and a key.
+
+```sh
+pulumi config set comfyui:enabled true
+pulumi up
+```
+
+An existing install picks the backend up on its next `pulumi up`, no
+`recreateConfig`. Without ComfyUI the tool reports itself unavailable. Open
+WebUI runs the same model file, so `comfyui:modelFile` is the one switch; a new
+model is downloaded and loaded on the next generation. A server whose model was
+imported by hand rather than from `comfyui:modelFile` needs
+`image_gen.comfyui.workflow_file` pointing at its API workflow.
+
 ## Plugins
 
 ```sh
@@ -230,6 +248,8 @@ pulumi config set hermes:plugins marmot,reports
 
 A plugin installed on the volume but missing here answers `404 Plugin not found`.
 `marmot` has to be in the list for the connector to deliver anything.
+`image_gen/comfyui` is added by this component while a ComfyUI endpoint is
+wired; leave it out of this list.
 
 ## Uninstall
 
