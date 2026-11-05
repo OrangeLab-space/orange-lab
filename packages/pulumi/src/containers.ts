@@ -105,22 +105,46 @@ export class Containers {
         };
     }
 
+    /**
+     * The default every application container starts from: no way to gain
+     * privileges, the default seccomp profile, and only the capabilities needed to
+     * chown a data directory and, as root, bind a low port. NET_RAW, MKNOD,
+     * SETPCAP and SYS_CHROOT are gone, so a compromised process has to find a
+     * kernel bug rather than a capability.
+     *
+     * Device passthrough is the one exception: it needs privileged, and privileged
+     * ignores every other field in this context.
+     */
     private createContainerSecurityContext(
         runAsUser?: number,
         gpu?: GpuType,
     ): kubernetes.types.input.core.v1.SecurityContext | undefined {
-        const context: kubernetes.types.input.core.v1.SecurityContext = {};
-        if (gpu === 'amd') {
-            context.seccompProfile = { type: 'Unconfined' };
-        }
         if (this.args.storage?.hasDeviceMounts()) {
-            context.privileged = true;
+            return runAsUser
+                ? { privileged: true, runAsUser, runAsGroup: runAsUser }
+                : { privileged: true };
         }
+        const context: kubernetes.types.input.core.v1.SecurityContext = {
+            allowPrivilegeEscalation: false,
+            capabilities: {
+                drop: ['ALL'],
+                add: [
+                    'CHOWN',
+                    'DAC_OVERRIDE',
+                    'FOWNER',
+                    'SETGID',
+                    'SETUID',
+                    'NET_BIND_SERVICE',
+                ],
+            },
+            // The AMD driver rejects the default profile.
+            seccompProfile: { type: gpu === 'amd' ? 'Unconfined' : 'RuntimeDefault' },
+        };
         if (runAsUser) {
             context.runAsUser = runAsUser;
             context.runAsGroup = runAsUser;
         }
-        return Object.keys(context).length ? context : undefined;
+        return context;
     }
 
     private createSidecarContainer(
@@ -178,12 +202,15 @@ export class Containers {
         return entries.length ? entries : undefined;
     }
 
+    /** Sidecars run beside the app, so they start from the same hardened profile. */
     private createSidecarSecurityContext(
         runAsUser?: number,
         runAsGroup?: number,
     ): kubernetes.types.input.core.v1.SecurityContext | undefined {
-        if (runAsUser === undefined) return undefined;
-        return { runAsUser, runAsGroup: runAsGroup ?? runAsUser };
+        return {
+            ...this.createContainerSecurityContext(runAsUser),
+            ...(runAsUser === undefined ? {} : { runAsGroup: runAsGroup ?? runAsUser }),
+        };
     }
 
     private createPorts(ports: ServicePort[] = []) {
