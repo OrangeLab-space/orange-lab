@@ -33,6 +33,12 @@ export interface HermesArgs {
      * own startup audit warns about.
      */
     apiServerKey?: pulumi.Input<string>;
+    /**
+     * Keys for the profiles served over the same listener as `/p/<profile>/v1`,
+     * keyed by profile name. A profile reads its own `.env` only, so it cannot
+     * authenticate with the default profile's key.
+     */
+    apiServerProfileKeys?: Record<string, pulumi.Input<string>>;
     /** Speech-to-text and text-to-speech models, from the `speaches` component. */
     speech?: SpeechSettings;
 }
@@ -102,6 +108,7 @@ export class Hermes extends pulumi.ComponentResource {
                           'forgejo.env': pulumi.interpolate`FORGEJO_TOKEN=${forgejoToken}\n`,
                       }
                     : {}),
+                ...this.getProfileKeyFiles(),
             },
         });
         if (marmot) this.app.addEmptyVolume({ name: 'marmot-media' });
@@ -239,6 +246,19 @@ export class Hermes extends pulumi.ComponentResource {
             HERMES_DASHBOARD_BASIC_AUTH_SECRET: this.sessionSecret,
             OPENAI_API_KEY: this.getAgentgatewayApiKey(),
         };
+    }
+
+    /**
+     * One seeded file per profile; the init container copies each into that
+     * profile's `.env`, which is the only place its scope reads a key from.
+     */
+    private getProfileKeyFiles(): Record<string, pulumi.Input<string>> {
+        return Object.fromEntries(
+            Object.entries(this.args.apiServerProfileKeys ?? {}).map(([profile, key]) => [
+                `api-server-${profile}.env`,
+                pulumi.interpolate`API_SERVER_KEY=${key}\n`,
+            ]),
+        );
     }
 
     private getDashboardPassword(): pulumi.Output<string> {

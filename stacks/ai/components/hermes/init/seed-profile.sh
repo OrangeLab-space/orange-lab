@@ -20,19 +20,32 @@ fi
 # Hermes strips credentials from tool subprocesses, so each token also lives in
 # .env, where the bundled skill for that host reads it. A key that comes from a
 # Secret replaces whatever the agent wrote there.
-seed_env() {
+seed_env_into() {
     env_file=$1
+    target=$2
     [ -f "$env_file" ] || return 0
     keys=$(cut -d= -f1 "$env_file" | paste -sd'|' -)
-    touch "$DATA_PATH/.env"
-    grep -v -E "^(${keys})=" "$DATA_PATH/.env" > "$DATA_PATH/.env.tmp" || true
-    cat "$env_file" >> "$DATA_PATH/.env.tmp"
-    mv "$DATA_PATH/.env.tmp" "$DATA_PATH/.env"
-    chown "$USER_ID:$USER_ID" "$DATA_PATH/.env"
+    touch "$target"
+    grep -v -E "^(${keys})=" "$target" > "$target.tmp" || true
+    cat "$env_file" >> "$target.tmp"
+    mv "$target.tmp" "$target"
+    chown "$USER_ID:$USER_ID" "$target"
 }
 
-seed_env "$SEED_PATH/github.env"
-seed_env "$SEED_PATH/forgejo.env"
-seed_env "$SEED_PATH/api-server.env"
+seed_env_into "$SEED_PATH/github.env" "$DATA_PATH/.env"
+seed_env_into "$SEED_PATH/forgejo.env" "$DATA_PATH/.env"
+seed_env_into "$SEED_PATH/api-server.env" "$DATA_PATH/.env"
+
+# A profile reads only its own .env, so the key serving it over /p/<profile>/v1
+# is seeded there rather than in the default profile's file. A profile directory
+# that does not exist yet is skipped: creating one here would leave a half
+# profile behind instead of just waiting for the next start.
+for seed_file in "$SEED_PATH"/api-server-*.env; do
+    [ -f "$seed_file" ] || continue
+    profile=$(basename "$seed_file" .env)
+    profile=${profile#api-server-}
+    [ -d "$DATA_PATH/profiles/$profile" ] || continue
+    seed_env_into "$seed_file" "$DATA_PATH/profiles/$profile/.env"
+done
 
 chown -R "$USER_ID:$USER_ID" "$DATA_PATH/workspace" "$DATA_PATH/config.yaml" "$DATA_PATH/SOUL.md"

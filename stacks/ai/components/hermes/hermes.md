@@ -131,6 +131,30 @@ That endpoint runs a full agent turn per request, and that agent's tools act on 
 cluster and its volume. Treat a virtual key that can reach `hermes/default` as access
 to the agent, not as a chat model.
 
+### Profiles
+
+Profiles can serve their own route on the same API, each with its own key. List
+them, and declare each as a gateway provider named after it:
+
+```sh
+pulumi config set hermes:profiles alice,bob
+
+pulumi config set --path 'agentgateway:providers.alice.baseUrl' 'http://hermes.hermes:8642/p/alice/v1'
+pulumi config set --path 'agentgateway:providers.alice.models[0]' 'alice'
+
+pulumi config set --path 'agentgateway:providers.bob.baseUrl' 'http://hermes.hermes:8642/p/bob/v1'
+pulumi config set --path 'agentgateway:providers.bob.models[0]' 'bob'
+
+pulumi up
+```
+
+Clients then see `alice/alice` and `bob/bob` beside `hermes/hermes-agent`, reached
+with the same virtual keys. Provider name and model id are both the profile name.
+
+The key is written to the profile's `.env` when the pod starts, so a profile
+created on the dashboard afterwards answers on the next deploy. A name in
+`hermes:profiles` with no profile behind it gets no key and stays unreachable.
+
 ## Speech
 
 Voice works through [speaches](./speaches.md) when it is enabled; the models are

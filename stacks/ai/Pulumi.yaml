@@ -193,6 +193,10 @@ config:
     hermes:marmot/allowAllUsers: false
     # Model served by agentgateway; requires 'hermes' in agentgateway:clients.
     # hermes:model: assistant
+    #
+    # Profiles served over the OpenAI-compatible API as /p/<name>/v1, comma-separated;
+    # each needs a matching agentgateway:providers.<name> entry.
+    # hermes:profiles: alice,bob
     # Plugins the gateway loads, comma-separated. Hermes ignores a plugin that is
     # not named here, so `marmot` is required for the connector to reach the agent.
     hermes:plugins: marmot

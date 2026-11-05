@@ -1,4 +1,5 @@
-import { config, mergeEndpointExports } from '@orangelab/pulumi';
+import { config, mergeEndpointExports, requireOutput } from '@orangelab/pulumi';
+import assert from 'node:assert';
 import { Agentgateway } from './components/agentgateway/agentgateway';
 import { ComfyUI } from './components/comfyui/comfyui';
 import { Hermes } from './components/hermes/hermes';
@@ -13,11 +14,20 @@ const ollama = config.isEnabled('ollama') ? new Ollama('ollama') : undefined;
 
 const speaches = config.isEnabled('speaches') ? new Speaches('speaches') : undefined;
 
+// Profiles served over the agent's OpenAI-compatible API as /p/<profile>/v1.
+// Each is a provider of its own in the gateway catalog, named after the profile.
+const hermesProfiles = config.isEnabled('hermes')
+    ? (config.getCommaSeparated('hermes', 'profiles') ?? [])
+    : [];
+assertHermesProfiles();
+
 const agentgateway = config.isEnabled('agentgateway')
     ? new Agentgateway('agentgateway', {
           // agentgateway is the only client of the agent's API server, so it mints
           // the credential both sides use and hands a copy to `hermes` below.
-          generatedProviderKeys: config.isEnabled('hermes') ? ['hermes'] : [],
+          generatedProviderKeys: config.isEnabled('hermes')
+              ? ['hermes', ...hermesProfiles]
+              : [],
       })
     : undefined;
 
@@ -71,6 +81,15 @@ const hermes = config.isEnabled('hermes')
               agentgatewayApiKey: agentgateway?.apiKeys.hermes,
               agentgatewayUrl: agentgateway?.apiUrl,
               apiServerKey: agentgateway?.providerApiKeys.hermes,
+              apiServerProfileKeys: Object.fromEntries(
+                  hermesProfiles.map(profile => [
+                      profile,
+                      requireOutput(
+                          agentgateway?.providerApiKeys[profile],
+                          `hermes:profiles '${profile}' needs agentgateway:enabled.`,
+                      ),
+                  ]),
+              ),
               speech: speaches
                   ? {
                         sttModel: speaches.sttModel,
@@ -130,3 +149,24 @@ export const apps = {
           }
         : undefined,
 };
+
+/**
+ * A profile's key is minted for the gateway provider of the same name. An
+ * undeclared name still gets a key but no route, so every turn answers 401.
+ */
+function assertHermesProfiles(): void {
+    if (hermesProfiles.length === 0) return;
+    assert(
+        config.isEnabled('agentgateway'),
+        'hermes:profiles needs agentgateway:enabled: every profile is a gateway provider.',
+    );
+    const declared = Object.keys(
+        config.requireObject('agentgateway', 'providers') as Record<string, unknown>,
+    );
+    for (const profile of hermesProfiles) {
+        assert(
+            declared.includes(profile),
+            `hermes:profiles '${profile}' needs a matching agentgateway:providers.${profile}.`,
+        );
+    }
+}

@@ -64,6 +64,8 @@ pulumi config set --path 'agentgateway:providers.hermes.models[0]' 'hermes-agent
 ```
 
 The generated credential is exported for the hosting component (`apps.hermes.apiServerKey`).
+An agent that serves several profiles declares one provider per profile, named
+after it and pointed at its `/p/<profile>/v1` path; see [hermes](../hermes/hermes.md).
 
 OpenCode serves the same model IDs from two paths, and the path selects the bill: `/inference/go/openai/v1` draws on an OpenCode Go subscription, `/inference/openai/v1` charges the Console pay-as-you-go balance. Both accept the same Console API key. Models outside the Go catalog are only on the balance path, so put them under a second provider if you need them. Go also requires an `x-opencode-session` header; `agentgateway:requestHeaders` supplies it because clients that are not coding agents do not send one. A client-sent value always wins over the configured fallback.
 
