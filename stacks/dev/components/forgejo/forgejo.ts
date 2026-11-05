@@ -188,6 +188,10 @@ export class Forgejo extends pulumi.ComponentResource {
                                       },
                                   }
                                 : {}),
+                            // external (default) | private | loopback | *
+                            webhook: {
+                                ALLOWED_HOST_LIST: 'private',
+                            },
                         },
                         metrics: {
                             enabled: config.enableMonitoring(),
