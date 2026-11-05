@@ -110,6 +110,10 @@ export class Hermes extends pulumi.ComponentResource {
                     resolve(__dirname, 'init', 'forgejo-pr.py'),
                     'utf8',
                 ),
+                // Same reason as the API server key: `.env` beats the pod env,
+                // so a hand-edited senders or welcomer list there would otherwise
+                // override the configured one and read as a broken allowlist.
+                ...(marmot ? { 'marmot.env': marmot.seedEnv() } : {}),
             },
             secretFiles: {
                 ...(this.apiServerKey

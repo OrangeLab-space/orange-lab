@@ -104,6 +104,21 @@ export class Marmot {
         };
     }
 
+    /**
+     * The gateway env as a `.env` file. A `.env` line wins over the pod env at
+     * load, so seeding the same values replaces whatever a hand edit left on the
+     * volume instead of silently losing to it.
+     */
+    seedEnv(): pulumi.Input<string> {
+        return pulumi
+            .all(
+                Object.entries(this.gatewayEnv()).map(([key, value]) =>
+                    pulumi.output(value).apply(v => (v ? `${key}=${v}\n` : '')),
+                ),
+            )
+            .apply(lines => lines.join(''));
+    }
+
     private runScript(): string {
         return [
             'set -eu',

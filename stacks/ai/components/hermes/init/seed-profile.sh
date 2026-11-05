@@ -53,6 +53,7 @@ seed_env_into() {
 seed_env_into "$SEED_PATH/github.env" "$DATA_PATH/.env"
 seed_env_into "$SEED_PATH/forgejo.env" "$DATA_PATH/.env"
 seed_env_into "$SEED_PATH/api-server.env" "$DATA_PATH/.env"
+seed_env_into "$SEED_PATH/marmot.env" "$DATA_PATH/.env"
 
 # A profile reads only its own .env, so the key serving it over /p/<profile>/v1
 # is seeded there rather than in the default profile's file. A profile directory
