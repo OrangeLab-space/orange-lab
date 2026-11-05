@@ -264,7 +264,7 @@ pulumi up
 
 # welcomerAllowlist: who may invite the agent into a group
 # allowedUsers: who may message it; allowAllUsers defaults to false
-# One npub serves one profile
+# Every profile in hermes:profiles gets its own connector and its own npub
 # Find the agent's npub, then invite it from White Noise
 ./scripts/wn-agent-npub.sh
 ```
@@ -285,6 +285,19 @@ platform adapter). `init/install-wn-agent.sh` installs and checksum-verifies
 both on every start, so a fresh volume needs no manual step. Installing only the
 binary leaves `platforms.marmot` configured but unregistered, and messages never
 arrive.
+
+Each profile named in `hermes:profiles` gets its own connector: a separate home
+under `/opt/data/marmot-agents/<profile>`, its own socket, media directory and
+keypair, so it is invited as its own agent instead of answering as the launch
+profile. `init/seed-marmot-profiles.sh` writes that profile's
+`platforms.marmot` block into the profile's own `config.yaml`, which is the only
+file its scope reads. Print the npub to invite with
+`./scripts/wn-agent-npub.sh --profile <profile>`.
+
+`allowedUsers` and `welcomerAllowlist` are read from the process environment, so
+they apply to every profile: a sender admitted once may reach any connector.
+Which profile answers whom follows from the npub that was invited into the
+group, not from these two lists.
 
 ## Plugins
 

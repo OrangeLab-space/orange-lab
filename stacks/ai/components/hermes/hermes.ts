@@ -2,6 +2,7 @@ import {
     Application,
     config,
     createPassword,
+    InitContainerSpec,
     requireOutput,
     ServicePort,
 } from '@orangelab/pulumi';
@@ -11,7 +12,7 @@ import { resolve } from 'node:path';
 import { stringify } from 'yaml';
 import { ClusterAccess } from './cluster-access';
 import { HermesInit } from './hermes-init';
-import { Marmot } from './marmot';
+import { DEFAULT_PROFILE, Marmot } from './marmot';
 
 const dataPath = '/opt/data';
 const seedPath = '/opt/hermes-seed';
@@ -49,6 +50,12 @@ export interface HermesArgs {
      * authenticate with the default profile's key.
      */
     apiServerProfileKeys?: Record<string, pulumi.Input<string>>;
+    /**
+     * Extra Hermes profiles. Each one gets its own connector — separate home,
+     * socket and keypair — so a profile talks to the relay as its own agent
+     * instead of borrowing the launch profile's identity.
+     */
+    profiles?: string[];
     /** Speech-to-text and text-to-speech models, from the `speaches` component. */
     speech?: SpeechSettings;
 }
@@ -84,7 +91,8 @@ export class Hermes extends pulumi.ComponentResource {
 
         const githubToken = config.getSecret(name, 'GITHUB_TOKEN');
         const forgejoToken = config.getSecret(name, 'FORGEJO_TOKEN');
-        const marmot = this.getMarmot();
+        const marmots = this.getMarmots();
+        const marmot = marmots.length > 0 ? marmots[0] : undefined;
         const init = this.getInit();
         const clusterAccess = new ClusterAccess(
             name,
@@ -114,6 +122,18 @@ export class Hermes extends pulumi.ComponentResource {
                 // so a hand-edited senders or welcomer list there would otherwise
                 // override the configured one and read as a broken allowlist.
                 ...(marmot ? { 'marmot.env': marmot.seedEnv() } : {}),
+                ...(marmots.length > 1
+                    ? {
+                          // The init container writes these into each profile's
+                          // own config.yaml; the launch profile is already in the
+                          // config.yaml above.
+                          'marmot-profiles.txt': marmots
+                              .slice(1)
+                              .map(m => `${m.profile} ${m.home} ${m.socket}`)
+                              .join('\n')
+                              .concat('\n'),
+                      }
+                    : {}),
             },
             secretFiles: {
                 ...(this.apiServerKey
@@ -138,9 +158,10 @@ export class Hermes extends pulumi.ComponentResource {
                 ...this.getProfileKeyFiles(),
             },
         });
-        if (marmot) this.app.addEmptyVolume({ name: 'marmot-media' });
+        for (const marmot of marmots)
+            this.app.addEmptyVolume({ name: marmot.mediaVolume });
 
-        this.createDeployment({ clusterAccess, githubToken, init, marmot });
+        this.createDeployment({ clusterAccess, githubToken, init, marmots });
 
         // The API port is exported for in-cluster clients only (agentgateway's
         // `hermes` provider); it never joins the dashboard's public hostname.
@@ -162,15 +183,20 @@ export class Hermes extends pulumi.ComponentResource {
         return this.apiServerKey !== undefined;
     }
 
-    private getMarmot(): Marmot | undefined {
-        return config.requireBoolean(this.name, 'marmot/enabled')
-            ? new Marmot({
-                  appName: this.name,
-                  dataPath,
-                  image: config.require(this.name, 'image'),
-                  runtimeUserId,
-              })
-            : undefined;
+    /** The launch profile's connector first, then one per configured profile. */
+    private getMarmots(): Marmot[] {
+        if (!config.requireBoolean(this.name, 'marmot/enabled')) return [];
+        const image = config.require(this.name, 'image');
+        return [DEFAULT_PROFILE, ...(this.args.profiles ?? [])].map(
+            profile =>
+                new Marmot({
+                    appName: this.name,
+                    dataPath,
+                    image,
+                    profile,
+                    runtimeUserId,
+                }),
+        );
     }
 
     private getInit(): HermesInit {
@@ -188,7 +214,7 @@ export class Hermes extends pulumi.ComponentResource {
         clusterAccess: ClusterAccess;
         githubToken?: pulumi.Output<string>;
         init: HermesInit;
-        marmot?: Marmot;
+        marmots: Marmot[];
     }) {
         // `gateway run` keeps the default profile's gateway alive under s6; the
         // dashboard is a supervised service alongside it and manages every profile.
@@ -208,7 +234,7 @@ export class Hermes extends pulumi.ComponentResource {
             commandArgs: ['gateway', 'run'],
             env: this.getEnv({
                 gitCredentialHelper: args.githubToken !== undefined,
-                marmot: args.marmot,
+                marmot: args.marmots[0],
             }),
             envSecret: this.getEnvSecret(),
             healthCheck: { httpGet: { path: '/api/status' } },
@@ -216,7 +242,9 @@ export class Hermes extends pulumi.ComponentResource {
                 args.init.seed(),
                 args.init.kubectl(),
                 args.init.gh(),
-                ...(args.marmot ? [args.marmot.initContainer()] : []),
+                // One install serves every profile: the binary is shared.
+                ...(args.marmots.length > 0 ? [args.marmots[0].initContainer()] : []),
+                ...this.getProfileSeedingInit(args.marmots),
             ],
             ports,
             resources: {
@@ -226,15 +254,19 @@ export class Hermes extends pulumi.ComponentResource {
                 limits: { cpu: '2', memory: '6Gi' },
             },
             serviceAccountName: args.clusterAccess.serviceAccount.metadata.name,
-            sidecars: args.marmot ? [args.marmot.sidecar()] : undefined,
+            sidecars:
+                args.marmots.length > 0
+                    ? args.marmots.map(marmot => marmot.sidecar())
+                    : undefined,
             volumeMounts: [
                 { mountPath: dataPath },
                 { name: 'config', mountPath: seedPath, readOnly: true },
                 // The connector decrypts inbound media under its TMPDIR, so the
                 // gateway must see the same emptyDir to pick the files up.
-                ...(args.marmot
-                    ? [{ name: 'marmot-media', mountPath: '/opt/marmot-media' }]
-                    : []),
+                ...args.marmots.map(marmot => ({
+                    name: marmot.mediaVolume,
+                    mountPath: marmot.mediaPath,
+                })),
             ],
             volumeOwnerUserId: runtimeUserId,
         });
@@ -277,6 +309,9 @@ export class Hermes extends pulumi.ComponentResource {
             // them comes from getEnvSecret so it never lands in a ConfigMap.
             WEBHOOK_ENABLED: 'true',
             WEBHOOK_PORT: String(webhookPort),
+            // The allowlists are read from the process env, so every profile
+            // shares them; profile isolation comes from the connector identity,
+            // not from this gate.
             ...(args.marmot ? args.marmot.gatewayEnv() : {}),
         };
     }
@@ -341,6 +376,43 @@ export class Hermes extends pulumi.ComponentResource {
             null,
             2,
         );
+    }
+
+    /**
+     * A profile reads only its own `config.yaml`, so its connector block has to
+     * land there. `hermes config set` is the writer because that file carries
+     * keys this component does not own, and the CLI merges instead of replacing.
+     */
+    private getProfileSeedingInit(marmots: Marmot[]): InitContainerSpec[] {
+        if (marmots.length < 2) return [];
+        return [
+            {
+                name: 'seed-marmot-profiles',
+                image: config.require(this.name, 'image'),
+                command: [
+                    'sh',
+                    '-c',
+                    readFileSync(
+                        resolve(__dirname, 'init', 'seed-marmot-profiles.sh'),
+                        'utf8',
+                    ),
+                ],
+                env: {
+                    DATA_PATH: dataPath,
+                    HERMES_BIN: '/opt/hermes/.venv/bin/hermes',
+                    HERMES_HOME: dataPath,
+                    PLUGINS: config.requireCommaSeparated(this.name, 'plugins').join(','),
+                    SEED_PATH: seedPath,
+                    // The gateway writes its own config as this user; root-owned
+                    // files would lock it out of the profile it just configured.
+                    USER_NAME: 'hermes',
+                },
+                volumeMounts: [
+                    { mountPath: dataPath },
+                    { name: 'config', mountPath: seedPath, readOnly: true },
+                ],
+            },
+        ];
     }
 
     /**
@@ -411,24 +483,7 @@ export class Hermes extends pulumi.ComponentResource {
         // "Webhook platform is not enabled" beside a listener that is already up.
         settings.platforms = {
             webhook: { enabled: true, port: webhookPort },
-            ...(marmot
-                ? {
-                      marmot: {
-                          enabled: true,
-                          extra: {
-                              home: marmot.home,
-                              // Outbound files (TTS audio, documents) are refused
-                              // unless their directory is listed here.
-                              media_local_roots: [
-                                  `${dataPath}/audio_cache`,
-                                  `${dataPath}/cache/documents`,
-                                  `${marmot.home}/dev/inbound-media`,
-                              ],
-                              socket_path: marmot.socket,
-                          },
-                      },
-                  }
-                : {}),
+            ...(marmot ? { marmot: marmot.configBlock() } : {}),
         };
         // Hermes loads a plugin only when it is named here; an installed but
         // unlisted adapter answers every route with "Plugin not found".

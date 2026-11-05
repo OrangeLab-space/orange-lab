@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ACCOUNT_ID_HEX = /^[0-9a-f]{64}$/;
+/** The launch profile, whose connector home predates per-profile connectors. */
+export const DEFAULT_PROFILE = 'default';
 const PUBKEY_LENGTH = 32;
 
 /**
@@ -64,6 +66,8 @@ function accountIdList(appName: string, key: string): string | undefined {
 export interface MarmotArgs {
     /** Hermes app name; the `marmot/*` config keys are read from it. */
     appName: string;
+    /** Hermes profile this connector serves; every profile gets its own. */
+    profile: string;
     dataPath: string;
     image: pulumi.Input<string>;
     runtimeUserId: number;
@@ -80,14 +84,34 @@ export interface MarmotArgs {
  */
 export class Marmot {
     /** Connector home; must stay in step with `platforms.marmot` in config.yaml. */
+    readonly profile: string;
     readonly home: string;
     readonly socket: string;
     readonly bin: string;
+    /** Sidecar and volume names a profile other than the launch one can own. */
+    readonly sidecarName: string;
+    readonly mediaVolume: string;
+    /** Where the connector keeps decrypted media, shared with the gateway. */
+    readonly mediaPath: string;
 
     constructor(private readonly args: MarmotArgs) {
-        this.home = `${args.dataPath}/marmot-agents/hermes`;
+        this.profile = args.profile;
+        // The launch profile keeps the app name: its keypair is the one already
+        // invited into groups, and renaming the directory would orphan it.
+        const dir = args.profile === DEFAULT_PROFILE ? args.appName : args.profile;
+        this.home = `${args.dataPath}/marmot-agents/${dir}`;
         this.socket = `${this.home}/dev/wn-agent.sock`;
         this.bin = `${args.dataPath}/.local/bin/wn-agent`;
+        this.sidecarName =
+            args.profile === DEFAULT_PROFILE ? 'wn-agent' : `wn-agent-${args.profile}`;
+        this.mediaVolume =
+            args.profile === DEFAULT_PROFILE
+                ? 'marmot-media'
+                : `marmot-media-${args.profile}`;
+        this.mediaPath =
+            args.profile === DEFAULT_PROFILE
+                ? '/opt/marmot-media'
+                : `/opt/marmot-media/${args.profile}`;
     }
 
     /**
@@ -119,7 +143,7 @@ export class Marmot {
         return {
             command: ['/bin/sh', '-c'],
             commandArgs: [this.runScript()],
-            env: { HOME: dataPath, MARMOT_HOME: this.home, TMPDIR: '/opt/marmot-media' },
+            env: { HOME: dataPath, MARMOT_HOME: this.home, TMPDIR: this.mediaPath },
             healthCheck: {
                 exec: {
                     command: [
@@ -135,7 +159,7 @@ export class Marmot {
                 },
             },
             image,
-            name: 'wn-agent',
+            name: this.sidecarName,
             resources: {
                 limits: { cpu: '250m', memory: '384Mi' },
                 requests: { cpu: '25m', memory: '64Mi' },
@@ -144,8 +168,29 @@ export class Marmot {
             runAsUser: runtimeUserId,
             volumeMounts: [
                 { mountPath: dataPath },
-                { name: 'marmot-media', mountPath: '/opt/marmot-media' },
+                { name: this.mediaVolume, mountPath: this.mediaPath },
             ],
+        };
+    }
+
+    /**
+     * The `platforms.marmot` block this profile's config needs: its own socket
+     * and media roots, so two profiles never share one relay connection.
+     */
+    configBlock(): Record<string, unknown> {
+        return {
+            enabled: true,
+            extra: {
+                home: this.home,
+                // Outbound files (TTS audio, documents) are refused unless their
+                // directory is listed here.
+                media_local_roots: [
+                    `${this.args.dataPath}/audio_cache`,
+                    `${this.args.dataPath}/cache/documents`,
+                    `${this.home}/dev/inbound-media`,
+                ],
+                socket_path: this.socket,
+            },
         };
     }
 

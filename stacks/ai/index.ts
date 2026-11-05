@@ -90,6 +90,7 @@ const hermes = config.isEnabled('hermes')
                       ),
                   ]),
               ),
+              profiles: hermesProfiles,
               speech: speaches
                   ? {
                         sttModel: speaches.sttModel,

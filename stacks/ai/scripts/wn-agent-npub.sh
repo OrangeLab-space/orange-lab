@@ -10,7 +10,9 @@ Print the npub of a wn-agent connector running in a Kubernetes deployment.
 Optional parameters (defaults match the AI stack):
   --namespace <ns>        Kubernetes namespace (default: hermes)
   --deployment <name>     Deployment whose pod runs the connector (default: hermes)
-  --home <path>           Connector home (default: /opt/data/marmot-agents/hermes)
+  --profile <name>        Connector profile: home /opt/data/marmot-agents/<name>
+                          (default: hermes, the launch profile's)
+  --home <path>           Connector home, overrides --profile
   --container <name>      Container holding the wn-agent binary (default: hermes)
   --socket <path>         Control socket (default: <home>/dev/wn-agent.sock)
   --binary <path>         wn-agent binary (default: wn-agent, resolved from PATH)
@@ -25,7 +27,9 @@ EOF
 namespace='hermes'
 deployment='hermes'
 container='hermes'
-home='/opt/data/marmot-agents/hermes'
+home_root='/opt/data/marmot-agents'
+profile='hermes'
+home=''
 socket=''
 binary='wn-agent'
 json=false
@@ -35,6 +39,7 @@ while (($# > 0)); do
         --namespace) namespace="$2"; shift 2 ;;
         --deployment) deployment="$2"; shift 2 ;;
         --container) container="$2"; shift 2 ;;
+        --profile) profile="$2"; shift 2 ;;
         --home) home="$2"; shift 2 ;;
         --socket) socket="$2"; shift 2 ;;
         --binary) binary="$2"; shift 2 ;;
@@ -48,6 +53,7 @@ while (($# > 0)); do
     esac
 done
 
+[[ -n $home ]] || home="$home_root/$profile"
 [[ -n $socket ]] || socket="$home/dev/wn-agent.sock"
 
 #
