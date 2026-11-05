@@ -17,8 +17,13 @@ Agent-facing detail for [`components/hermes/hermes.md`](../components/hermes/her
   the profile's own `config.yaml`, the only file its scope reads. It runs as root
   before `fix-volume-permissions`, and chowns the profile directory to `USER_ID`;
   the image ships no privilege-drop tool.
-- The sidecar creates `<home>/dev/outbound-media` before `exec`. A missing allowed
-  root aborts startup with `io_error NotFound`.
+- The sidecar creates `<home>/dev/outbound-media` before starting the connector. A
+  missing allowed root aborts startup with `io_error NotFound`.
+- After the control socket appears, the sidecar publishes the configured
+  `marmot/profile/name` and `marmot/profile/picture` as the account's kind-0
+  profile when the account has none, or when the config differs from the values
+  recorded in `dev/profile-seed.json`. A change made elsewhere is kept across
+  restarts; changing the config publishes again.
 - `wn-agent bootstrap` creates the identity when missing and publishes the key
   package. Creating with `--no-publish-key-package` leaves invites failing with
   `there is no usable inbox relay for npub`; `scripts/wn-agent-npub.sh` bootstraps
@@ -26,6 +31,10 @@ Agent-facing detail for [`components/hermes/hermes.md`](../components/hermes/her
 - `allowedUsers` and `welcomerAllowlist` are read from the process environment, so
   they apply to every profile; which profile answers follows from the npub that was
   invited into the group.
+- Under the multiplexed gateway a profile's secret scope reads only its own
+  `profiles/<profile>/.env` and does not fall back to the pod env, so the component
+  seeds both allowlists there too. Missing them makes every sender on that profile
+  read as `Unauthorized user`.
 
 ## Webhook routes
 

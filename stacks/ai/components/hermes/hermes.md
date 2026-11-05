@@ -193,6 +193,9 @@ pulumi config set hermes:marmot/enabled true
 # npub or 64-char hex, comma-separated; empty denies everyone
 pulumi config set hermes:marmot/welcomerAllowlist <npub>
 pulumi config set hermes:marmot/allowedUsers <npub>
+# Public Nostr profile seeded into every connector; the defaults live in Pulumi.yaml
+# pulumi config set hermes:marmot/profile/name '<name>'
+# pulumi config set hermes:marmot/profile/picture '<url>'
 pulumi up
 ```
 

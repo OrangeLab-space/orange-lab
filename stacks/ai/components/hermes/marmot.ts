@@ -142,8 +142,19 @@ export class Marmot {
         const { dataPath, image, runtimeUserId } = this.args;
         return {
             command: ['/bin/sh', '-c'],
-            commandArgs: [this.runScript()],
-            env: { HOME: dataPath, MARMOT_HOME: this.home, TMPDIR: this.mediaPath },
+            commandArgs: [
+                readFileSync(join(__dirname, 'init', 'run-wn-agent.sh'), 'utf8'),
+            ],
+            env: {
+                HOME: dataPath,
+                MARMOT_HOME: this.home,
+                MARMOT_SOCKET: this.socket,
+                PLUGIN_PATH: `${dataPath}/plugins`,
+                PROFILE_NAME: config.get(this.args.appName, 'marmot/profile/name'),
+                PROFILE_PICTURE: config.get(this.args.appName, 'marmot/profile/picture'),
+                TMPDIR: this.mediaPath,
+                WN_AGENT_BIN: this.bin,
+            },
             healthCheck: {
                 exec: {
                     command: [
@@ -220,23 +231,5 @@ export class Marmot {
                 ),
             )
             .apply(lines => lines.join(''));
-    }
-
-    private runScript(): string {
-        return [
-            'set -eu',
-            `sock=${this.socket}`,
-            '# A socket left by a dead process blocks bind; the connector is the only writer.',
-            'rm -f "$sock"',
-            '# A missing allowed root stops the connector at startup; a fresh profile has none.',
-            'mkdir -p "$MARMOT_HOME/dev/outbound-media"',
-            `${this.bin} --version`,
-            `exec ${this.bin} \\`,
-            '  --home "$MARMOT_HOME" \\',
-            '  --socket "$sock" \\',
-            '  --media-allowed-root "$MARMOT_HOME/dev/outbound-media" \\',
-            '  --relay wss://relay.eu.whitenoise.chat \\',
-            '  --relay wss://relay.us.whitenoise.chat',
-        ].join('\n');
     }
 }

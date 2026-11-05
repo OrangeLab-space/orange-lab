@@ -190,6 +190,9 @@ config:
     # hermes:marmot/allowedUsers: <npub>
     # Default group for cron and `hermes send`; the chat id of the group you invited it to.
     # hermes:marmot/homeChannel: <group-id-hex>
+    # Public Nostr profile seeded into every connector at start; picture is a URL.
+    hermes:marmot/profile/name: OrangeLab Assistant
+    hermes:marmot/profile/picture: https://raw.githubusercontent.com/OrangeLab-space/orange-lab/main/docs/orangelab-square.jpg
     hermes:marmot/allowAllUsers: false
     # Model served by agentgateway; requires 'hermes' in agentgateway:clients.
     # hermes:model: assistant

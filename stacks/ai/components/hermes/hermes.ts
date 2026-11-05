@@ -175,7 +175,7 @@ export class Hermes extends pulumi.ComponentResource {
                           'forgejo.env': pulumi.interpolate`FORGEJO_TOKEN=${forgejoToken}\n`,
                       }
                     : {}),
-                ...this.getProfileKeyFiles(),
+                ...this.getProfileKeyFiles(marmots),
             },
         });
         for (const marmot of marmots)
@@ -459,15 +459,19 @@ export class Hermes extends pulumi.ComponentResource {
     }
 
     /**
-     * One seeded file per profile; the init container copies each into that
-     * profile's `.env`, which is the only place its scope reads a key from.
+     * One seeded file per profile. A profile reads only its own `.env`, and
+     * under multiplex its scope does not fall back to the pod env, so the
+     * shared Marmot allowlists have to be written here beside the key.
      */
-    private getProfileKeyFiles(): Record<string, pulumi.Input<string>> {
+    private getProfileKeyFiles(marmots: Marmot[]): Record<string, pulumi.Input<string>> {
         return Object.fromEntries(
-            Object.entries(this.args.apiServerProfileKeys ?? {}).map(([profile, key]) => [
-                `api-server-${profile}.env`,
-                pulumi.interpolate`API_SERVER_KEY=${key}\n`,
-            ]),
+            Object.entries(this.args.apiServerProfileKeys ?? {}).map(([profile, key]) => {
+                const marmot = marmots.find(candidate => candidate.profile === profile);
+                return [
+                    `api-server-${profile}.env`,
+                    pulumi.interpolate`API_SERVER_KEY=${key}\n${marmot?.seedEnv() ?? ''}`,
+                ];
+            }),
         );
     }
 
