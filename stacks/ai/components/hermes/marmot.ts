@@ -1,7 +1,65 @@
 import { config, InitContainerSpec, SidecarSpec } from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
+import { bech32, hex } from '@scure/base';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+const ACCOUNT_ID_HEX = /^[0-9a-f]{64}$/;
+const PUBKEY_LENGTH = 32;
+
+/**
+ * Accepts an `npub1…` or 64-character hex account id and returns hex, the form
+ * wn-agent and the gateway's sender gate both compare against. Only the `buzz`
+ * platform decodes npubs centrally, so a raw `npub1…` in `MARMOT_ALLOWED_USERS`
+ * authorizes nobody on `marmot`; config stays readable because the decode
+ * happens here. The sibling decoder for caddy's NIP-05 names is
+ * `components/network/caddy/nip05.ts`.
+ */
+function toHexAccountId(value: string, key: string): string {
+    const normalised = value.toLowerCase();
+    if (ACCOUNT_ID_HEX.test(normalised)) return normalised;
+    if (!normalised.startsWith('npub1')) {
+        throw new Error(
+            `${key}: "${value}" is not an npub1… or 64-character hex account id.`,
+        );
+    }
+
+    let decoded: { prefix: string; words: number[] };
+    try {
+        decoded = bech32.decode(normalised as `${string}1${string}`);
+    } catch (error) {
+        throw new Error(
+            `${key}: "${value}" is not a valid npub1 key (${(error as Error).message})`,
+            { cause: error },
+        );
+    }
+    if (decoded.prefix !== 'npub') {
+        throw new Error(`${key}: expected an npub1… key, got ${decoded.prefix}1….`);
+    }
+
+    const bytes = bech32.fromWords(decoded.words);
+    if (bytes.length !== PUBKEY_LENGTH) {
+        throw new Error(
+            `${key}: npub decodes to ${String(bytes.length)} bytes, expected ${String(PUBKEY_LENGTH)}.`,
+        );
+    }
+    return hex.encode(bytes);
+}
+
+/** Normalises a comma-separated account-id list; empty entries are dropped. */
+function normalizeAccountIds(value: string, key: string): string {
+    return value
+        .split(',')
+        .map(entry => entry.trim())
+        .filter(entry => entry.length > 0)
+        .map(entry => toHexAccountId(entry, key))
+        .join(',');
+}
+
+function accountIdList(appName: string, key: string): string | undefined {
+    const raw = config.get(appName, key);
+    return raw ? normalizeAccountIds(raw, `${appName}:${key}`) : undefined;
+}
 
 export interface MarmotArgs {
     /** Hermes app name; the `marmot/*` config keys are read from it. */
@@ -98,9 +156,9 @@ export class Marmot {
             MARMOT_ALLOW_ALL_USERS: String(
                 config.requireBoolean(appName, 'marmot/allowAllUsers'),
             ),
-            MARMOT_ALLOWED_USERS: config.get(appName, 'marmot/allowedUsers'),
+            MARMOT_ALLOWED_USERS: accountIdList(appName, 'marmot/allowedUsers'),
             MARMOT_HOME_CHANNEL: config.get(appName, 'marmot/homeChannel'),
-            MARMOT_WELCOMER_ALLOWLIST: config.get(appName, 'marmot/welcomerAllowlist'),
+            MARMOT_WELCOMER_ALLOWLIST: accountIdList(appName, 'marmot/welcomerAllowlist'),
         };
     }
 
