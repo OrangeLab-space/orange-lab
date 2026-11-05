@@ -37,14 +37,34 @@ been made and superseded, write the current state and stop.
 changes.** Prefer phrasing that stays true ("add it to X and redeploy") over
 asserting that something "is still in place".
 
+## Prose is the failure mode
+
+Component docs grow by appending paragraphs that restate the implementation. Hold
+the page to code blocks, bullets and tables:
+
+- A setting belongs in a `pulumi config set` block or a bullet, never in a sentence.
+- A sentence earns its place only if it changes what the user does — a caveat, a
+  prerequisite, a consequence. How the component works internally belongs in
+  `stacks/<module>/spec/<app>.md`.
+- If a section needs more than two short paragraphs, convert it to bullets or move
+  the detail to the spec and link it.
+- Don't narrate internals ("the connector is two artefacts…", "the script installs
+  and verifies…") or restate what a command already shows.
+- Assume the summary is the only thing many readers read; spend the words there.
+
 ## General structure
 
+Use this skeleton, in order. Elements 1–4 are always present; the rest only when
+the component needs them.
+
 1. `# <App>` H1 — add `(experimental)` or `(deprecated)` suffix when applicable, matching the module's `README.md` component list
-2. Links table
-3. One-line description + optional integrations sentence linking to sibling component docs
-4. TL;DR installation code block with the common working example (ends at `pulumi up`); if commands assume a stack directory, put one `cd stacks/<module>` on the first line only
-5. (Optional) `## Post-Installation` — first-launch setup steps
-6. (Optional) Other H2 sections as relevant (Prerequisites, Reset Password, Backup/Restore, app-specific)
+2. Links table — external references, plus the related `stacks/<module>/spec/<app>.md` when one exists
+3. Summary — a few lines on what the component is, optionally a short bullet list of capabilities, tools or limits a user needs to know. Assume many readers stop here
+4. `## Installation` — one code block with the common working setup (ends at `pulumi up`); mark settings `# (Recommended)` or `# (Optional)` unless most users need them. Put one `cd stacks/<module>` on the first line only
+5. (Optional) `## Post-Installation` — manual first-launch steps needed before the app is usable
+6. `## Configuration` — settings as code blocks or bullet lists, with one H3 subsection per concern; prose only for a caveat that changes what the user does
+7. App-specific H2 sections (integrations, channels, backup, ...), one concern each
+8. (Optional) `## Uninstall` (last) — only when `enabled: false` is not enough; list the extra cleanup. Volumes are out of scope
 
 ## Links table
 
@@ -58,7 +78,8 @@ Row order (skip rows that don't apply):
 4. **Configuration** — dedicated config reference page, or source file when no page exists (e.g. ollama's `envconfig/config.go`)
 5. **Docker Image** + **Dockerfile** — image-based apps; registry link (usually Docker Hub) for browsing tags, Dockerfile at the upstream source path; name rows when the app ships multiple images (e.g. `Docker backend`)
 6. **Helm chart** + **Helm values** — chart-based apps; Artifact Hub page or chart directory + `values.yaml`
-7. **Endpoints** (last) — `https://<app>.<domain>/` (hostname from `Pulumi.yaml`, `<domain>` kept as literal placeholder)
+7. **Operational notes** — link to `stacks/<module>/spec/<app>.md` when the component has one
+8. **Endpoints** (last) — `https://<app>.<domain>/` (hostname from `Pulumi.yaml`, `<domain>` kept as literal placeholder)
 
 Bespoke rows (e.g. `CLI commands`, `Model catalog`) only when warranted.
 
@@ -109,6 +130,7 @@ Add H2 sections when a topic needs more than a code comment — one H2 per conce
 - **Reset Admin Password**, **Upgrade**, **Storage** (`storageOnly`), app-specific integrations
 - **Breaking config changes** — add an `Upgrade` section with the exact `pulumi config rm`/replacement commands and the capability loss.
 - **Port forwarding** — if the component declares TCP/UDP ports with `public: true`, state the router forward the user must add: `WAN <port> → <node>:<port + 10000>` (see [`docs/public-services.md`](/docs/public-services.md#tcp-and-udp-ports))
+- **Uninstall** (last) — only when setting `enabled: false` is not enough: list the extra cleanup, such as removing CRDs, deleting a repository hook, or dropping provider entries. Data volumes are out of scope.
 
 ## Relative links
 

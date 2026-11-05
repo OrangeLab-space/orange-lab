@@ -63,6 +63,7 @@ edit, or rewrite history.
 - **Infrastructure (Pulumi)**: Are new resources using the `Application` class? Are names and tags (like `tag:orangelab` for Tailscale) consistent?
 - **Security**: Sensitive data handled via `envSecret` in `ContainerSpec`? No hardcoded secrets or passwords in command args?
 - **Style**: camelCase for variables/functions, PascalCase for types/classes?
+- **Comments**: Do they describe the code as it is now, not the change that produced it? Flag history narration ("used to", "previously", "changed from"), restatements of what the code already says, and anything a clearer name would make obvious.
 
 ### 6. Blast Radius
 
