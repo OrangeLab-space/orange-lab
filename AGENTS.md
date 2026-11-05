@@ -104,12 +104,13 @@ Even if the change seems straightforward, these signals may indicate the current
 - **Writing code** (TypeScript components/stacks/library, or shell scripts in `scripts/`): follow the `code-conventions` skill.
 - **Sizing container cpu/memory requests and limits** (or diagnosing OOMs, memory pressure, CPU throttling): follow the `resource-tuning` skill. Size from measured RSS, not working set.
 - **Expanding storage** for a static (`fromVolume`) Longhorn volume: disable the app first, patch the Longhorn volume, then re-enable — follow the `resize-storage` skill. Changing `storageSize` alone does not resize a static volume; it fails on the bound PVC.
-- **Writing docs** (component `<app>.md`, stack `README.md`): follow the `document-app` / `document-module` skills. Keep user-facing component pages short; put detailed failure behaviour and operational runbooks in `spec/*.md` and link to them.
+- **Writing docs** (component `<app>.md`, stack `README.md`): follow the `document-app` / `document-module` skills. Keep user-facing component pages short; put detailed failure behaviour and operational runbooks in the owning stack's `stacks/<module>/spec/<app>.md` and link to them. Root `spec/` is for core and shared notes only.
 - **Formatting Markdown** (docs, specs, skills): run `npx prettier --write <files>` after editing and `npx prettier --check` on the touched set. If a file already fails, ask before including unrelated formatting churn. The repo config uses `printWidth: 90` and normalizes tables, but Prettier does not wrap long table cells — keep cell text short.
 
 ## Specs
 
-Agent-facing operating notes. Read as needed:
+Agent-facing operating notes. Read as needed. Root `spec/` holds core and shared
+notes; stack-specific specs live in `stacks/<module>/spec/`.
 
 - [`spec/agentgateway.md`](spec/agentgateway.md) — prompt guards, MCP backends, and advanced model routing
 - [`spec/headscale.md`](spec/headscale.md) — control plane invariants, CLI gotchas, migration constraints
