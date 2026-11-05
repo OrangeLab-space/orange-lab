@@ -7,12 +7,30 @@ set -eu
 #   USER_ID          uid/gid that owns the seeded files
 #   RECREATE_CONFIG  "true" overwrites config.yaml, otherwise only when missing
 
-mkdir -p "$DATA_PATH/workspace"
+mkdir -p "$DATA_PATH/workspace" "$DATA_PATH/scripts"
 
 if [ "$RECREATE_CONFIG" = "true" ]; then
     cp -f "$SEED_PATH/config.yaml" "$DATA_PATH/config.yaml"
 elif [ ! -s "$DATA_PATH/config.yaml" ]; then
     cp "$SEED_PATH/config.yaml" "$DATA_PATH/config.yaml"
+fi
+
+# The seeded route is the one the exported `hermes-webhook` endpoint answers on.
+# It is agent state like config.yaml: written when the volume has none, and
+# restored by `recreateConfig` for the operator who wants the deploy's copy back.
+if [ -f "$SEED_PATH/webhook_subscriptions.json" ]; then
+    if [ "$RECREATE_CONFIG" = "true" ] || [ ! -s "$DATA_PATH/webhook_subscriptions.json" ]; then
+        cp -f "$SEED_PATH/webhook_subscriptions.json" "$DATA_PATH/webhook_subscriptions.json"
+    fi
+    chown "$USER_ID:$USER_ID" "$DATA_PATH/webhook_subscriptions.json"
+fi
+
+# A route script has to sit under $DATA_PATH/scripts; the gateway resolves the
+# name against that directory and refuses a path outside it.
+if [ -f "$SEED_PATH/forgejo-pr.py" ]; then
+    cp -f "$SEED_PATH/forgejo-pr.py" "$DATA_PATH/scripts/forgejo-pr.py"
+    chmod 755 "$DATA_PATH/scripts/forgejo-pr.py"
+    chown "$USER_ID:$USER_ID" "$DATA_PATH/scripts/forgejo-pr.py"
 fi
 
 [ -s "$DATA_PATH/SOUL.md" ] || cp "$SEED_PATH/SOUL.md" "$DATA_PATH/SOUL.md"

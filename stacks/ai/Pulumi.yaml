@@ -209,6 +209,9 @@ config:
     hermes:auth/allowedGroups: admin,hermes-admin
     # Dashboard password when Pocket ID is not used (generated when unset).
     # hermes:dashboard/password: <value>
+    # Shared HMAC secret for the webhook listener and every route without its own
+    # (generated when unset). Senders sign with this value.
+    # hermes:webhook/secret: <value>
     #
     # Pocket ID: run components/hermes/pocket-hermes.sh, then set these.
     # hermes:auth: pocket

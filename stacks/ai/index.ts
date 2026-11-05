@@ -138,6 +138,7 @@ export const apps = {
               apiServerKey: hermes.apiServerKey,
               apiUrl: hermes.apiUrl,
               dashboardPassword: hermes.dashboardPassword,
+              webhookSecret: hermes.webhookSecret,
           }
         : undefined,
     speaches: speaches

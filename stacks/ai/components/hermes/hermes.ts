@@ -1,4 +1,10 @@
-import { Application, config, createPassword, requireOutput } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    createPassword,
+    requireOutput,
+    ServicePort,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -12,6 +18,10 @@ const seedPath = '/opt/hermes-seed';
 const runtimeUserId = 10000;
 /** OpenAI-compatible API for in-cluster clients; kept off the app's public hostname. */
 const apiServerPort = 8642;
+/** HMAC-signed event listener for scripts and forges; cluster-only like the API port. */
+const webhookPort = 8644;
+/** The one route seeded into the deployments: Forgejo pull request comments. */
+const webhookRoute = 'forgejo-pr';
 
 export interface SpeechSettings {
     /** OpenAI-compatible speech endpoint, including the `/v1` suffix. */
@@ -53,6 +63,8 @@ export class Hermes extends pulumi.ComponentResource {
     public readonly dashboardPassword?: pulumi.Output<string>;
     /** Session-signing secret; generated once so the env secret cannot drift. */
     private readonly sessionSecret?: pulumi.Output<string>;
+    /** Shared HMAC secret for the webhook listener; every route falls back to it. */
+    public readonly webhookSecret?: pulumi.Output<string>;
 
     constructor(
         private readonly name: string,
@@ -81,12 +93,23 @@ export class Hermes extends pulumi.ComponentResource {
         );
         this.sessionSecret = this.app.oidc ? undefined : this.getSessionSecret();
         this.dashboardPassword = this.app.oidc ? undefined : this.getDashboardPassword();
+        this.webhookSecret =
+            config.getSecret(name, 'webhook/secret') ??
+            createPassword(this, `${this.name}-webhook-secret`, { length: 48 });
 
         this.app.addConfigVolume({
             files: {
                 'SOUL.md': loadSoul(config.require(name, 'soulFile')),
                 'config.yaml': this.getConfigYaml(marmot),
                 kubeconfig: clusterAccess.kubeconfig,
+                // Seeded so the exported URL answers on the first deploy; the
+                // route carries no secret of its own and falls back to
+                // WEBHOOK_SECRET, which keeps the value out of this ConfigMap.
+                'webhook_subscriptions.json': this.getWebhookSubscriptions(marmot),
+                'forgejo-pr.py': readFileSync(
+                    resolve(__dirname, 'init', 'forgejo-pr.py'),
+                    'utf8',
+                ),
             },
             secretFiles: {
                 ...(this.apiServerKey
@@ -123,6 +146,12 @@ export class Hermes extends pulumi.ComponentResource {
         if (this.apiServerEnabled) {
             this.app.network.addClusterEndpoint(`${this.name}-api`, this.apiUrl);
         }
+        // The full route URL, not the base: a sender pastes one value into its
+        // webhook settings, and this is the one the seeded route answers on.
+        this.app.network.addClusterEndpoint(
+            `${this.name}-webhook`,
+            pulumi.interpolate`http://${this.name}.${this.app.metadata.namespace}:${String(webhookPort)}/webhooks/${webhookRoute}`,
+        );
     }
 
     private get apiServerEnabled(): boolean {
@@ -159,6 +188,18 @@ export class Hermes extends pulumi.ComponentResource {
     }) {
         // `gateway run` keeps the default profile's gateway alive under s6; the
         // dashboard is a supervised service alongside it and manages every profile.
+        const ports: ServicePort[] = [
+            { name: 'http', port: 9119 },
+            // Cluster-only: the Service carries it, no route or load balancer.
+            // The listener keeps its default bind (all interfaces) so the
+            // Service can reach it.
+            { exposure: 'internal', name: 'webhook', port: webhookPort },
+        ];
+        // The API port only exists when a key was handed in, so a stack without
+        // agentgateway keeps a single port as before.
+        if (this.apiServerEnabled) {
+            ports.push({ exposure: 'internal', name: 'api', port: apiServerPort });
+        }
         this.app.addDeployment({
             commandArgs: ['gateway', 'run'],
             env: this.getEnv({
@@ -173,13 +214,7 @@ export class Hermes extends pulumi.ComponentResource {
                 args.init.gh(),
                 ...(args.marmot ? [args.marmot.initContainer()] : []),
             ],
-            ports: [
-                { name: 'http', port: 9119 },
-                // Cluster-only: the Service carries it, no route or load balancer.
-                ...(this.apiServerEnabled
-                    ? [{ exposure: 'internal' as const, name: 'api', port: apiServerPort }]
-                    : []),
-            ],
+            ports,
             resources: {
                 requests: { cpu: '100m', memory: '1Gi' },
                 // Model loads (faster-whisper, Chromium) spike well past the
@@ -234,6 +269,10 @@ export class Hermes extends pulumi.ComponentResource {
                 : undefined,
             HERMES_DASHBOARD_PUBLIC_URL: this.app.network.getHttpEndpointInfo().url,
             KUBECONFIG: `${seedPath}/kubeconfig`,
+            // The listener reads these two from the process env; the secret beside
+            // them comes from getEnvSecret so it never lands in a ConfigMap.
+            WEBHOOK_ENABLED: 'true',
+            WEBHOOK_PORT: String(webhookPort),
             ...(args.marmot ? args.marmot.gatewayEnv() : {}),
         };
     }
@@ -245,7 +284,52 @@ export class Hermes extends pulumi.ComponentResource {
                 : this.dashboardPassword,
             HERMES_DASHBOARD_BASIC_AUTH_SECRET: this.sessionSecret,
             OPENAI_API_KEY: this.getAgentgatewayApiKey(),
+            // One secret for the listener and for every route that does not set
+            // its own: the sender signs with this value, so it must not rotate
+            // per route.
+            WEBHOOK_SECRET: this.webhookSecret,
         };
+    }
+
+    /**
+     * Seeds the route the exported `hermes-webhook` endpoint answers on.
+     *
+     * Forgejo sends GitHub-compatible headers (`X-GitHub-Event`,
+     * `X-Hub-Signature-256: sha256=…`), which is exactly what Hermes validates,
+     * so no adapter sits between the hook and the route.
+     *
+     * The route names no secret on purpose: Hermes falls back to the global
+     * `WEBHOOK_SECRET`, so the value never reaches this ConfigMap and the hook
+     * only ever needs one value on both ends.
+     */
+    private getWebhookSubscriptions(marmot?: Marmot): string {
+        const homeChannel = config.get(this.name, 'marmot/homeChannel');
+        const deliverToChat = marmot !== undefined && homeChannel !== undefined;
+        return JSON.stringify(
+            {
+                [webhookRoute]: {
+                    description:
+                        'Comment or review on a pull request in a Forgejo repository that posts here',
+                    events: [
+                        'issue_comment',
+                        'pull_request_comment',
+                        'pull_request_review_comment',
+                        'pull_request_review_approved',
+                        'pull_request_review_rejected',
+                    ],
+                    profile: 'default',
+                    // The reply the agent posts fires the same event; without this
+                    // the route wakes itself with every answer it writes.
+                    filters: [{ field: 'payload.sender.login', not_equals: 'agent' }],
+                    script: 'forgejo-pr.py',
+                    prompt: buildWebhookPrompt(),
+                    deliver: deliverToChat ? 'marmot' : 'log',
+                    ...(deliverToChat ? { deliver_extra: { chat_id: homeChannel } } : {}),
+                },
+            },
+            null,
+            2,
+        );
     }
 
     /**
@@ -311,24 +395,30 @@ export class Hermes extends pulumi.ComponentResource {
             gateway: { multiplex_profiles: true },
             terminal: { backend: 'local', cwd: `${dataPath}/workspace` },
         };
-        if (marmot) {
-            settings.platforms = {
-                marmot: {
-                    enabled: true,
-                    extra: {
-                        home: marmot.home,
-                        // Outbound files (TTS audio, documents) are refused unless
-                        // their directory is listed here.
-                        media_local_roots: [
-                            `${dataPath}/audio_cache`,
-                            `${dataPath}/cache/documents`,
-                            `${marmot.home}/dev/inbound-media`,
-                        ],
-                        socket_path: marmot.socket,
-                    },
-                },
-            };
-        }
+        // The listener starts from WEBHOOK_ENABLED in the pod env, but the CLI and
+        // the dashboard gate on this key: without it `hermes webhook` answers
+        // "Webhook platform is not enabled" beside a listener that is already up.
+        settings.platforms = {
+            webhook: { enabled: true, port: webhookPort },
+            ...(marmot
+                ? {
+                      marmot: {
+                          enabled: true,
+                          extra: {
+                              home: marmot.home,
+                              // Outbound files (TTS audio, documents) are refused
+                              // unless their directory is listed here.
+                              media_local_roots: [
+                                  `${dataPath}/audio_cache`,
+                                  `${dataPath}/cache/documents`,
+                                  `${marmot.home}/dev/inbound-media`,
+                              ],
+                              socket_path: marmot.socket,
+                          },
+                      },
+                  }
+                : {}),
+        };
         // Hermes loads a plugin only when it is named here; an installed but
         // unlisted adapter answers every route with "Plugin not found".
         settings.plugins = {
@@ -382,6 +472,32 @@ export class Hermes extends pulumi.ComponentResource {
         }
         return fragments;
     }
+}
+
+/**
+ * Prompt for the `forgejo-pr` route. Fields come from `init/forgejo-pr.py`,
+ * which flattens every comment event into one shape; braces are Hermes template
+ * references, so the text carries no literal ones.
+ */
+function buildWebhookPrompt(): string {
+    return [
+        'A {kind} landed on {repo}#{number} — {title}',
+        '',
+        'From: {author}',
+        'Thread: {url}',
+        '',
+        '{body}',
+        '',
+        'You are the cluster operator agent. Read before you answer:',
+        '- Pull the description, the thread and the diff over the API of the',
+        '  instance in Thread (token in $FORGEJO_TOKEN).',
+        '- If the comment asks for a change, make it on the pull request branch,',
+        '  push, and say what you changed and what you verified.',
+        '- Reply in the thread: POST /api/v1/repos/{repo}/issues/{number}/comments',
+        '  with a JSON body of "body". Never push to a branch the comment did not',
+        '  ask about, and never merge.',
+        '- End with one or two lines on what you did; that text is what reaches the chat.',
+    ].join('\n');
 }
 
 /** Resolves against the stack directory, where `pulumi up` runs. */

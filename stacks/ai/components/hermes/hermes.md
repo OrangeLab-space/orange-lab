@@ -155,6 +155,70 @@ The key is written to the profile's `.env` when the pod starts, so a profile
 created on the dashboard afterwards answers on the next deploy. A name in
 `hermes:profiles` with no profile behind it gets no key and stays unreachable.
 
+## Webhooks
+
+An event can start an agent turn without a chat: a sender POSTs a signed payload
+and the agent runs the route attached to it. The listener is cluster-only, like
+the API port — it never appears on the dashboard's hostname.
+
+```sh
+# The full hook URL; also exported as the cluster endpoint `hermes-webhook`
+pulumi stack output --json | jq -r '.endpoints.cluster["hermes-webhook"]'
+
+# The shared HMAC secret a sender signs with
+pulumi stack output --show-secrets --json | jq -r '.apps.hermes.webhookSecret'
+```
+
+The secret is generated on first deploy. Pin your own instead
+(`pulumi config set --secret hermes:webhook/secret <value>`) when the value has
+to be known before the deploy, and keep both ends on that value.
+
+The route is the last path segment, and the deploy seeds one: `forgejo-pr` wakes
+the agent for a comment or a review on a pull request. The exported value is
+therefore the complete payload URL — host, port and route — not a base someone
+has to finish by hand:
+
+`http://hermes.hermes:8644/webhooks/forgejo-pr`
+
+Adding the hook is the one step this stack cannot do for you, because the hook
+lives on the repository, not on the deployment: whoever administers it opens
+**Settings → Webhooks → Add webhook** on Forgejo or GitHub, pastes that payload
+URL, picks `application/json`, enters the shared secret, and selects the comment
+events (_Issue Comment_, _Pull Request Comment_, _Pull Request Review_). Every
+repository that points at the route is served by it — the payload names the
+repository, so a second repo needs its own hook but no new route.
+
+Two things to know before handing the URL to a repository owner:
+
+- the port is cluster-only, so only a sender that reaches the cluster network can
+  deliver — the `forgejo` component in this stack does, a repository on a public
+  forge such as `github.com` does not without a route to the service;
+- the secret is the deploy's, not the repository's: `apps.hermes.webhookSecret`
+  and the listener's `WEBHOOK_SECRET` are the same value, so there is nothing
+  extra to mint per repository.
+
+The route needs nothing on the sender's side beyond those two values, and two
+guards keep it closed:
+
+- a comment whose author is the agent (`sender.login == agent`) never wakes it,
+  so its own replies do not start a loop;
+- `init/forgejo-pr.py` drops everything that is not a comment or a review on a
+  pull request, and flattens the provider payload into `repo`, `number`, `title`,
+  `author`, `url` and `body`, which is what the route prompt reads.
+
+Both forges sign the raw body into `X-Hub-Signature-256` (`sha256=<hex>` HMAC) and
+name the event in `X-GitHub-Event`, so a GitHub-shaped hook works unchanged
+against Forgejo, and no adapter sits between the two.
+
+The route and its script are seeded like `config.yaml`: written when the volume
+has none, and restored by `hermes:recreateConfig true`. A later `hermes webhook
+subscribe forgejo-pr` (or a dashboard edit) rewrites the route on the volume, so
+pass `--secret` with the shared value if you recreate it by hand — `subscribe`
+mints a per-route secret otherwise, and the hook on the sender would still be
+signing with the old one.
+
+Test a route without the sender: `hermes webhook test forgejo-pr`.
+
 ## Speech
 
 Voice works through [speaches](./speaches.md) when it is enabled; the models are
