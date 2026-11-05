@@ -12,7 +12,9 @@ interface VirtualTarget {
 }
 
 interface VirtualModelSpec {
+    /** Client-facing model id. It may contain `/`, unlike a resource name. */
     name: string;
+    resourceName: string;
     strategy: VirtualStrategy;
     targets: VirtualTarget[];
 }
@@ -36,15 +38,16 @@ export class VirtualModels {
     ): void {
         for (const virtual of this.specs) {
             new kubernetes.apiextensions.CustomResource(
-                `${this.appName}-virtual-${virtual.name}`,
+                `${this.appName}-virtual-${virtual.resourceName}`,
                 {
                     apiVersion: 'agentgateway.dev/v1alpha1',
                     kind: 'AgentgatewayModel',
                     metadata: {
-                        name: virtual.name,
+                        name: virtual.resourceName,
                         namespace: this.namespace,
                     },
                     spec: {
+                        match: { model: virtual.name },
                         parentRefs: [
                             {
                                 group: 'gateway.networking.k8s.io',
@@ -84,14 +87,43 @@ export class VirtualModels {
                 provider.models.map(model => `${provider.clientPrefix}/${model}`),
             ),
         );
+        const concreteResourceNames = new Set(
+            providers.flatMap(provider =>
+                provider.models.map(model => toResourceName(`${provider.name}-${model}`)),
+            ),
+        );
+        const virtualResourceNames = new Map<string, string>();
 
         return Object.entries(raw as Record<string, unknown>)
             .map(([name, value]) => {
-                if (!/^[a-z0-9][a-z0-9-]*$/i.test(name)) {
+                if (!name || /\s/.test(name) || name.length > 1024) {
                     throw new Error(
-                        `${this.appName}:virtualModels has invalid name '${name}'.`,
+                        `${this.appName}:virtualModels has invalid name '${name}'; use a model id without whitespace.`,
                     );
                 }
+                const resourceName = toResourceName(name);
+                if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(resourceName)) {
+                    throw new Error(
+                        `${this.appName}:virtualModels name '${name}' cannot be turned into a Kubernetes resource name.`,
+                    );
+                }
+                const resourceOwner = virtualResourceNames.get(resourceName);
+                if (resourceOwner) {
+                    throw new Error(
+                        `${this.appName}:virtualModels.${resourceOwner} and virtualModels.${name} both become resource '${resourceName}'.`,
+                    );
+                }
+                if (concreteResourceNames.has(resourceName)) {
+                    throw new Error(
+                        `${this.appName}:virtualModels.${name} resource '${resourceName}' collides with a provider model.`,
+                    );
+                }
+                if (availableModels.has(name)) {
+                    throw new Error(
+                        `${this.appName}:virtualModels.${name} repeats a provider model id.`,
+                    );
+                }
+                virtualResourceNames.set(resourceName, name);
                 if (typeof value !== 'object' || value === null || Array.isArray(value)) {
                     throw new Error(
                         `${this.appName}:virtualModels.${name} must be an object.`,
@@ -116,6 +148,7 @@ export class VirtualModels {
                 }
                 return {
                     name,
+                    resourceName,
                     strategy,
                     targets: targets.map((target, index) => {
                         if (

@@ -50,7 +50,8 @@ config:
     # gateway mints its credential, exported in apps.hermes.apiServerKey.
     # Cost rates per model for analytics; see components/agentgateway/agentgateway.md
     # agentgateway:modelCosts: map of providers/models/rates
-    # Virtual models: map name to {strategy, targets: [{model, priority|weight}]}
+    # Virtual models: map name to {strategy, targets: [{model, priority|weight}]};
+    # the name is the client-facing model id, so it may contain '/'.
     # agentgateway:virtualModels: see components/agentgateway/agentgateway.md
     # Upstream request headers, used only when the client sends none; a client
     # value wins. OpenCode Go models need x-opencode-session from non-agent clients.

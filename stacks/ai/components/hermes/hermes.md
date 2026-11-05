@@ -27,7 +27,7 @@ pulumi config set hermes:enabled true
 
 # (Recommended) Run on a model agentgateway serves
 pulumi config set agentgateway:clients open-webui,hermes
-pulumi config set hermes:model assistant
+pulumi config set hermes:model model/default
 
 # (Recommended) Pocket ID login instead of the generated admin password
 ./components/hermes/pocket-hermes.sh

@@ -68,7 +68,7 @@ pulumi config set --secret agentgateway:opencode/apiKey <provider-key>
 
 Providers without a key, like Ollama, skip the auth header.
 
-The declared models are the allow-list. `/v1/models` lists exactly them, and requests for anything else fail.
+The declared provider models are the allow-list. `/v1/models` lists exactly the declared models and virtual models, and requests for anything else fail.
 
 A provider hosted by another component in this stack — the agent's OpenAI-compatible API — is declared the same way, but its credential is minted by the gateway instead of set by you, because the gateway is the only client: enabling both components is enough, no `<provider>/apiKey` secret to create.
 
@@ -85,22 +85,22 @@ OpenCode serves the same model IDs from two paths, and the path selects the bill
 
 ## Virtual models
 
-Virtual models publish a stable client-facing name and route to concrete models. Targets use the same `<provider>/<model>` names as the provider config:
+Virtual models publish a stable client-facing name and route to concrete models. The configured name is the model id clients send and may contain `/`, so `model/default` and `hermes/marta` can coexist. Targets use the same `<provider>/<model>` names as the provider config:
 
 ```yaml
 agentgateway:virtualModels:
-    assistant:
+    model/default:
         targets:
             - model: opencode/deepseek-v4.1-flash
-    coding:
+    model/coding:
         targets:
             - model: opencode/deepseek-v4.1-flash
-    private-assistant:
+    model/private:
         targets:
-            - model: ollama/gemma4
+            - model: kubeai/gemma4
 ```
 
-`assistant` and `coding` point at DeepSeek; `private-assistant` points at the local Gemma model so requests stay on the cluster. The default strategy is `failover`; add `priority` to order fallback targets or `weight` for a `weighted` split. Virtual models must be public and cannot set their own policies. Set the structure with `pulumi config set --path` or in your stack file.
+`model/default` and `model/coding` point at DeepSeek; `model/private` points at the local Gemma model so requests stay on the cluster. The default strategy is `failover`; add `priority` to order fallback targets or `weight` for a `weighted` split. Virtual models must be public and cannot set their own policies. Set the structure with `pulumi config set --path` or in your stack file.
 
 ## Virtual keys
 
