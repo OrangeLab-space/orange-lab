@@ -155,6 +155,10 @@ pulumi config set speaches:enabled true
 An event can start an agent turn without a chat. The seeded route `forgejo-pr`
 wakes the agent for a comment or a review on a pull request.
 
+The route belongs to the deploy and is merged into the profile on every start,
+so a change here reaches an existing install on `pulumi up`. Routes you add
+through the dashboard are left alone.
+
 ```sh
 # The full payload URL; also exported as the cluster endpoint `hermes-webhook`
 pulumi stack output --json | jq -r '.endpoints.cluster["hermes-webhook"]'

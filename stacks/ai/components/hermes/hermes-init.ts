@@ -5,6 +5,8 @@ import { join } from 'node:path';
 export interface HermesInitArgs {
     dataPath: string;
     ghVersion: string;
+    /** The app image: the only interpreter here that can parse the route file. */
+    image: string;
     kubectlVersion: string;
     recreateConfig: boolean;
     runtimeUserId: number;
@@ -13,8 +15,9 @@ export interface HermesInitArgs {
 
 /**
  * Init containers for the Hermes pod: seed the writable profile files and
- * install the pinned command-line tools into the data volume. The shell lives
- * in the `.sh` files beside this one; values reach it as environment variables.
+ * install the pinned command-line tools into the data volume. The scripts live
+ * in `init/` beside this one — shell for the `alpine` steps, Python where a step
+ * has to parse JSON — and values reach them as environment variables.
  */
 export class HermesInit {
     constructor(private readonly args: HermesInitArgs) {}
@@ -29,6 +32,37 @@ export class HermesInit {
             name: 'seed-profile',
             image: 'alpine:3.24',
             command: ['sh', '-c', readScript('seed-profile.sh')],
+            env: {
+                DATA_PATH: dataPath,
+                RECREATE_CONFIG: String(recreateConfig),
+                SEED_PATH: seedPath,
+                USER_ID: String(runtimeUserId),
+            },
+            volumeMounts: [
+                { mountPath: dataPath },
+                { name: 'config', mountPath: seedPath, readOnly: true },
+            ],
+        };
+    }
+
+    /**
+     * Merges the seeded webhook routes into the volume. A route is the deploy's
+     * to declare, so it has to reach an existing install on a plain `pulumi up` —
+     * copying the file only when it is missing leaves an old route answering
+     * forever. Routes the seed does not name survive untouched, and an unreadable
+     * file is kept beside the seeded one. `alpine` has no JSON parser, so this
+     * step runs in the app image.
+     */
+    seedRoutes(): InitContainerSpec {
+        const { dataPath, image, recreateConfig, runtimeUserId, seedPath } = this.args;
+        return {
+            name: 'seed-routes',
+            image,
+            command: [
+                '/opt/hermes/.venv/bin/python3',
+                '-c',
+                readScript('seed-routes.py'),
+            ],
             env: {
                 DATA_PATH: dataPath,
                 RECREATE_CONFIG: String(recreateConfig),

@@ -15,15 +15,9 @@ elif [ ! -s "$DATA_PATH/config.yaml" ]; then
     cp "$SEED_PATH/config.yaml" "$DATA_PATH/config.yaml"
 fi
 
-# The seeded route is the one the exported `hermes-webhook` endpoint answers on.
-# It is agent state like config.yaml: written when the volume has none, and
-# restored by `recreateConfig` for the operator who wants the deploy's copy back.
-if [ -f "$SEED_PATH/webhook_subscriptions.json" ]; then
-    if [ "$RECREATE_CONFIG" = "true" ] || [ ! -s "$DATA_PATH/webhook_subscriptions.json" ]; then
-        cp -f "$SEED_PATH/webhook_subscriptions.json" "$DATA_PATH/webhook_subscriptions.json"
-    fi
-    chown "$USER_ID:$USER_ID" "$DATA_PATH/webhook_subscriptions.json"
-fi
+# Routes are not copied here: `webhook_subscriptions.json` is a map the dashboard
+# also writes, so the `seed-routes` step merges the deploy's routes into the
+# volume copy instead (this image has no JSON parser).
 
 # A route script has to sit under $DATA_PATH/scripts; the gateway resolves the
 # name against that directory and refuses a path outside it.

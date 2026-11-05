@@ -203,6 +203,7 @@ export class Hermes extends pulumi.ComponentResource {
         return new HermesInit({
             dataPath,
             ghVersion: config.require(this.name, 'ghVersion'),
+            image: config.require(this.name, 'image'),
             kubectlVersion: config.require(this.name, 'kubectlVersion'),
             recreateConfig: config.requireBoolean(this.name, 'recreateConfig'),
             runtimeUserId,
@@ -240,6 +241,9 @@ export class Hermes extends pulumi.ComponentResource {
             healthCheck: { httpGet: { path: '/api/status' } },
             initContainers: [
                 args.init.seed(),
+                // After the copy step: it reads the seeded route file it leaves
+                // behind, and merges into the volume copy rather than replacing it.
+                args.init.seedRoutes(),
                 args.init.kubectl(),
                 args.init.gh(),
                 // One install serves every profile: the binary is shared.
@@ -340,6 +344,10 @@ export class Hermes extends pulumi.ComponentResource {
      * The route names no secret on purpose: Hermes falls back to the global
      * `WEBHOOK_SECRET`, so the value never reaches this ConfigMap and the hook
      * only ever needs one value on both ends.
+     *
+     * Seeded by merge (see `seed-routes`), not copied: this object is the deploy's
+     * definition of the route and lands on an existing install at the next start,
+     * while routes added through the dashboard stay exactly as they are.
      */
     private getWebhookSubscriptions(marmot?: Marmot): string {
         const homeChannel = config.get(this.name, 'marmot/homeChannel');
