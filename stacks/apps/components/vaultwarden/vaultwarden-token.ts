@@ -43,7 +43,7 @@ export class VaultwardenToken extends pulumi.ComponentResource {
                         ADMIN_TOKEN_HASH: hash,
                     })),
             },
-            { parent: this },
+            { parent: this, deleteBeforeReplace: true },
         );
     }
 }

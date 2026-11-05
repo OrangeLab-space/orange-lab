@@ -48,7 +48,9 @@ class Argon2HashProvider implements pulumi.dynamic.ResourceProvider {
 }
 
 export class Argon2Hash extends pulumi.dynamic.Resource {
-    public readonly hash!: pulumi.Output<string>;
+    // Assigned by the base resource after construction; `declare` keeps the
+    // class field from clearing it.
+    declare public readonly hash: pulumi.Output<string>;
 
     constructor(
         name: string,
