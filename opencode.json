@@ -3,7 +3,7 @@
     "permissions": [
         { "action": "external_directory", "resource": "*", "effect": "ask" },
         { "action": "shell", "resource": "*", "effect": "ask" },
-        { "action": "edit", "resource": "*", "effect": "allow" },
+
         { "action": "shell", "resource": "awk *", "effect": "allow" },
         { "action": "shell", "resource": "cat *", "effect": "allow" },
         { "action": "shell", "resource": "curl *", "effect": "allow" },
@@ -59,6 +59,7 @@
         { "action": "shell", "resource": "tr *", "effect": "allow" },
         { "action": "shell", "resource": "uniq *", "effect": "allow" },
         { "action": "shell", "resource": "wc *", "effect": "allow" },
+
         { "action": "shell", "resource": "kubectl apply *", "effect": "ask" },
         { "action": "shell", "resource": "kubectl delete *", "effect": "ask" },
         { "action": "shell", "resource": "kubectl exec *", "effect": "ask" },
@@ -66,8 +67,10 @@
         { "action": "shell", "resource": "kubectl get secrets *", "effect": "ask" },
         { "action": "shell", "resource": "kubectl -n * get secret *", "effect": "ask" },
         { "action": "shell", "resource": "kubectl rollout restart *", "effect": "ask" },
-        { "action": "shell", "resource": "*Pulumi.*.yaml*", "effect": "ask" },
-        { "action": "shell", "resource": "pulumi * --show-secrets *", "effect": "ask" },
+
+        { "action": "shell", "resource": "*--show-secrets*", "effect": "ask" },
+        { "action": "shell", "resource": "*Pulumi.*.yaml*", "effect": "deny" },
+
         { "action": "read", "resource": "*Pulumi.yaml", "effect": "allow" },
         { "action": "edit", "resource": "*Pulumi.yaml", "effect": "allow" },
         { "action": "read", "resource": "*Pulumi.*.yaml*", "effect": "deny" },
