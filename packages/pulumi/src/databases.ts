@@ -38,16 +38,16 @@ export class Databases {
                 overrideFullname: `storage-${this.appName}-${name}-0`,
             });
         }
-        const enabledDefault = config.getBoolean(this.appName, `storageOnly`)
-            ? false
-            : true;
         const db = new MariaDbCluster(
             this.appName,
             {
                 affinity: this.args.nodes.getAffinity(name),
                 disableAuth: config.getBoolean(this.appName, `${name}/disableAuth`),
-                enabled:
-                    config.getBoolean(this.appName, `${name}/enabled`) ?? enabledDefault,
+                // A database stays up in `storageOnly` mode: deleting the cluster
+                // would take its data with it, which is the opposite of what the
+                // setting promises. Shut one down explicitly with
+                // `<app>:<name>/enabled false`.
+                enabled: config.getBoolean(this.appName, `${name}/enabled`) ?? true,
                 metadata: this.args.metadata,
                 name,
                 password: config.getSecret(this.appName, `${name}/password`),
@@ -90,14 +90,10 @@ export class Databases {
                 },
             });
         }
-        const enabledDefault = config.getBoolean(this.appName, `storageOnly`)
-            ? false
-            : true;
         const db = new PostgresCluster(
             this.appName,
             {
-                enabled:
-                    config.getBoolean(this.appName, `${name}/enabled`) ?? enabledDefault,
+                enabled: config.getBoolean(this.appName, `${name}/enabled`) ?? true,
                 fromVolume,
                 imageName: config.get(this.appName, `${name}/image`),
                 instances: config.getNumber(this.appName, `${name}/instances`),

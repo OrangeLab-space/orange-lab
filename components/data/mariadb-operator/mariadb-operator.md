@@ -29,12 +29,11 @@ If this is not done then you'll need to reset the password (see next section).
 ### Resetting root password
 
 ```sh
-# Shutdown all containers except database
+# Shut down the application, leaving the database running
 pulumi config set <app>:storageOnly=true
-pulumi config set <app>/db:enabled=true
 
 # Disable MariaDB authentication (allows logging in as root without password)
-pulumi config set <app>/db:disableAuth=true
+pulumi config set <app>:db/disableAuth=true
 pulumi up
 
 # log into the MariaDB container
@@ -57,11 +56,10 @@ Exit with CTRL-D. Cleanup and re-enable database authentication:
 
 ```sh
 # Enable MariaDB authentication
-pulumi config rm <app>/db:disableAuth
+pulumi config rm <app>:db/disableAuth
 pulumi up
 
 # Remove temporary config keys to start the apps using the database
 pulumi config rm <app>:storageOnly
-pulumi config rm <app>/db:enabled
 pulumi up
 ```

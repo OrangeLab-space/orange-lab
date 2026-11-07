@@ -140,11 +140,11 @@ Nextcloud uses a persistent volume for file storage. You can expand the volume a
 
 ```sh
 pulumi config set nextcloud:storageOnly true
-
-# Keep the database engine running (use this for DB maintanance)
-pulumi config set nextcloud:db/enabled true
 pulumi up
 ```
+
+The database keeps running, so it stays available for maintenance. Shut it down
+with `pulumi config set nextcloud:db/enabled false` if you really want that.
 
 ## Access
 

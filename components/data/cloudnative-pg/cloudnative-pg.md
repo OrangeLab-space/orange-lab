@@ -18,10 +18,12 @@ brew install kubectl-cnpg
 pulumi config set cloudnative-pg:enabled true
 ```
 
-When setting `<app>:storageOnly` to `true`, databases are shut down and only storage is retained. To keep PostgreSQL running, use:
+When setting `<app>:storageOnly` to `true`, the application is removed but the
+database keeps running, so its data stays attached and reachable. To shut
+PostgreSQL down as well, disable it explicitly:
 
 ```sh
-pulumi config set <app>:db/enabled true
+pulumi config set <app>:db/enabled false
 
 # Optional: add PostgreSQL replicas, 1 is default (just primary)
 pulumi config set n8n:db/instances 3
