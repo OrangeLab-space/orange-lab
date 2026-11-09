@@ -38,6 +38,9 @@ The server should also create two files:
 > **Headscale**: before the first reboot, install the boot guard on the server —
 > `./scripts/k3s-node-ip-guard-install.sh k3s` — and paste the output there. Use
 > `k3s-agent` on agent nodes. Not needed with Tailscale's coordination server.
+> If control DNS points at a public VPS proxy, also pin the `headscale` and
+> `login` hostnames to the server's LAN address in `/etc/hosts` first, or the
+> server cannot reach its own control plane while it restarts.
 > See [Headscale](../components/network/headscale/headscale.md#server-reboots).
 
 ## Save server configuration
@@ -69,7 +72,16 @@ pulumi config set k3s:agentToken $K3S_TOKEN --secret
 ```sh
 # copy kubeconfig from server to your management node
 scp <user>@<k8s-server>:/etc/rancher/k3s/k3s.yaml ~/.kube/config
+
+# point it at the server's tailnet address (same value as k3s:serverIp)
+kubectl config set-cluster default \
+  --server="https://$(pulumi config get k3s:serverIp):6443"
 ```
+
+The generated file points at `127.0.0.1:6443`, which only works on the server.
+Use the **tailnet** address, not the LAN address: the LAN address comes from DHCP
+and moves, and a stale one makes `kubectl`, Pulumi and Headlamp hang instead of
+failing. Run the last command from the stack folder.
 
 # Installation - K3S agents
 

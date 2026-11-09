@@ -18,6 +18,7 @@ K3S_URL=https://$(pulumi config get k3s:serverIp):6443
 K3S_TOKEN=$(pulumi config get k3s:agentToken)
 
 echo "export K3S_URL=$K3S_URL"
+echo "export NODE_NAME='$NODE_NAME'"
 # shellcheck disable=SC2016 # evaluated on the target node
 echo export NODE_IP='$(tailscale ip -4)'
 echo "export K3S_TOKEN=$K3S_TOKEN"
@@ -28,6 +29,7 @@ echo "curl -sfL https://get.k3s.io |  sh -s - \
 --bind-address=0.0.0.0 \
 --flannel-iface=tailscale0 \
 --node-ip=\$NODE_IP \
+--node-name=\$NODE_NAME \
 --selinux$NODE_ARGS"
 echo
 echo systemctl restart k3s-agent.service

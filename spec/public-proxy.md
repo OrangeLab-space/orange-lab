@@ -34,7 +34,7 @@ reverse is also true. Do not mix the two in one proxy path.
 | Tags               | `tag:proxy`; no `tagOwners` required for a tagged PAK | Every selected tag must exist in `tagOwners`     |
 | Join               | `--login-server https://headscale...`                 | Default Tailscale control plane                  |
 | Exit-node approval | `headscale nodes approve-routes`                      | Admin console; ACL grant to `autogroup:internet` |
-| Control path       | Public `headscale` hostname and optional home pin     | Tailscale SaaS; no pin or home bootstrap         |
+| Control path       | Public `headscale` → VPS; VPS pin → home              | Tailscale SaaS; no pin or home bootstrap         |
 
 The scripts under `scripts/public-proxy/` are shared. Only the key, join,
 approval, control-path, and optional Headscale control DNS record differ.
@@ -138,22 +138,27 @@ cluster nodes. It also grants members `tcp:22` to `tag:proxy`, which is what
 keeps `ssh <user>@proxy` working over the tailnet; keep that in sync with the
 hardened SSH port. Add every new `--tcp-forward` upstream to the proxy grant;
 otherwise the forward times out once the policy exists. Exit-node use is a
-separate grant (`dst: autogroup:internet`, `via: tag:proxy`). A node re-joined
-with a user key becomes personal and falls outside the proxy grant. On
-Tailscale, define `tag:proxy` in `tagOwners` and add the same port-scoped grants
-to the tailnet policy.
+separate grant. A `via: tag:proxy` grant admits the traffic but does not surface
+the exit node to a tagged client, so a tagged client sees no exit node; add a
+plain `dst: autogroup:internet` grant for it (see
+[`headscale.md`](headscale.md#invariants)). A node re-joined with a user key
+becomes personal and falls outside the proxy grant. On Tailscale, define
+`tag:proxy` in `tagOwners` and add the same port-scoped grants to the tailnet
+policy.
 
-**Headscale control path must not depend on itself.** The VPS's `ControlURL`
-is normally `https://headscale.<domain>`. If that hostname resolves to the VPS,
-a reboot or reconnect cannot fetch the control key: Tailscale needs Headscale
-to bring up the tailnet, and HAProxy needs the tailnet to reach Headscale. A
-simulated cutover produced `fetch control key ... EOF` and `tailscale status`
-reported logged out. Before moving the Headscale record, keep the home `443`
-forward and pin the VPS's view of the hostname to the home IPv4 in `/etc/hosts`;
-then public DNS can point at the VPS. Verify with `getent hosts` and a
-`tailscaled` restart. If the home IP is only somewhat static, update the pin
-manually when it changes. Leaving Headscale DNS at home, or using a separate
-bootstrap control endpoint, is the alternative.
+**Headscale control path must not depend on itself.** `headscale` and `login`
+point at the VPS in steady state, so the home IP is not published, and the VPS
+forwards both to Traefik. The VPS then needs a path to Headscale that does not go
+through the VPS: pin its own view of the control hostname to the home IPv4 in a
+marked `/etc/hosts` line, and keep the home `443` forward. Verify with
+`getent hosts` and a `tailscaled` restart. When the home IP changes, edit the
+marked line to the new address — never append a duplicate. The control-plane
+node has the mirror-image problem and needs its own local pin; both roles and the
+restart runbook are in
+[`headscale.md`](headscale.md#restarting-the-control-planes-host). Restarting
+`tailscaled` on the node that runs Headscale while public DNS still points at the
+VPS is a self-lockout: move the `headscale` and `login` A records home first and
+wait out the TTL.
 
 **Tailscale control path is external.** Tailscale SaaS is the control plane.
 There is no `headscale.<domain>` record, `/etc/hosts` pin, or home `443`
@@ -176,9 +181,9 @@ next `tailscaled` reconnect, reboot, or Headscale restart fails against the old
 address, and HAProxy then has no upstream. Edit the marked `/etc/hosts` line to
 the new home IPv4 (do not append a duplicate), verify with `getent hosts`, and
 restart `tailscaled`. If the VPS is down, switch DNS home first; if it is up but
-logged out, public SSH or the provider console is the recovery path. Before
-DNS cutover, the public A/AAAA records also still point home and must be
-updated.
+logged out, public SSH or the provider console is the recovery path. After
+cutover the public records point at the VPS, so they do not need the new home
+address; the control-plane node's LAN pin is independent of it.
 
 **DNS cutover is the user's step.** Verify the proxy with `--resolve` first.
 Never change DNS as part of installing the proxy.
@@ -361,7 +366,10 @@ Fedora specifics:
   local resolver. `dig` bypasses the local resolver; `curl` does not.
 - **Headscale control:** keep the home `443` forward while `headscale` DNS
   points at the VPS. It is the control bootstrap. If the home path is not kept,
-  leave `headscale` DNS at home or use a separate control endpoint.
+  leave `headscale` DNS at home or use a separate control endpoint. Restarting
+  `tailscaled` on the control-plane node also needs the records home for that
+  window — see the
+  [runbook](headscale.md#restarting-the-control-planes-host).
 - **Manual fallback:** both control planes need the home `443` forward if you
   want DNS fallback to home to keep serving. Tailscale does not need it for
   control.
@@ -466,13 +474,16 @@ public port. Test the VPS listener with `nc -vz <vps-ip> <port>` from outside.
 Raw TCP has no SNI fallback, so a hostname cannot select a backend.
 
 **The VPS is logged out after the Headscale DNS cutover or a reboot.** This is
-Headscale-specific. `sudo tailscale debug prefs | jq -r .ControlURL` points at
-a hostname that resolves back to the VPS. `tailscaled` cannot fetch the
-control key through HAProxy because the upstream tailnet is down. Restore the
-`/etc/hosts` pin to the home IPv4 (or another independent control path), then
-restart `tailscaled`. Rolling back public DNS alone is not enough if the VPS
-still resolves the name to itself; fix the VPS resolver first. Keep the home
-`443` forward, otherwise the pin has no path. Tailscale has no equivalent pin.
+Headscale-specific. `sudo tailscale debug prefs | jq -r .ControlURL` points at a
+hostname that resolves to the VPS, so `tailscaled` cannot fetch the control key
+through HAProxy while the upstream tailnet is down. Restore the marked
+`/etc/hosts` pin to the home IPv4, verify with `getent hosts`, then restart
+`tailscaled`. Rolling back public DNS alone is not enough if the VPS still
+resolves the name to itself. Keep the home `443` forward. The same signature on a
+cluster node means the node that serves Headscale cannot reach its own control
+plane: pin that host locally instead of changing DNS for everyone. Both cases are
+in [`headscale.md`](headscale.md#restarting-the-control-planes-host). Tailscale
+has no equivalent pin.
 
 **DNS breaks on the VPS after joining.** The control plane's MagicDNS is
 unreachable or not configured. Re-run `tailscale up` with `--accept-dns=false`,

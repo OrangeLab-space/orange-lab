@@ -7,7 +7,10 @@ Agent-facing notes for node topology, labels and taints. User-facing setup is in
 ## Source of truth
 
 Node topology, labels and taints live in `orangelab:nodes` in the core stack
-config. They are applied in two steps:
+config. The map key is also the node's identity: every installer passes
+`--node-name=<key>`, so a node registers under its config key instead of
+whatever the OS reports as hostname (ZimaOS and DHCP-configured hosts often
+report an IP address). The labels and taints are applied in two steps:
 
 1. The `scripts/k3s-server.sh` and `scripts/k3s-agent.sh` installers (plus the
    Alpine/Zima wrappers) read the map through `scripts/node-config.sh` and pass

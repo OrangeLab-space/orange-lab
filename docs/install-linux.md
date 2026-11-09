@@ -40,7 +40,7 @@ personal node that expires and falls outside it.
 
 ## Firewall
 
-Fedora nodes run firewalld. Run these commands on the k3s server and each worker node (or copy-paste the equivalent [`scripts/firewall-fedora.sh`](../scripts/firewall-fedora.sh)):
+Fedora nodes run firewalld. Run `./scripts/firewall-fedora.sh` where Pulumi is configured and execute the output on the k3s server and each worker node. The script prints a notice and exits without changes when firewalld is not installed. The generated commands are equivalent to:
 
 ```sh
 firewall-cmd --permanent --add-source=10.42.0.0/16 # Pods

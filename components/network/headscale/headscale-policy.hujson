@@ -34,6 +34,12 @@
       "ip": ["*"]
     },
 
+    // A K3s node can also be the operator's laptop, and then it needs the same
+    // exit node. A tagged node is not a member, so it needs its own grant.
+    // Deliberately without "via": a via-only grant does not surface the exit
+    // node to the client, which then reports that it has none.
+    { "src": ["tag:cluster"], "dst": ["autogroup:internet"], "ip": ["*"] },
+
     // Operators manage the proxy over the tailnet (ssh <user>@proxy). This is
     // inbound to the proxy, not part of its own reach. Use the hardened SSH
     // port here if it is not 22.

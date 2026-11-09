@@ -84,6 +84,13 @@ port-scoped to `tcp:10443`, the public `+10000` offsets, and 53 for the
 Technitium resolver, so a new public TCP port must be added to the policy as
 well as to HAProxy, or it times out.
 
+Exit-node use is a separate grant, and a `via`-only grant is not enough for a
+tagged client: it admits the traffic but does not surface the exit node, so the
+client reports that it has none (headscale#3408). Add a plain
+`{ "src": ["tag:cluster"], "dst": ["autogroup:internet"], "ip": ["*"] }` as well
+as the member `via: tag:proxy` grant. Without `via` the grant admits any approved
+exit node, which is the cost of the workaround when there is more than one.
+
 **A node's tag comes from its preauth key.** `preauthkeys create --tags
 tag:cluster` keeps the node tagged; a `--user` key makes it personal, so it
 falls under `autogroup:member` and outside the proxy policy. "Convert from
@@ -99,6 +106,34 @@ lands wherever the scheduler puts it, which may be a node you are about to take
 offline. Note the trade: pinning means the control plane cannot be recovered
 from the node it is pinned to, so make sure that node is the most stable one
 available.
+
+**Control must not depend on the tailnet, and not on the node that serves it.**
+Every netmap arrives over the control hostname. Behind the public proxy that name
+resolves to the VPS, HAProxy forwards it to Traefik on the control-plane node,
+and Traefik reaches the pod. On the control-plane node this is circular:
+`tailscaled` needs a netmap before its interface exists, and the VPS path needs
+that interface. The `headscale` and `login` A records should point at the VPS in
+steady state, so the home IP is never published, but each role needs a bootstrap
+that does not use the tailnet:
+
+- **Control-plane node:** marked `/etc/hosts` lines pinning both
+  `headscale.<domain>` and `login.<domain>` to its own LAN IPv4. It needs no DNS,
+  router forward, VPS, or tailnet. Both are needed: Headscale fetches the OIDC
+  discovery document from `login.<domain>` at startup, so pinning only the
+  control hostname still crashloops on a cold start. DHCP-reserve that address: a
+  lease change makes the pin stale, and a stale pin is the next restart's outage.
+  Replace the lines rather than appending duplicates.
+- **Public proxy:** a marked `/etc/hosts` line pinning the control hostname to
+  the home WAN IPv4 (see [`public-proxy.md`](public-proxy.md)); the VPS cannot
+  reach itself over the tailnet it is part of.
+- **Other cluster nodes:** no pin. Public DNS → VPS is correct, because they do
+  not serve the control plane and their upstream is alive when they restart.
+
+Without a working pin on the control-plane node, move the `headscale` and `login`
+A records home for the restart window, wait out the TTL, and verify before
+touching the service — see
+[Restarting the control plane's host](#restarting-the-control-planes-host). That
+fallback needs the home `443` forward, so keep it.
 
 **K3s must be able to start without a netmap.** Nodes run k3s with `--node-ip` on
 the mesh interface, but tailscaled only assigns that address after Headscale
@@ -223,6 +258,55 @@ ready addresses only. Start Headscale once with the flag false through a live
 ConfigMap patch, then restore the flag and restart the pod: the mesh heals, the
 node becomes Ready, and the provider serves again. Deleting the provider pod
 instead moves its storage, which is the wrong trade during an outage.
+
+## Restarting the control plane's host
+
+A `tailscaled` restart, a Tailscale upgrade, or a reboot of the node that runs
+Headscale needs the control hostname to resolve without that node's tailnet
+interface. In steady state it resolves to the VPS, and that path terminates on
+the same node, so the client cannot fetch its control key and every node's netmap
+freezes. With a working local pin the restart is safe; without one, move control
+DNS home for the window.
+
+1. **Pre-flight on the host.** `getent hosts headscale.<domain>` and
+   `getent hosts login.<domain>` must not return the VPS address, which is the
+   circular path. Pinned LAN addresses, or the home WAN addresses after step 2,
+   are working paths.
+2. **No pin — switch DNS.** Point the `headscale` and `login` A records at the
+   home WAN IPv4. The home `443` forward to the cluster must exist. Wait out the
+   record TTL, and flush caches if `getent` still returns the old address:
+   `resolvectl flush-caches`, plus the Technitium cache when it is the resolver.
+3. **Verify the path before touching the service.**
+
+    ```sh
+    curl -sS -o /dev/null -w '%{http_code}\n' \
+      --resolve headscale.<domain>:443:<home-wan-ip> https://headscale.<domain>/health
+    ```
+
+    Expect `200`. A connection error means the home forward is missing; `503`
+    means Traefik has no ready Headscale endpoint yet.
+
+4. **Restart one node at a time, control plane last.** Restarting the agents
+   first keeps the control plane up for their reconnect.
+5. **Verify.** `/health` returns `200` from outside, `tailscale status` shows
+   every node `active`, `tailscale status --json | jq .Health` is empty, and
+   `kubectl get nodes` answers immediately.
+6. **Move DNS back** to the VPS, then check resolution and `/health` again.
+
+The signature while this is wrong is
+
+```
+fetch control key: Get "https://headscale.<domain>/key?v=...": ... no route to host
+```
+
+followed by `Tailscale hasn't received a network map ...` and, once the session
+clears, `You are logged out`. The node is not logged out: its key is intact and
+it recovers as soon as control answers. **Do not re-authenticate.**
+
+A **cold reboot with no pin** hits the same wall, and DNS cannot be moved before
+the host is up: the boot guard gets k3s running, then the host still cannot reach
+its own control path. Recovery needs a local pin or a device on the same LAN.
+Plan the pin, not the DNS switch, for anything unplanned.
 
 ## Identity
 

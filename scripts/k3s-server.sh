@@ -38,6 +38,7 @@ echo "curl -sfL https://get.k3s.io |  sh -s - \
 --bind-address=0.0.0.0 \
 --advertise-address=\$NODE_IP \
 --node-ip=\$NODE_IP \
+--node-name=\$NODE_NAME \
 --tls-san=\$NODE_IP,\$NODE_NAME,\$LAN_IP \
 --selinux \
 --secrets-encryption \

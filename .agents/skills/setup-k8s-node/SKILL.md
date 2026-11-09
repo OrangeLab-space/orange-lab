@@ -146,12 +146,11 @@ tags, not by `tailscale up` flags.
 ## 4. Configure the host firewall
 
 Run this **after** the mesh join, so `tailscale0` exists. The Fedora script reads
-the cluster CIDRs from Pulumi when run in the repo, or from the environment when
-run on the node:
+the cluster CIDRs from Pulumi and prints the commands to run on the node:
 
 ```sh
-ssh root@<node> 'CLUSTER_CIDR=<cluster-cidr> SERVICE_CIDR=<service-cidr> bash -s' \
-    < scripts/firewall-fedora.sh
+./scripts/firewall-fedora.sh
+# copy the output to the node and execute it
 ```
 
 Verify the zone contains the tailnet interface, both cluster CIDRs, and these

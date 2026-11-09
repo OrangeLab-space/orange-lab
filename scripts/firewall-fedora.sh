@@ -1,31 +1,28 @@
 #!/bin/bash
 set -euo pipefail
 
-# Run this script on each Fedora node (k3s server and agents).
-# Copy it to the node or run remotely: ssh root@<node> bash -s < scripts/firewall-fedora.sh
-#
-# CIDRs are read from Pulumi config so they match the cluster the node joins.
-# Override them when running on the node itself, where Pulumi is not available:
-#   CLUSTER_CIDR=10.52.0.0/16 SERVICE_CIDR=10.53.0.0/16 bash scripts/firewall-fedora.sh
+# Usage: ./scripts/firewall-fedora.sh
+# Run this script where Pulumi is configured.
+# Copy and execute the output on each Fedora node (k3s server and agents).
 
-CLUSTER_CIDR=${CLUSTER_CIDR:-$(pulumi config get k3s:clusterCidr 2>/dev/null || true)}
-SERVICE_CIDR=${SERVICE_CIDR:-$(pulumi config get k3s:serviceCidr 2>/dev/null || true)}
+CLUSTER_CIDR=$(pulumi config get k3s:clusterCidr)
+SERVICE_CIDR=$(pulumi config get k3s:serviceCidr)
 
-if [ -z "$CLUSTER_CIDR" ] || [ -z "$SERVICE_CIDR" ]; then
-    echo "Set CLUSTER_CIDR and SERVICE_CIDR, or run where Pulumi config is available." >&2
-    exit 1
-fi
-
-ZONE=$(firewall-cmd --get-default-zone)
-
-firewall-cmd --permanent --zone=$ZONE --add-source=$CLUSTER_CIDR
-firewall-cmd --permanent --zone=$ZONE --add-source=$SERVICE_CIDR
-firewall-cmd --permanent --zone=$ZONE --add-port=6443/tcp
-firewall-cmd --permanent --zone=$ZONE --add-port=10250/tcp
-firewall-cmd --permanent --zone=$ZONE --add-port=41641/udp
+echo "export CLUSTER_CIDR=$CLUSTER_CIDR"
+echo "export SERVICE_CIDR=$SERVICE_CIDR"
+# Nodes installed without firewalld have nothing to open; skip instead of failing.
+echo 'command -v firewall-cmd >/dev/null || { echo "firewalld is not installed on this node; nothing to apply." >&2; exit 0; }'
+# shellcheck disable=SC2016 # evaluated on the target node
+echo export ZONE='$(firewall-cmd --get-default-zone)'
+echo
+echo "firewall-cmd --permanent --zone=\$ZONE --add-source=\$CLUSTER_CIDR"
+echo "firewall-cmd --permanent --zone=\$ZONE --add-source=\$SERVICE_CIDR"
+echo "firewall-cmd --permanent --zone=\$ZONE --add-port=6443/tcp"
+echo "firewall-cmd --permanent --zone=\$ZONE --add-port=10250/tcp"
+echo "firewall-cmd --permanent --zone=\$ZONE --add-port=41641/udp"
 # Flannel VXLAN runs inside tailscale0. Without this port, nodes register but
 # cross-node pod traffic and ClusterIPs time out.
-firewall-cmd --permanent --zone=$ZONE --add-port=8472/udp
-firewall-cmd --permanent --zone=$ZONE --add-interface=tailscale0
-
-firewall-cmd --reload
+echo "firewall-cmd --permanent --zone=\$ZONE --add-port=8472/udp"
+echo "firewall-cmd --permanent --zone=\$ZONE --add-interface=tailscale0"
+echo
+echo firewall-cmd --reload

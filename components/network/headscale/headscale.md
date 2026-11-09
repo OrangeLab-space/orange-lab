@@ -130,6 +130,13 @@ on the server (`k3s-agent` on other nodes): it installs a systemd drop-in that
 adds the address before every K3s start. With Tailscale's coordination server
 this is not needed — the address is back before the cluster starts.
 
+Restarting `tailscaled` here is also a control-path problem. If
+`headscale.<customDomain>` resolves to the public VPS, the VPS path ends on this
+node's own tailnet interface, which is down during the restart. Pin the
+`headscale` and `login` hostnames to this node's LAN address in `/etc/hosts` (and
+DHCP-reserve it), or move both records to the home WAN IP and wait out the TTL
+before restarting. Put the records back on the VPS afterwards.
+
 Recover a boot that is already stuck with:
 
 ```sh
@@ -204,8 +211,9 @@ Then validate and apply [`headscale-policy.hujson`](./headscale-policy.hujson):
 
 The policy grants people access to the cluster, cluster nodes access to each
 other (Flannel, kubelet, API, Longhorn), members use of the proxy as an exit
-node, and the proxy only `tcp:10443`, the public port offsets, and 53 for the
-Technitium resolver on the LB nodes. Tailnet SSH to the proxy
+node, tagged nodes their own exit-node grant (`via`-only does not surface the
+exit node to them), and the proxy only `tcp:10443`, the public port offsets, and
+53 for the Technitium resolver on the LB nodes. Tailnet SSH to the proxy
 (`ssh <user>@proxy`) stays allowed — inbound management is separate from the
 proxy's egress. Every `--tcp-forward` needs its `<port> + 10000` added to the
 proxy grant, or the forward times out. `set-policy.sh` rewrites the stored

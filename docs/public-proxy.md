@@ -189,6 +189,12 @@ Set CDN/proxy records to DNS-only. Leave private/tailnet wildcards untouched.
 If the VPS fails, move these records back to home; move raw TCP forwards and
 any advertised `externalip` too.
 
+If the node that runs Headscale has no local control pin, move the `headscale`
+and `login` records to the home IP and wait out the TTL before restarting
+`tailscaled` there, then move them back. Otherwise that node cannot reach its own
+control plane while it restarts. See
+[Headscale → Server reboots](../components/network/headscale/headscale.md#server-reboots).
+
 ## Where the details live
 
 - [`spec/public-proxy.md`](../spec/public-proxy.md): invariants, OS support,
