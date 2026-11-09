@@ -447,6 +447,13 @@ export class Hermes extends pulumi.ComponentResource {
                     { mountPath: dataPath },
                     { name: 'config', mountPath: seedPath, readOnly: true },
                 ],
+                // Runs `hermes -p <profile> config set` once per key, and each of
+                // those invocations peaks around 73 MiB — over the 64Mi default
+                // for init containers, which OOM-killed this step on pod start.
+                resources: {
+                    requests: { cpu: '10m', memory: '32Mi' },
+                    limits: { cpu: '500m', memory: '128Mi' },
+                },
             },
         ];
     }

@@ -60,6 +60,12 @@ export interface InitContainerSpec {
      * If not provided, it will use the main container's volume mounts.
      */
     volumeMounts?: VolumeMount[];
+    /**
+     * Overrides `INIT_CONTAINER_RESOURCES`. Needed by an init container that
+     * runs more than shell builtins — a 64Mi limit is below the footprint of
+     * anything that loads an application runtime.
+     */
+    resources?: ContainerResources;
 }
 
 /**

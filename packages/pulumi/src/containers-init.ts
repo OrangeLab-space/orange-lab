@@ -39,7 +39,7 @@ export class InitContainers {
                   }))
                 : undefined,
             imagePullPolicy: 'IfNotPresent',
-            resources: INIT_CONTAINER_RESOURCES,
+            resources: initContainer.resources ?? INIT_CONTAINER_RESOURCES,
             securityContext: this.createSecurityContext(),
             volumeMounts: this.createVolumeMounts(
                 initContainer.volumeMounts ?? spec.volumeMounts,
