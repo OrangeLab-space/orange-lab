@@ -79,7 +79,7 @@ export class HermesInit {
 
     /** Merges the `image_generate` backend into `config.yaml` on every start. */
     imageGen(args: { url: pulumi.Input<string>; plugins: string }): InitContainerSpec {
-        const { dataPath, image } = this.args;
+        const { dataPath, image, runtimeUserId } = this.args;
         return {
             name: 'seed-image-gen',
             image,
@@ -90,8 +90,15 @@ export class HermesInit {
                 HERMES_HOME: dataPath,
                 PLUGINS: args.plugins,
                 USER_NAME: 'hermes',
+                USER_ID: String(runtimeUserId),
             },
             volumeMounts: [{ mountPath: dataPath }],
+            // Four `hermes config set` calls; one CLI start peaks at ~73 MiB,
+            // above the 64Mi default for init containers.
+            resources: {
+                requests: { cpu: '10m', memory: '32Mi' },
+                limits: { cpu: '500m', memory: '128Mi' },
+            },
         };
     }
 
