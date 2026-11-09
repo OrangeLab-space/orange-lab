@@ -63,6 +63,7 @@ config:
 
     traefik:enabled: false
     traefik:hostname: traefik
+    traefik:version: '42.3.0'
     traefik:gatewayApiCrdUrl: 'https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml'
     # Pocket ID groups allowed to sign in (unset = unrestricted)
     traefik:auth/allowedGroups: admin,traefik-admin
