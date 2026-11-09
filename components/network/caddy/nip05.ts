@@ -1,4 +1,4 @@
-import { bech32, hex } from '@scure/base';
+import { toHexPubkey } from '@orangelab/pulumi';
 
 /** A NIP-05 document as served at `/.well-known/nostr.json`. */
 export interface Nip05Document {
@@ -7,13 +7,11 @@ export interface Nip05Document {
 }
 
 const LOCAL_NAME = /^[a-z0-9._-]+$/;
-const HEX_PUBKEY = /^[0-9a-f]{64}$/;
-const PUBKEY_LENGTH = 32;
 
 /**
  * Validates the `caddy:nip05/*` keys and turns them into the document clients
- * expect. `npub1…` values are decoded here so the config stays readable while
- * the file carries the hex keys NIP-05 requires.
+ * expect. `npub1…` values are decoded to hex so the config stays readable
+ * while the file carries the hex keys NIP-05 requires.
  */
 export function parseNip05(
     pubkeys: unknown,
@@ -95,43 +93,6 @@ function parseRelayUrl(raw: unknown, key: string): string {
         throw new Error(`${key}: "${raw}" must use ws:// or wss://.`);
     }
     return raw;
-}
-
-function toHexPubkey(value: unknown, key: string): string {
-    if (typeof value !== 'string') {
-        throw new Error(`${key} must be an npub1… or 64-character hex public key.`);
-    }
-
-    const normalised = value.toLowerCase();
-    if (HEX_PUBKEY.test(normalised)) return normalised;
-    if (normalised.startsWith('npub1')) return decodeNpub(normalised, key);
-
-    throw new Error(
-        `${key} must be an npub1… or 64-character hex public key, got "${value}".`,
-    );
-}
-
-function decodeNpub(value: string, key: string): string {
-    let decoded: { prefix: string; words: number[] };
-    try {
-        decoded = bech32.decode(value as `${string}1${string}`);
-    } catch (error) {
-        throw new Error(
-            `${key}: "${value}" is not a valid npub1 key (${(error as Error).message}).`,
-            { cause: error },
-        );
-    }
-    if (decoded.prefix !== 'npub') {
-        throw new Error(`${key}: expected an npub1… key, got ${decoded.prefix}1….`);
-    }
-
-    const bytes = bech32.fromWords(decoded.words);
-    if (bytes.length !== PUBKEY_LENGTH) {
-        throw new Error(
-            `${key}: npub decodes to ${String(bytes.length)} bytes, expected ${String(PUBKEY_LENGTH)}.`,
-        );
-    }
-    return hex.encode(bytes);
 }
 
 function requireRecord(raw: unknown, key: string): Record<string, unknown> {

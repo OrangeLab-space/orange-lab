@@ -6,6 +6,7 @@ export { config } from './config';
 export { GrafanaDashboard } from './grafana-dashboard';
 export { LocalVolume, LocalVolumeArgs } from './local-volume';
 export { Metadata } from './metadata';
+export { toHexPubkey } from './nostr';
 export { Nodes, NodesArgs } from './nodes';
 export {
     DATABASE_RESOURCES,
