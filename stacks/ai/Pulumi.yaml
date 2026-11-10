@@ -81,6 +81,7 @@ config:
     comfyui:nvidia/image: yanwk/comfyui-boot:cu130-slim-v2
     comfyui:amd/image: yanwk/comfyui-boot:rocm
     comfyui:intel/image: yanwk/comfyui-boot:xpu
+    comfyui:imagePullPolicy: Always
     comfyui:storagePath: /srv/comfyui-models
     # Node-local model cache. requiredNodeLabel must select the node that hosts it;
     # moving nodes starts with an empty cache and downloads the models again.
@@ -148,6 +149,7 @@ config:
     invokeai:hostname: 'invokeai'
     invokeai:image: ghcr.io/invoke-ai/invokeai:latest
     invokeai:amd/image: ghcr.io/invoke-ai/invokeai:main-rocm
+    invokeai:imagePullPolicy: Always
     invokeai:storageSize: 20Gi
     invokeai:storageClass: longhorn-node-local
     invokeai:gpu: nvidia

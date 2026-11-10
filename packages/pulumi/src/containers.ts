@@ -71,6 +71,7 @@ export class Containers {
                             secretData: spec.envSecret,
                         }),
                         image,
+                        imagePullPolicy: config.getImagePullPolicy(this.appName),
                         livenessProbe: this.createProbe(spec.healthCheck),
                         name: metadata.name,
                         ports: this.createPorts(spec.ports),
@@ -162,6 +163,7 @@ export class Containers {
                 secretData: sidecar.envSecret,
             }),
             image: sidecar.image,
+            imagePullPolicy: config.getImagePullPolicy(this.appName),
             name: sidecar.name,
             resources: sidecar.resources,
             securityContext: this.createSidecarSecurityContext(

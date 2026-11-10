@@ -38,6 +38,8 @@ export class InitContainers {
                       value,
                   }))
                 : undefined,
+            // Utility images come from the node cache: a start should not
+            // depend on a registry round-trip.
             imagePullPolicy: 'IfNotPresent',
             resources: initContainer.resources ?? INIT_CONTAINER_RESOURCES,
             securityContext: this.createSecurityContext(),

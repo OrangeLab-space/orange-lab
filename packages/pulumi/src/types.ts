@@ -6,6 +6,8 @@ import type { EndpointExports } from './network';
 
 export type GpuType = 'amd' | 'nvidia' | 'intel';
 
+export type ImagePullPolicy = 'Always' | 'IfNotPresent';
+
 export type VolumeAccessMode = 'ReadWriteOnce' | 'ReadWriteMany';
 
 export interface ServicePort {

@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import * as pulumi from '@pulumi/pulumi';
-import type { GpuType } from './types';
+import type { GpuType, ImagePullPolicy } from './types';
 
 const moduleDependencies: Record<string, string[]> = {
     data: ['cloudnative-pg', 'mariadb-operator'],
@@ -90,6 +90,22 @@ class Config {
         const prefix = component ? `${component}/` : '';
         const gpuImage = gpu ? this.get(appName, `${prefix}${gpu}/image`) : undefined;
         return gpuImage ?? this.require(appName, `${prefix}image`);
+    }
+
+    /**
+     * Pull policy for the app's containers. Unset keeps the Kubernetes
+     * default: `Always` for `latest`, `IfNotPresent` for any other tag — which
+     * is wrong for a moving tag such as `main`, `stable` or `rocm`.
+     */
+    public getImagePullPolicy(appName: string): ImagePullPolicy | undefined {
+        const policy = this.get(appName, 'imagePullPolicy');
+        if (policy === undefined) return undefined;
+        if (policy !== 'Always' && policy !== 'IfNotPresent') {
+            throw new Error(
+                `${appName}:imagePullPolicy has invalid value '${policy}'. Use Always or IfNotPresent.`,
+            );
+        }
+        return policy;
     }
 
     public getSecret(appName: string, key: string): pulumi.Output<string> | undefined {

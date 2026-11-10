@@ -104,6 +104,7 @@ The following settings are supported by most applications in OrangeLab:
 | `hostname`                   | Hostname for the HTTPS endpoint, used with Tailscale for access                                                        |
 | `routingProvider`            | Override global routing provider (`tailscale` or `traefik`) for this application                                       |
 | `network/public`             | Gate for public exposure; publishes only ports with `exposure: 'public'` (see [Public services](./public-services.md)) |
+| `imagePullPolicy`            | `Always` or `IfNotPresent`; set for apps whose image tag moves (`main`, `stable`, …)                                   |
 | `version`                    | Lock Helm chart version to a specific release (uses latest if not specified)                                           |
 | `storageOnly`                | Disable application but retain storage (useful for temporarily disabling while keeping data)                           |
 | `storageSize`                | Expand default storage size if needed (e.g., for large models)                                                         |
@@ -345,6 +346,21 @@ pulumi config set ollama:CUDA_VISIBLE_DEVICES "0,1"
 ```
 
 These use standard GPU runtime environment variables. See [Ollama environment variables](https://github.com/ollama/ollama/blob/main/envconfig/config.go) for more options.
+
+### Image pull policy
+
+Kubernetes re-pulls an image on every start only for `latest`; any other tag is
+assumed immutable, so the node's cached copy is used. An app whose image tag
+moves (`main`, `stable`, `rocm`, …) needs `Always`, or a redeploy can keep
+serving a stale build:
+
+```sh
+pulumi config set <app>:imagePullPolicy Always
+```
+
+Version tags and digests need no setting: they restart from cache. The key also
+belongs in the module `Pulumi.yaml` next to `<app>:image`, so the app's default
+carries the policy.
 
 ### Storage
 

@@ -15,7 +15,8 @@ config:
 
     buzz:enabled: false
     buzz:hostname: buzz
-    buzz:image: ghcr.io/block/buzz:0.1.0
+    buzz:image: ghcr.io/block/buzz:main
+    buzz:imagePullPolicy: Always
     # Git hydration cache; events and repositories live in Postgres and S3.
     buzz:storageSize: 10Gi
     buzz:db/storageSize: 5Gi
