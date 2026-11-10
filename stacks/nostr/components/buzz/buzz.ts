@@ -1,4 +1,10 @@
-import { Application, config, DatabaseConfig, HttpEndpointInfo } from '@orangelab/pulumi';
+import {
+    Application,
+    config,
+    DatabaseConfig,
+    HttpEndpointInfo,
+    toHexPubkey,
+} from '@orangelab/pulumi';
 import * as pulumi from '@pulumi/pulumi';
 
 /**
@@ -50,7 +56,9 @@ export class Buzz extends pulumi.ComponentResource {
                 { name: 'metrics', port: 9102, exposure: 'internal' },
             ],
             volumeMounts: [{ mountPath: '/data/git' }],
-            volumeOwnerUserId: 65532,
+            // The relay image's default user is buzz:buzz (uid 1000 per its
+            // Dockerfile); the git volume must be writable by that uid.
+            volumeOwnerUserId: 1000,
             env: {
                 BUZZ_ALLOW_NIP_OA_AUTH: 'true',
                 BUZZ_AUTO_MIGRATE: 'true',
@@ -67,7 +75,13 @@ export class Buzz extends pulumi.ComponentResource {
                 BUZZ_S3_BUCKET: config.require(this.name, 's3/bucket'),
                 BUZZ_S3_ENDPOINT: config.require(this.name, 's3/endpoint'),
                 BUZZ_S3_REGION: 'us-east-1',
-                RELAY_OWNER_PUBKEY: config.require(this.name, 'ownerPubkey'),
+                // Without this flag `/` answers browser requests with the NIP-11
+                // relay document instead of the web client (block/buzz#3815).
+                BUZZ_SERVE_GIT_WEB_GUI: 'true',
+                RELAY_OWNER_PUBKEY: toHexPubkey(
+                    config.require(this.name, 'ownerPubkey'),
+                    `${this.name}:ownerPubkey`,
+                ),
                 RELAY_URL: this.relayUrl,
                 RUST_LOG: this.app.debug
                     ? 'buzz_relay=debug,buzz_db=debug,buzz_auth=debug'

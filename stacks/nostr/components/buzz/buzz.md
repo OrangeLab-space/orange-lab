@@ -21,8 +21,8 @@ cd stacks/nostr
 pulumi config set cloudnative-pg:enabled true
 pulumi config set buzz:enabled true
 
-# Owner identity: 64-char lowercase hex Nostr pubkey
-pulumi config set buzz:ownerPubkey <64-char-hex>
+# Owner identity: npub or 64-char hex, decoded by the component
+pulumi config set buzz:ownerPubkey <npub|64-char-hex>
 
 # Relay identity and git hook secret, generated once and kept
 pulumi config set buzz:relayPrivateKey "$(openssl rand -hex 32)" --secret
@@ -48,9 +48,10 @@ and `buzz:s3/endpoint` default to the in-cluster rustfs Service.
 
 ## First session
 
-Open `https://buzz.<domain>/` and sign in with the owner key. Other members join
-with an invite code minted from the workspace; the relay is closed
-(`buzz` requires relay membership and an auth token by default).
+Open `https://buzz.<domain>/` and sign in with the owner key; `/` serves the
+bundled web client. Other members join with an invite code minted from the
+workspace; the relay is closed (`buzz` requires relay membership and an auth
+token by default).
 
 Agents are additional keypairs the workspace admits the same way, so an agent can
 be given its own channels and permissions without sharing a human's identity.

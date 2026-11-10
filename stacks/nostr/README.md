@@ -18,7 +18,8 @@ operators).
 pulumi config set cloudnative-pg:enabled true
 
 pulumi config set buzz:enabled true
-pulumi config set buzz:ownerPubkey <64-char-hex>
+# Owner identity: npub or 64-char hex, decoded by the component
+pulumi config set buzz:ownerPubkey <npub|64-char-hex>
 pulumi config set buzz:relayPrivateKey "$(openssl rand -hex 32)" --secret
 pulumi config set buzz:gitHookHmacSecret "$(openssl rand -hex 32)" --secret
 pulumi config set buzz:s3/accessKey <access-key> --secret
