@@ -152,12 +152,29 @@ pulumi config set speaches:enabled true
 
 ## Webhooks
 
-An event can start an agent turn without a chat. The seeded route `forgejo-pr`
-wakes the agent for a comment or a review on a pull request.
+An event can start an agent turn without a chat. The seeded route `forgejo`
+wakes the agent for a comment or a review on a pull request or a plain issue; on
+an issue it answers in the thread and proposes code as a new pull request.
+
+It wakes on a thread the agent opened, or on a comment that mentions `@agent`.
+Anything else the hook delivers is dropped before a turn starts: each repository
+carries its own hook, so a mention is what carries a request across.
+
+`agent` is only the default: the forge account the agent posts as is
+`hermes:forgejo/agentLogin`, and the anti-loop filter and the mention both follow
+it.
+
+```sh
+# Only when the agent posts as a login other than `agent`
+pulumi config set hermes:forgejo/agentLogin <forgejo-login>
+```
 
 The route belongs to the deploy and is merged into the profile on every start,
 so a change here reaches an existing install on `pulumi up`. Routes you add
 through the dashboard are left alone.
+
+The route name is part of the payload URL. A hook added under an older route
+name has to be repointed; the deploy only seeds and merges the route it declares.
 
 ```sh
 # The full payload URL; also exported as the cluster endpoint `hermes-webhook`
@@ -183,7 +200,9 @@ Each repository needs its own hook; the route serves all of them.
 - The port is cluster-only, so the sender must reach the cluster network. The
   `forgejo` component here does; a public forge such as `github.com` does not
   without a route to the service.
-- The agent's own comments never wake it, so its replies cannot start a loop.
+- The agent's own comments never wake it, so its replies cannot start a loop, and
+  on a thread it did not open a comment has to mention the agent (default
+  `@agent`, see `hermes:forgejo/agentLogin`) to wake it.
 
 ## White Noise connector
 
@@ -257,5 +276,5 @@ wired; leave it out of this list.
 ## Uninstall
 
 - Setting `hermes:enabled false` and running `pulumi up` removes the deployment.
-- Delete the repository webhook you added for `forgejo-pr`.
+- Delete the repository webhook you added for `forgejo`.
 - Remove the `agentgateway:providers.*` entries that point at the agent.

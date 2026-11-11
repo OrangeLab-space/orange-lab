@@ -182,6 +182,9 @@ config:
     # PR there instead of asking a human to carry a patch. write:repository on
     # the repositories it works in is enough; it needs no admin rights.
     # hermes:FORGEJO_TOKEN: <token>
+    # The forge account the agent posts as: the seeded webhook route drops its own
+    # comments and wakes on a thread it opened or a comment mentioning @<login>.
+    # hermes:forgejo/agentLogin: agent
     # SOUL.md seeded into a new profile; relative paths resolve from stacks/ai.
     hermes:soulFile: components/hermes/SOUL.md
     # White Noise (Marmot/Nostr) connector as a sidecar; the platform config is

@@ -21,10 +21,10 @@ fi
 
 # A route script has to sit under $DATA_PATH/scripts; the gateway resolves the
 # name against that directory and refuses a path outside it.
-if [ -f "$SEED_PATH/forgejo-pr.py" ]; then
-    cp -f "$SEED_PATH/forgejo-pr.py" "$DATA_PATH/scripts/forgejo-pr.py"
-    chmod 755 "$DATA_PATH/scripts/forgejo-pr.py"
-    chown "$USER_ID:$USER_ID" "$DATA_PATH/scripts/forgejo-pr.py"
+if [ -f "$SEED_PATH/forgejo.py" ]; then
+    cp -f "$SEED_PATH/forgejo.py" "$DATA_PATH/scripts/forgejo.py"
+    chmod 755 "$DATA_PATH/scripts/forgejo.py"
+    chown "$USER_ID:$USER_ID" "$DATA_PATH/scripts/forgejo.py"
 fi
 
 # `image_generate` backend: re-copied every start, so an image upgrade replaces it.

@@ -23,8 +23,8 @@ const runtimeUserId = 10000;
 const apiServerPort = 8642;
 /** HMAC-signed event listener for scripts and forges; cluster-only like the API port. */
 const webhookPort = 8644;
-/** The one route seeded into the deployments: Forgejo pull request comments. */
-const webhookRoute = 'forgejo-pr';
+/** The one route seeded into the deployment: Forgejo issue and pull request comments. */
+const webhookRoute = 'forgejo';
 
 export interface SpeechSettings {
     /** OpenAI-compatible speech endpoint, including the `/v1` suffix. */
@@ -113,8 +113,8 @@ export class Hermes extends pulumi.ComponentResource {
             files: {
                 'SOUL.md': loadSoul(config.require(name, 'soulFile')),
                 'config.yaml': this.getConfigYaml(marmot),
-                'forgejo-pr.py': readFileSync(
-                    resolve(__dirname, 'init', 'forgejo-pr.py'),
+                'forgejo.py': readFileSync(
+                    resolve(__dirname, 'init', 'forgejo.py'),
                     'utf8',
                 ),
                 // Flat keys: a ConfigMap key cannot carry the `image_gen/comfyui/` path.
@@ -201,6 +201,16 @@ export class Hermes extends pulumi.ComponentResource {
 
     private get apiServerEnabled(): boolean {
         return this.apiServerKey !== undefined;
+    }
+
+    /**
+     * The forge account the agent posts as. Two places need the name and cannot
+     * read it from a payload: the route filter drops the agent's own comments
+     * (anti-loop), and `init/forgejo.py` accepts a thread it opened or a
+     * comment that @-mentions it. `agent` is the default, not a requirement.
+     */
+    private get agentLogin(): string {
+        return config.get(this.name, 'forgejo/agentLogin') ?? 'agent';
     }
 
     /** The launch profile's connector first, then one per configured profile. */
@@ -329,6 +339,9 @@ export class Hermes extends pulumi.ComponentResource {
                       GIT_CONFIG_VALUE_0: '!gh auth git-credential',
                   }
                 : {}),
+            // A route script runs in this process's env, so the forge account
+            // `init/forgejo.py` matches against rides on the deployment.
+            FORGEJO_AGENT_LOGIN: this.agentLogin,
             HERMES_DASHBOARD: '1',
             HERMES_DASHBOARD_BASIC_AUTH_USERNAME: this.app.oidc ? undefined : 'admin',
             HERMES_DASHBOARD_OIDC_CLIENT_ID: this.app.oidc?.clientId,
@@ -384,7 +397,7 @@ export class Hermes extends pulumi.ComponentResource {
             {
                 [webhookRoute]: {
                     description:
-                        'Comment or review on a pull request in a Forgejo repository that posts here',
+                        'Comment or review on a pull request or issue in a Forgejo repository that posts here',
                     events: [
                         'issue_comment',
                         'pull_request_comment',
@@ -395,8 +408,10 @@ export class Hermes extends pulumi.ComponentResource {
                     profile: 'default',
                     // The reply the agent posts fires the same event; without this
                     // the route wakes itself with every answer it writes.
-                    filters: [{ field: 'payload.sender.login', not_equals: 'agent' }],
-                    script: 'forgejo-pr.py',
+                    filters: [
+                        { field: 'payload.sender.login', not_equals: this.agentLogin },
+                    ],
+                    script: 'forgejo.py',
                     // A webhook session runs the platform's `hermes-webhook`
                     // toolset — web search and vision, no shell — which cannot
                     // reach the internal git host or push a branch. This route
@@ -596,7 +611,7 @@ export class Hermes extends pulumi.ComponentResource {
 }
 
 /**
- * Prompt for the `forgejo-pr` route. Fields come from `init/forgejo-pr.py`,
+ * Prompt for the `forgejo` route. Fields come from `init/forgejo.py`,
  * which flattens every comment event into one shape; braces are Hermes template
  * references, so the text carries no literal ones.
  */
@@ -610,10 +625,11 @@ function buildWebhookPrompt(): string {
         '{body}',
         '',
         'You are the cluster operator agent. Read before you answer:',
-        '- Pull the description, the thread and the diff over the API of the',
+        '- Pull the description, the thread and any diff over the API of the',
         '  instance in Thread (token in $FORGEJO_TOKEN).',
-        '- If the comment asks for a change, make it on the pull request branch,',
-        '  push, and say what you changed and what you verified.',
+        '- If the comment asks for a change, make it on the pull request branch and',
+        '  push; on a plain issue, open a branch and a pull request, link it in the',
+        '  reply, and say what you changed and what you verified.',
         '- Reply in the thread: POST /api/v1/repos/{repo}/issues/{number}/comments',
         '  with a JSON body of "body". Never push to a branch the comment did not',
         '  ask about, and never merge.',

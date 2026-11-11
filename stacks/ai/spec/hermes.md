@@ -38,19 +38,24 @@ Agent-facing detail for [`components/hermes/hermes.md`](../components/hermes/her
 
 ## Webhook routes
 
-- `forgejo-pr` is seeded like `config.yaml`: written when the volume has none, and
+- `forgejo` is seeded like `config.yaml`: written when the volume has none, and
   restored by `hermes:recreateConfig true`.
-- `init/forgejo-pr.py` drops everything that is not a comment or review on a pull
-  request, and flattens the payload into `repo`, `number`, `title`, `author`, `url`
-  and `body`, which is what the route prompt reads.
-- A comment whose author is the agent (`sender.login == agent`) never wakes it, so
-  its own replies cannot start a loop.
+- `init/forgejo.py` drops everything that is not a comment or a review, on a
+  pull request or a plain issue, and flattens the payload into `repo`, `number`,
+  `title`, `author`, `url` and `body`, which is what the route prompt reads.
+- It also drops a comment unless the thread's opener is the agent
+  (`issue.user` or `pull_request.user` is `hermes:forgejo/agentLogin`, default
+  `agent`) or the comment mentions `@<that login>` (case-insensitive), so a hook on
+  some other repository costs nothing until someone names the agent. The value
+  reaches the script as `FORGEJO_AGENT_LOGIN` in the gateway's env.
+- A comment whose author is the agent (`sender.login` equals the same login, in the
+  route filter) never wakes it, so its own replies cannot start a loop.
 - Both forges sign the raw body into `X-Hub-Signature-256` (`sha256=<hex>` HMAC) and
   name the event in `X-GitHub-Event`, so a GitHub-shaped hook works unchanged
   against Forgejo.
-- Recreating the route by hand: `hermes webhook subscribe forgejo-pr --secret <value>`.
+- Recreating the route by hand: `hermes webhook subscribe forgejo --secret <value>`.
   Without `--secret` it mints a per-route secret that the existing hook does not
-  sign with. Test a route without a sender with `hermes webhook test forgejo-pr`.
+  sign with. Test a route without a sender with `hermes webhook test forgejo`.
 
 ## API and profiles
 

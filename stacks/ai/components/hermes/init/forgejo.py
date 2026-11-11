@@ -1,18 +1,34 @@
 #!/usr/bin/env python3
-"""Normalise a Forgejo pull request event into the fields the route prompt reads.
+"""Normalise a Forgejo comment or review event into the fields the route prompt reads.
 
 Hermes runs this before rendering the prompt: the JSON object printed here
 replaces the provider payload. Empty stdout drops the event, so a push, a label
-or a plain issue comment never wakes the agent.
+or a comment on a thread the agent has no part in never wakes it.
 
 Forgejo puts a timeline comment on a pull request in either `issue_comment`
 (with `is_pull: true`, no `pull_request` block) or `pull_request_comment`
-(with both), and a review in `pull_request_review_*`; all three are handled here
-so the route sees one shape whichever event the instance sends.
+(with both), a review in `pull_request_review_*`, and a comment on a plain issue
+in the same `issue_comment`; all of them are flattened here, so the route sees
+one shape whichever event the instance sends.
+
+Who wakes it: a thread the agent opened, or a comment that names it. The route is
+added per repository by whoever administers that repository, so the script is the
+only place that can tell a request addressed to the agent from traffic on someone
+else's issue. `sender.login` cannot carry this: the route filter drops the agent's
+own comments, and the issue's opener is a different field.
 """
 
 import json
+import os
+import re
 import sys
+
+# The forge login the agent posts as (`payload.sender.login` in the route filter,
+# config `hermes:forgejo/agentLogin`, default `agent`) and the mention that calls
+# it by name, case-insensitively. The trailing guard keeps `@agent-smith` and a
+# longer login starting with this one from counting as a mention.
+AGENT_LOGIN = (os.environ.get('FORGEJO_AGENT_LOGIN') or 'agent').strip() or 'agent'
+AGENT_MENTION = re.compile(r'@' + re.escape(AGENT_LOGIN) + r'(?![\w-])', re.IGNORECASE)
 
 
 def main() -> int:
@@ -27,14 +43,6 @@ def main() -> int:
     pull = pull if isinstance(pull, dict) else {}
     issue = payload.get('issue')
     issue = issue if isinstance(issue, dict) else {}
-
-    is_pull = (
-        payload.get('is_pull') is True
-        or bool(pull)
-        or isinstance(issue.get('pull_request'), dict)
-    )
-    if not is_pull:
-        return 0
 
     number = pull.get('number') or issue.get('number') or payload.get('number')
     if not number:
@@ -59,8 +67,17 @@ def main() -> int:
         return 0
 
     body = str(body).strip()
+    mentioned = AGENT_MENTION.search(body) is not None
     if not body:
         body = '(no text — an inline review comment, read it on the thread)'
+
+    # "Created by you" is about the issue or the pull request, not the comment: a
+    # thread the agent opened is one it belongs to, and anywhere else it has to be
+    # named before a turn is spent on it.
+    opener = issue.get('user') or pull.get('user')
+    opener = opener.get('login') if isinstance(opener, dict) else None
+    if not mentioned and opener != AGENT_LOGIN:
+        return 0
 
     print(json.dumps({
         'event': payload.get('action') or '',
